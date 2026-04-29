@@ -1,58 +1,267 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Barcode, Search } from 'lucide-react-native';
+import { useAppDispatch } from '../../../app/hooks';
+import { updateMedicineQuantity, addMedicine } from '../store/inventorySlice';
 import { useInventory } from '../hooks/useInventory';
-
-const stockItems = [
-  { id: '1', name: 'Paracetamol 500mg', stock: 'In Stock', qty: 150, price: 'Rs 25', risk: 'normal' },
-  { id: '2', name: 'Amoxicillin 250mg', stock: 'Low', qty: 8, price: 'Rs 85', risk: 'low' },
-  { id: '3', name: 'Cetirizine 10mg', stock: 'In Stock', qty: 45, price: 'Rs 35', risk: 'normal' },
-  { id: '4', name: 'Metformin 500mg', stock: 'Critical', qty: 6, price: 'Rs 70', risk: 'critical' },
-];
+import { InventoryCard } from '../components/InventoryCard';
+import { QuickAddMedicineModal } from '../components/QuickAddMedicineModal';
+import { MedicineDetailModal } from '../components/MedicineDetailModal';
+import { AddStockModal } from '../components/AddStockModal';
+import { RemoveStockModal } from '../components/RemoveStockModal';
+import { Medicine, InventoryFilter } from '../types';
 
 export const InventoryScreen = () => {
-  const { lowStockCount } = useInventory();
+  const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const inventory = useInventory();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<InventoryFilter>('All');
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(
+    null,
+  );
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showAddStockModal, setShowAddStockModal] = useState(false);
+  const [showRemoveStockModal, setShowRemoveStockModal] = useState(false);
+  const [medicineForStock, setMedicineForStock] = useState<Medicine | null>(
+    null,
+  );
+
+  // Get filtered medicines based on search and filter
+  const displayedMedicines = useMemo(() => {
+    let filtered = inventory.medicines;
+
+    // Apply search
+    if (searchQuery.trim()) {
+      filtered = inventory.searchMedicines(searchQuery);
+    }
+
+    // Apply filter
+    if (activeFilter === 'Low Stock') {
+      filtered = filtered.filter(
+        m => m.status === 'Low' || m.status === 'Critical',
+      );
+    } else if (activeFilter === 'Expiring') {
+      filtered = filtered.filter(
+        m => m.status === 'Expiring' || m.status === 'Expired',
+      );
+    }
+
+    return filtered;
+  }, [searchQuery, activeFilter, inventory.medicines]);
+
+  // Calculate counts for filter tabs
+  const allCount = inventory.medicines.length;
+  const lowStockCount = inventory.medicines.filter(
+    m => m.status === 'Low' || m.status === 'Critical',
+  ).length;
+  const expiringCount = inventory.medicines.filter(
+    m => m.status === 'Expiring' || m.status === 'Expired',
+  ).length;
+
+  const handleQuickAdd = (medicineData: Omit<Medicine, 'id' | 'status'>) => {
+    const newMedicine: Medicine = {
+      id: `med-${Date.now()}`,
+      ...medicineData,
+      status: 'In Stock',
+    };
+    dispatch(addMedicine(newMedicine));
+  };
+
+  const handleCardPress = (medicine: Medicine) => {
+    setSelectedMedicine(medicine);
+    setShowDetailModal(true);
+  };
+
+  const handleBarcodePress = (medicine: Medicine) => {
+    setSelectedMedicine(medicine);
+    setShowDetailModal(true);
+  };
+
+  const handleAddStockPress = (medicine: Medicine) => {
+    setMedicineForStock(medicine);
+    setShowDetailModal(false);
+    setShowAddStockModal(true);
+  };
+
+  const handleRemoveStockPress = (medicine: Medicine) => {
+    setMedicineForStock(medicine);
+    setShowDetailModal(false);
+    setShowRemoveStockModal(true);
+  };
+
+  const handleAddStockSubmit = (quantity: number, reason: string) => {
+    if (medicineForStock) {
+      dispatch(
+        updateMedicineQuantity({
+          medicineId: medicineForStock.id,
+          quantity,
+          reason,
+          type: 'add',
+        }),
+      );
+      setShowAddStockModal(false);
+      setMedicineForStock(null);
+    }
+  };
+
+  const handleRemoveStockSubmit = (quantity: number, reason: string) => {
+    if (medicineForStock) {
+      dispatch(
+        updateMedicineQuantity({
+          medicineId: medicineForStock.id,
+          quantity,
+          reason,
+          type: 'remove',
+        }),
+      );
+      setShowRemoveStockModal(false);
+      setMedicineForStock(null);
+    }
+  };
+
+  const handleBarcodeIconPress = () => {
+    // Here you would typically open a barcode scanner
+    // For now, we'll show the detail modal for the first medicine in displayed list
+    // In a real app, this would scan a barcode and find the matching medicine
+    if (displayedMedicines.length > 0) {
+      setSelectedMedicine(displayedMedicines[0]);
+      setShowDetailModal(true);
+    }
+  };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Inventory</Text>
-        <View style={styles.quickAdd}>
-          <Text style={styles.quickAddText}>+ Quick Add</Text>
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingTop: Math.max(insets.top, 10),
+          paddingBottom: Math.max(insets.bottom, 14),
+        },
+      ]}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Inventory</Text>
+          <TouchableOpacity
+            style={styles.quickAddButton}
+            onPress={() => setShowQuickAddModal(true)}
+          >
+            <Text style={styles.quickAddText}>+ Quick Add</Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.searchRow}>
-        <Text style={styles.searchText}>Search medicine or barcode...</Text>
-      </View>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Search size={18} color="#B59D90" strokeWidth={2} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search medicine or barcode..."
+            placeholderTextColor="#B59D90"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={styles.clearButton}>✕</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={handleBarcodeIconPress} hitSlop={8}>
+              <Barcode size={18} color="#1CA39A" strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-      <View style={styles.chipsRow}>
-        <Text style={styles.chipActive}>All (4)</Text>
-        <Text style={styles.chip}>{`Low Stock (${lowStockCount || 2})`}</Text>
-        <Text style={styles.chip}>Expiring (1)</Text>
-      </View>
-
-      {stockItems.map(item => (
-        <View key={item.id} style={styles.itemCard}>
-          <View style={styles.itemTopRow}>
-            <Text style={styles.itemTitle}>{item.name}</Text>
-            <Text
+        {/* Filter Tabs */}
+        <View style={styles.filterRow}>
+          {(['All', 'Low Stock', 'Expiring'] as const).map(filter => (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.stockBadge,
-                item.risk === 'critical' && styles.stockCritical,
-                item.risk === 'low' && styles.stockLow,
+                styles.filterTab,
+                activeFilter === filter && styles.filterTabActive,
               ]}
+              onPress={() => setActiveFilter(filter)}
             >
-              {item.stock}
-            </Text>
-          </View>
-          <Text style={styles.itemMeta}>Batch: B2025-001   Exp: Dec 2026   Rack: A1-01</Text>
-          <View style={styles.itemBottomRow}>
-            <Text style={styles.itemQty}>{`Qty: ${item.qty}`}</Text>
-            <Text style={styles.itemPrice}>{item.price}</Text>
-          </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === filter && styles.filterTextActive,
+                ]}
+              >
+                {filter === 'All'
+                  ? `All (${allCount})`
+                  : filter === 'Low Stock'
+                  ? `Low Stock (${lowStockCount})`
+                  : `Expiring (${expiringCount})`}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      ))}
-    </ScrollView>
+
+        {/* Medicine List */}
+        {displayedMedicines.length > 0 ? (
+          displayedMedicines.map(medicine => (
+            <InventoryCard
+              key={medicine.id}
+              medicine={medicine}
+              onPress={handleCardPress}
+              onBarcodeScan={handleBarcodePress}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No medicines found</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Modals */}
+      <QuickAddMedicineModal
+        visible={showQuickAddModal}
+        onClose={() => setShowQuickAddModal(false)}
+        onSubmit={handleQuickAdd}
+      />
+
+      <MedicineDetailModal
+        visible={showDetailModal}
+        medicine={selectedMedicine}
+        onClose={() => setShowDetailModal(false)}
+        onAddStock={handleAddStockPress}
+        onRemoveStock={handleRemoveStockPress}
+      />
+
+      <AddStockModal
+        visible={showAddStockModal}
+        medicineName={medicineForStock?.name || ''}
+        currentStock={medicineForStock?.quantity || 0}
+        onClose={() => setShowAddStockModal(false)}
+        onSubmit={handleAddStockSubmit}
+      />
+
+      <RemoveStockModal
+        visible={showRemoveStockModal}
+        medicineName={medicineForStock?.name || ''}
+        currentStock={medicineForStock?.quantity || 0}
+        onClose={() => setShowRemoveStockModal(false)}
+        onSubmit={handleRemoveStockSubmit}
+      />
+    </View>
   );
 };
 
@@ -61,22 +270,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F6',
   },
-  content: {
-    padding: 16,
-    paddingBottom: 24,
+  scrollView: {
+    flex: 1,
   },
-  headerRow: {
+  content: {
+    paddingHorizontal: 16,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    marginTop: 8,
   },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#2A2A2A',
   },
-  quickAdd: {
+  quickAddButton: {
     backgroundColor: '#1CA39A',
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -85,95 +297,65 @@ const styles = StyleSheet.create({
   quickAddText: {
     color: '#FFFFFF',
     fontWeight: '700',
+    fontSize: 13,
   },
-  searchRow: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    marginBottom: 10,
-  },
-  searchText: {
-    color: '#B59D90',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  chipsRow: {
+  searchContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EFEBE7',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: 12,
-    marginBottom: 12,
-  },
-  chipActive: {
-    color: '#453C37',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  chip: {
-    color: '#9C8175',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  itemCard: {
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: '#FFFFFF',
-    borderColor: '#E8E3DE',
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 12,
+    borderColor: '#E8E3DE',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  itemTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2A2A2A',
   },
-  itemTitle: {
-    color: '#342F2D',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  stockBadge: {
-    backgroundColor: '#E6F5ED',
-    color: '#2B8F55',
-    borderRadius: 10,
-    overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 11,
+  clearButton: {
+    fontSize: 18,
+    color: '#B59D90',
     fontWeight: '700',
   },
-  stockLow: {
-    backgroundColor: '#FFF2E4',
-    color: '#E06A00',
-  },
-  stockCritical: {
-    backgroundColor: '#FFE8E8',
-    color: '#CC2020',
-  },
-  itemMeta: {
-    color: '#AB9285',
-    marginTop: 6,
-    fontSize: 12,
-  },
-  itemBottomRow: {
-    marginTop: 7,
+  filterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
-  itemQty: {
-    color: '#6F655F',
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E3DE',
+  },
+  filterTabActive: {
+    backgroundColor: '#1CA39A',
+    borderColor: '#1CA39A',
+  },
+  filterText: {
+    fontSize: 11.5,
     fontWeight: '600',
+    color: '#8B7B6F',
+    textAlign: 'center',
   },
-  itemPrice: {
-    color: '#1CA39A',
+  filterTextActive: {
+    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 16,
+  },
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '600',
   },
 });
