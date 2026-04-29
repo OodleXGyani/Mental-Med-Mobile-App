@@ -25,7 +25,9 @@ export const POSScreen = () => {
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
 
   const [showScan, setShowScan] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -38,17 +40,30 @@ export const POSScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [discountPercent, setDiscountPercent] = useState('0');
 
-  const itemCount = useMemo(() => cartItems.reduce((sum, item) => sum + item.qty, 0), [cartItems]);
-  const subtotal = useMemo(() => cartItems.reduce((sum, item) => sum + item.price * item.qty, 0), [cartItems]);
+  const itemCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.qty, 0),
+    [cartItems],
+  );
+  const subtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.price * item.qty, 0),
+    [cartItems],
+  );
   const gstAmount = useMemo(
-    () => cartItems.reduce((sum, item) => sum + (item.price * item.qty * item.gst) / 100, 0),
+    () =>
+      cartItems.reduce(
+        (sum, item) => sum + (item.price * item.qty * item.gst) / 100,
+        0,
+      ),
     [cartItems],
   );
   const discountValue = useMemo(() => {
     const pct = Number(discountPercent) || 0;
     return (subtotal * pct) / 100;
   }, [discountPercent, subtotal]);
-  const total = useMemo(() => Math.max(subtotal + gstAmount - discountValue, 0), [subtotal, gstAmount, discountValue]);
+  const total = useMemo(
+    () => Math.max(subtotal + gstAmount - discountValue, 0),
+    [subtotal, gstAmount, discountValue],
+  );
 
   useEffect(() => {
     updateBillTotal(Number(total.toFixed(2)));
@@ -90,7 +105,11 @@ export const POSScreen = () => {
   const updateQty = (id: string, delta: number) => {
     setCartItems(prev =>
       prev
-        .map(item => (item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item))
+        .map(item =>
+          item.id === id
+            ? { ...item, qty: Math.max(1, item.qty + delta) }
+            : item,
+        )
         .filter(item => item.qty > 0),
     );
   };
@@ -121,7 +140,9 @@ export const POSScreen = () => {
   };
 
   const shareInvoice = async (channel?: 'whatsapp') => {
-    const message = `Invoice INV-155654 for ${selectedCustomer?.name || 'Walk-in'} | Total ${formatAmount(total)}`;
+    const message = `Invoice INV-155654 for ${
+      selectedCustomer?.name || 'Walk-in'
+    } | Total ${formatAmount(total)}`;
     if (channel === 'whatsapp') {
       Alert.alert('WhatsApp', `Prepared message:\n${message}`);
       return;
@@ -146,26 +167,45 @@ export const POSScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <POSHeader itemCount={itemCount} onPressHistory={() => navigation.getParent()?.navigate(TAB_ROUTES.ORDERS)} />
-      <POSSearchRow searchText={searchText} onSearchChange={setSearchText} onPressScan={() => setShowScan(true)} />
+      <POSHeader
+        itemCount={itemCount}
+        onPressHistory={() =>
+          navigation.getParent()?.navigate(TAB_ROUTES.ORDERS)
+        }
+      />
+      <POSSearchRow
+        searchText={searchText}
+        onSearchChange={setSearchText}
+        onPressScan={() => setShowScan(true)}
+      />
       <POSCustomerSection
         selectedCustomer={selectedCustomer}
         onPressAddCustomer={() => setShowCustomerPicker(true)}
         onPressViewOrders={() => setShowPastOrders(true)}
         onPressRemoveCustomer={() => setSelectedCustomer(null)}
       />
-      <POSCartSection cartItems={cartItems} onUpdateQty={updateQty} onRemoveItem={removeItem} />
-      <POSSummaryCard
-        subtotal={subtotal}
-        gstAmount={gstAmount}
-        discountPercent={discountPercent}
-        onDiscountChange={setDiscountPercent}
-        total={total}
-        canProceed={cartItems.length > 0}
-        onPressProceed={() => setShowPayment(true)}
+      <POSCartSection
+        cartItems={cartItems}
+        onUpdateQty={updateQty}
+        onRemoveItem={removeItem}
       />
+      {cartItems.length > 0 ? (
+        <POSSummaryCard
+          subtotal={subtotal}
+          gstAmount={gstAmount}
+          discountPercent={discountPercent}
+          onDiscountChange={setDiscountPercent}
+          total={total}
+          canProceed={true}
+          onPressProceed={() => setShowPayment(true)}
+        />
+      ) : null}
 
-      <POSScanModal visible={showScan} progress={scanProgress} onClose={() => setShowScan(false)} />
+      <POSScanModal
+        visible={showScan}
+        progress={scanProgress}
+        onClose={() => setShowScan(false)}
+      />
       <POSPaymentModal
         visible={showPayment}
         total={total}
