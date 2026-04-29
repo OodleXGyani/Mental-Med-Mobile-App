@@ -1,0 +1,15 @@
+export const palette = {
+  blue900: '#0B1F3A',
+  blue600: '#1F4D8F',
+  cyan500: '#22B8CF',
+  green500: '#2F9E44',
+  orange500: '#F08C00',
+  red500: '#E03131',
+  gray900: '#1D2733',
+  gray700: '#4D5B6A',
+  gray500: '#7A8794',
+  gray200: '#D9E1E8',
+  gray100: '#EEF2F6',
+  white: '#FFFFFF',
+  black: '#000000',
+};
