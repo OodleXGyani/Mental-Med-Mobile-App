@@ -12,9 +12,13 @@ export const STACK_ROUTES = {
   NOTIFICATIONS_HOME: 'NotificationsHome',
   POS_HOME: 'POSHome',
   ORDERS_HOME: 'OrdersHome',
+  ORDERS_HISTORY: 'OrdersHistory',
   INVENTORY_HOME: 'InventoryHome',
   REPORTS_HOME: 'ReportsHome',
   ATTENDANCE_HOME: 'AttendanceHome',
   SETTINGS_HOME: 'SettingsHome',
   CUSTOMERS_HOME: 'CustomersHome',
+  PROFILE_HOME: 'ProfileHome',
+  SETTINGS_DETAILS: 'SettingsDetails',
+  ABOUT_HOME: 'AboutHome',
 } as const;

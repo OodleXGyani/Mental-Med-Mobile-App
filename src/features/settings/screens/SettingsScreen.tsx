@@ -1,28 +1,43 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../authentication/hooks/useAuth';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
 
-type Props = NativeStackScreenProps<SettingsStackParamList, typeof STACK_ROUTES.SETTINGS_HOME>;
+type Props = NativeStackScreenProps<
+  SettingsStackParamList,
+  typeof STACK_ROUTES.SETTINGS_HOME
+>;
 
 const menuItems = [
-  { label: 'Order History' },
+  { label: 'Order History', route: STACK_ROUTES.ORDERS_HISTORY },
   { label: 'Customers', route: STACK_ROUTES.CUSTOMERS_HOME },
   { label: 'Reports', route: STACK_ROUTES.REPORTS_HOME },
   { label: 'Attendance', route: STACK_ROUTES.ATTENDANCE_HOME },
-  { label: 'Profile' },
-  { label: 'Notifications' },
-  { label: 'Settings' },
-  { label: 'About' },
+  { label: 'Profile', route: STACK_ROUTES.PROFILE_HOME },
+  { label: 'Notifications', route: STACK_ROUTES.NOTIFICATIONS_HOME },
+  { label: 'Settings', route: STACK_ROUTES.SETTINGS_DETAILS },
+  { label: 'About', route: STACK_ROUTES.ABOUT_HOME },
 ] as const;
 
 export const SettingsScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: Math.max(insets.top, 10) + 8,
+          paddingBottom: Math.max(insets.bottom, 14) + 18,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.title}>More</Text>
       {menuItems.map(item => (
         <Pressable

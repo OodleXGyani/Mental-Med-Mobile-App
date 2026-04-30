@@ -35,6 +35,11 @@ export type SettingsStackParamList = {
   [STACK_ROUTES.CUSTOMERS_HOME]: undefined;
   [STACK_ROUTES.REPORTS_HOME]: undefined;
   [STACK_ROUTES.ATTENDANCE_HOME]: undefined;
+  [STACK_ROUTES.ORDERS_HISTORY]: undefined;
+  [STACK_ROUTES.PROFILE_HOME]: undefined;
+  [STACK_ROUTES.NOTIFICATIONS_HOME]: undefined;
+  [STACK_ROUTES.SETTINGS_DETAILS]: undefined;
+  [STACK_ROUTES.ABOUT_HOME]: undefined;
 };
 
 export type MainTabParamList = {
