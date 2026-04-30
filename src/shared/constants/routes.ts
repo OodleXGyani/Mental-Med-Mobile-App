@@ -8,6 +8,7 @@ export const TAB_ROUTES = {
 
 export const STACK_ROUTES = {
   LOGIN: 'Login',
+  FORGOT_PASSWORD: 'ForgotPassword',
   DASHBOARD_HOME: 'DashboardHome',
   NOTIFICATIONS_HOME: 'NotificationsHome',
   POS_HOME: 'POSHome',

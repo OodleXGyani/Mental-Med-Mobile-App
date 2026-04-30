@@ -3,6 +3,7 @@ import { STACK_ROUTES, TAB_ROUTES } from '../shared/constants/routes';
 
 export type AuthStackParamList = {
   [STACK_ROUTES.LOGIN]: undefined;
+  [STACK_ROUTES.FORGOT_PASSWORD]: undefined;
 };
 
 export type DashboardStackParamList = {
