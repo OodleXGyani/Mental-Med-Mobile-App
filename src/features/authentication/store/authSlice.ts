@@ -1,27 +1,38 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { authService, LoginPayload } from '../services/authService';
+import {
+  authService,
+  LoginPayload,
+  LoginSession,
+} from '../services/authService';
 
 type AuthState = {
   isAuthenticated: boolean;
   token: string | null;
+  session: LoginSession | null;
   loading: boolean;
   error: string | null;
 };
 
 const initialState: AuthState = {
-  isAuthenticated: true,
-  token: 'demo-session-token',
+  isAuthenticated: false,
+  token: null,
+  session: null,
   loading: false,
   error: null,
 };
 
-export const loginThunk = createAsyncThunk(
-  'auth/login',
-  async (payload: LoginPayload) => {
-    const token = await authService.login(payload);
-    return token;
-  },
-);
+export const loginThunk = createAsyncThunk<
+  LoginSession,
+  LoginPayload,
+  { rejectValue: string }
+>('auth/login', async (payload, { rejectWithValue }) => {
+  try {
+    return await authService.login(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to login';
+    return rejectWithValue(message);
+  }
+});
 
 const authSlice = createSlice({
   name: 'auth',
@@ -42,12 +53,14 @@ const authSlice = createSlice({
       })
       .addCase(loginThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.token = action.payload;
+        state.token = action.payload.sid;
+        state.session = action.payload;
         state.isAuthenticated = true;
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Unable to login';
+        state.error =
+          action.payload ?? action.error.message ?? 'Unable to login';
       });
   },
 });

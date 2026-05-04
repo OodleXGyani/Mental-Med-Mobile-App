@@ -24,13 +24,13 @@ type Props = NativeStackScreenProps<
 
 export const LoginScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
-  const [username, setUsername] = useState('manager@meds15.test');
+  const [email, setEmail] = useState('manager@meds15.test');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error } = useAuth();
 
   const handleLogin = async () => {
-    await login(username, password);
+    await login(email, password);
   };
 
   const handleForgotPassword = () => {
@@ -68,15 +68,15 @@ export const LoginScreen = ({ navigation }: Props) => {
 
         {/* Form Section */}
         <View style={styles.formSection}>
-          {/* Username Input */}
+          {/* email Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
+            <Text style={styles.label}>email</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your username"
+              placeholder="Enter your email"
               placeholderTextColor="#B59D90"
-              value={username}
-              onChangeText={setUsername}
+              value={email}
+              onChangeText={setEmail}
               editable={!loading}
               autoCapitalize="none"
               autoCorrect={false}
@@ -142,7 +142,8 @@ export const LoginScreen = ({ navigation }: Props) => {
         {/* Info Box */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            This is a starter auth flow with mock API integration.
+            This screen uses the live ERP Pharmacy login API and shows server or
+            network errors inline.
           </Text>
         </View>
       </ScrollView>
