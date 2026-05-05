@@ -1,4 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { InventoryItem } from '../features/inventory/types';
 import { STACK_ROUTES, TAB_ROUTES } from '../shared/constants/routes';
 
 export type AuthStackParamList = {
@@ -21,6 +22,7 @@ export type OrdersStackParamList = {
 
 export type InventoryStackParamList = {
   [STACK_ROUTES.INVENTORY_HOME]: undefined;
+  [STACK_ROUTES.INVENTORY_DETAILS]: { item: InventoryItem };
 };
 
 export type ReportsStackParamList = {

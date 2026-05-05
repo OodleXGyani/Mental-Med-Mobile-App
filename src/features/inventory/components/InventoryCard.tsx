@@ -1,70 +1,80 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight, BarChart3 } from 'lucide-react-native';
-import { Medicine } from '../types';
+import { InventoryItem } from '../types';
 
 type Props = {
-  medicine: Medicine;
-  onPress: (medicine: Medicine) => void;
-  onBarcodeScan: (medicine: Medicine) => void;
+  item: InventoryItem;
+  onPress: (item: InventoryItem) => void;
+  onBarcodeScan: (item: InventoryItem) => void;
 };
 
 const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'In Stock':
+  switch (status.toLowerCase()) {
+    case 'in stock':
       return { bg: '#E9F7F0', text: '#2D8F6B' };
-    case 'Low':
+    case 'low':
       return { bg: '#FEF3E2', text: '#CD8936' };
-    case 'Critical':
+    case 'critical':
       return { bg: '#FFE8E8', text: '#D32F2F' };
-    case 'Expiring':
+    case 'expiring soon':
       return { bg: '#FFF3E0', text: '#E65100' };
-    case 'Expired':
+    case 'expired':
       return { bg: '#FFE0E0', text: '#C62828' };
     default:
       return { bg: '#F5F5F5', text: '#666' };
   }
 };
 
-export const InventoryCard = ({ medicine, onPress, onBarcodeScan }: Props) => {
-  const statusColor = getStatusColor(medicine.status);
+const formatStatusLabel = (status: string) => {
+  if (status.toLowerCase() === 'expiring soon') {
+    return 'Expiring Soon';
+  }
+
+  return status
+    .split(' ')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+};
+
+export const InventoryCard = ({ item, onPress, onBarcodeScan }: Props) => {
+  const statusColor = getStatusColor(item.status);
 
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => onPress(medicine)}
+      onPress={() => onPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={styles.titleContent}>
-            <Text style={styles.medicineName}>{medicine.name}</Text>
-            <Text style={styles.genericName}>{medicine.genericName}</Text>
+            <Text style={styles.medicineName}>{item.name}</Text>
+            <Text style={styles.genericName}>{item.medicine_id}</Text>
           </View>
           <View
             style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}
           >
             <Text style={[styles.statusText, { color: statusColor.text }]}>
-              {medicine.status}
+              {formatStatusLabel(item.status)}
             </Text>
           </View>
         </View>
       </View>
 
       <Text style={styles.metaText}>
-        Batch: {medicine.batch} Exp: {medicine.expiryDate} Rack:{' '}
-        {medicine.rackLocation}
+        {item.category} · {item.company}
       </Text>
 
       <View style={styles.footer}>
         <View style={styles.quantitySection}>
           <Text style={styles.qtyLabel}>Qty: </Text>
-          <Text style={styles.qtyValue}>{medicine.quantity}</Text>
+          <Text style={styles.qtyValue}>{item.quantity}</Text>
         </View>
-        <Text style={styles.price}>₹{medicine.mrp}</Text>
+        <Text style={styles.price}>₹{item.stock_value.toFixed(2)}</Text>
         <TouchableOpacity
           style={styles.barcodeButton}
-          onPress={() => onBarcodeScan(medicine)}
+          onPress={() => onBarcodeScan(item)}
           hitSlop={8}
         >
           <BarChart3 size={16} color="#1CA39A" strokeWidth={2} />
