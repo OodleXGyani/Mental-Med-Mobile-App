@@ -36,6 +36,7 @@ export type AttendanceStackParamList = {
 export type SettingsStackParamList = {
   [STACK_ROUTES.SETTINGS_HOME]: undefined;
   [STACK_ROUTES.CUSTOMERS_HOME]: undefined;
+  [STACK_ROUTES.CUSTOMER_DETAILS]: { customerCode: string };
   [STACK_ROUTES.REPORTS_HOME]: undefined;
   [STACK_ROUTES.ATTENDANCE_HOME]: undefined;
   [STACK_ROUTES.ORDERS_HISTORY]: undefined;

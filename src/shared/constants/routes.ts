@@ -20,6 +20,7 @@ export const STACK_ROUTES = {
   ATTENDANCE_HOME: 'AttendanceHome',
   SETTINGS_HOME: 'SettingsHome',
   CUSTOMERS_HOME: 'CustomersHome',
+  CUSTOMER_DETAILS: 'CustomerDetails',
   PROFILE_HOME: 'ProfileHome',
   SETTINGS_DETAILS: 'SettingsDetails',
   ABOUT_HOME: 'AboutHome',

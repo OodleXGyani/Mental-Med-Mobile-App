@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SettingsScreen } from '../features/settings/screens/SettingsScreen';
 import { CustomersScreen } from '../features/settings/screens/CustomersScreen';
+import { CustomerDetailsScreen } from '../features/settings/screens/CustomerDetailsScreen';
 import { ProfileScreen } from '../features/settings/screens/ProfileScreen';
 import { SettingsDetailsScreen } from '../features/settings/screens/SettingsDetailsScreen';
 import { AboutScreen } from '../features/settings/screens/AboutScreen';
@@ -26,6 +27,11 @@ export const SettingsStack = () => {
         name={STACK_ROUTES.CUSTOMERS_HOME}
         component={CustomersScreen}
         options={{ title: 'Customers' }}
+      />
+      <Stack.Screen
+        name={STACK_ROUTES.CUSTOMER_DETAILS}
+        component={CustomerDetailsScreen}
+        options={{ title: 'Customer Details' }}
       />
       <Stack.Screen
         name={STACK_ROUTES.REPORTS_HOME}
