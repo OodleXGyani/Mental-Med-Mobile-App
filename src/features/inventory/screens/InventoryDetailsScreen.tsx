@@ -89,6 +89,11 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
     }
 
     setSubmitting(true);
+    if (type === 'remove') {
+      quantity = -Math.abs(quantity); // Ensure quantity is negative for removal
+    } else {
+      quantity = Math.abs(quantity); // Ensure quantity is positive for addition
+    }
 
     try {
       const message = await inventoryService.adjustStock({
