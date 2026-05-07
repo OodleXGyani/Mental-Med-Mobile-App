@@ -1,77 +1,112 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight } from 'lucide-react-native';
+import { useAuth } from '../../authentication/hooks/useAuth';
+import { ordersService } from '../../orders/services/ordersService';
+import type { CustomerInvoice } from '../../orders/types';
 
-interface OrderItem {
-  id: string;
-  status: 'completed' | 'cancelled';
-  customer: string;
-  phone: string;
-  items: number;
-  time: string;
-  amount: number;
-}
+const PAGE_SIZE = 10;
 
-const ordersData: OrderItem[] = [
-  {
-    id: 'INV-2025-001',
-    status: 'completed',
-    customer: 'Ramesh Kumar',
-    phone: '9876543210',
-    items: 3,
-    time: '10/4/2026',
-    amount: 123.2,
-  },
-  {
-    id: 'INV-2025-002',
-    status: 'completed',
-    customer: 'Priya Sharma',
-    phone: '9876543211',
-    items: 1,
-    time: '10/4/2026',
-    amount: 180.4,
-  },
-  {
-    id: 'INV-2025-003',
-    status: 'completed',
-    customer: 'Suresh Patel',
-    phone: '9876543212',
-    items: 2,
-    time: '9/4/2026',
-    amount: 159.6,
-  },
-  {
-    id: 'INV-2025-004',
-    status: 'cancelled',
-    customer: 'Suresh Patel',
-    phone: '9876543212',
-    items: 1,
-    time: '9/4/2026',
-    amount: 135,
-  },
-];
+const formatAmount = (amount: number) =>
+  `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
+const formatDate = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+};
 
 export const OrderHistoryScreen = () => {
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState('');
-
-  const filteredOrders = useMemo(() => {
-    return ordersData.filter(
-      order =>
-        order.id.toLowerCase().includes(searchText.toLowerCase()) ||
-        order.customer.toLowerCase().includes(searchText.toLowerCase()) ||
-        order.phone.includes(searchText),
-    );
-  }, [searchText]);
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState<CustomerInvoice[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { signOut } = useAuth();
 
   const getStatusColor = (status: string) => {
-    return status === 'completed' ? '#1CA39A' : '#E03131';
+    const normalizedStatus = status.toLowerCase();
+    if (normalizedStatus === 'unpaid') {
+      return '#E0A848';
+    }
+
+    if (normalizedStatus === 'return') {
+      return '#E03131';
+    }
+
+    return '#1CA39A';
   };
 
   const getStatusLabel = (status: string) => {
-    return status === 'completed' ? 'Completed' : 'Cancelled';
+    return status;
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadInvoices = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await ordersService.fetchCustomerInvoices({
+          page,
+          limit: PAGE_SIZE,
+          search: searchText.trim(),
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setItems(response.data);
+        setTotalPages(Math.max(response.pagination.total_pages || 1, 1));
+      } catch (caughtError) {
+        if (!isMounted) {
+          return;
+        }
+
+        const message =
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Unable to load order history.';
+
+        if (message === 'AUTH_SESSION_EXPIRED') {
+          await signOut();
+          return;
+        }
+
+        setError(message);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadInvoices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page, searchText, signOut]);
 
   return (
     <ScrollView
@@ -88,17 +123,29 @@ export const OrderHistoryScreen = () => {
       <Text style={styles.title}>Order History</Text>
 
       <View style={styles.searchContainer}>
-        <Text style={styles.searchPlaceholder}>
-          🔍 Search by invoice or customer...
-        </Text>
+        <TextInput
+          placeholder="Search by invoice, customer, company..."
+          placeholderTextColor="#B59D90"
+          value={searchText}
+          onChangeText={text => {
+            setSearchText(text);
+            setPage(1);
+          }}
+          style={styles.searchInput}
+        />
       </View>
 
-      {filteredOrders.length > 0 ? (
-        filteredOrders.map(order => (
-          <Pressable key={order.id} style={styles.orderCard}>
+      {loading ? (
+        <ActivityIndicator style={styles.loader} color="#1CA39A" />
+      ) : null}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      {items.length > 0 ? (
+        items.map(order => (
+          <Pressable key={order.invoice_id} style={styles.orderCard}>
             <View style={styles.orderHeader}>
               <View style={styles.orderMeta}>
-                <Text style={styles.orderId}>{order.id}</Text>
+                <Text style={styles.orderId}>{order.invoice_id}</Text>
                 <View
                   style={[
                     styles.statusBadge,
@@ -110,15 +157,17 @@ export const OrderHistoryScreen = () => {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.orderAmount}>₹{order.amount.toFixed(2)}</Text>
+              <Text style={styles.orderAmount}>
+                {formatAmount(order.amount)}
+              </Text>
             </View>
 
             <View style={styles.orderDetails}>
-              <Text style={styles.customerName}>{order.customer}</Text>
-              <Text style={styles.customerPhone}>
-                {order.phone} • {order.items} items
+              <Text style={styles.customerName}>{order.company}</Text>
+              <Text style={styles.customerPhone}>{order.items.join(', ')}</Text>
+              <Text style={styles.orderTime}>
+                {formatDate(order.posting_date)}
               </Text>
-              <Text style={styles.orderTime}>{order.time}</Text>
             </View>
 
             <View style={styles.orderFooter}>
@@ -134,6 +183,31 @@ export const OrderHistoryScreen = () => {
           <Text style={styles.emptyText}>No orders found</Text>
         </View>
       )}
+
+      <View style={styles.paginationRow}>
+        <Pressable
+          onPress={() => setPage(current => Math.max(current - 1, 1))}
+          disabled={page === 1}
+          style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+        >
+          <Text style={styles.pageButtonText}>Previous</Text>
+        </Pressable>
+
+        <Text style={styles.pageLabel}>
+          Page {page} of {totalPages}
+        </Text>
+
+        <Pressable
+          onPress={() => setPage(current => Math.min(current + 1, totalPages))}
+          disabled={page >= totalPages}
+          style={[
+            styles.pageButton,
+            page >= totalPages && styles.pageButtonDisabled,
+          ]}
+        >
+          <Text style={styles.pageButtonText}>Next</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 };
@@ -161,9 +235,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 12,
   },
-  searchPlaceholder: {
-    color: '#B59D90',
+  searchInput: {
+    color: '#3B3735',
     fontSize: 14,
+    fontWeight: '500',
+    padding: 0,
+  },
+  loader: {
+    marginBottom: 10,
+  },
+  errorText: {
+    color: '#E03131',
+    marginBottom: 10,
+    fontSize: 13,
     fontWeight: '500',
   },
   orderCard: {
@@ -249,5 +333,30 @@ const styles = StyleSheet.create({
     color: '#A68F82',
     fontSize: 14,
     fontWeight: '500',
+  },
+  paginationRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pageButton: {
+    backgroundColor: '#1CA39A',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#C7D5D3',
+  },
+  pageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pageLabel: {
+    color: '#6E645E',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

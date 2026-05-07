@@ -20,57 +20,52 @@ import { DashboardHeader } from '../components/DashboardHeader';
 import { DashboardStatsGrid } from '../components/DashboardStatsGrid';
 import { DashboardQuickActions } from '../components/DashboardQuickActions';
 import { DashboardRecentSales } from '../components/DashboardRecentSales';
-
-const formatCurrency = (amount: number) => `Rs ${new Intl.NumberFormat('en-IN').format(amount)}`;
-
-const recentSales = [
-  { id: '1', name: 'Ramesh Kumar', invoice: 'INV-001', time: '10:30 AM', amount: 'Rs 1250' },
-  { id: '2', name: 'Priya Sharma', invoice: 'INV-002', time: '11:10 AM', amount: 'Rs 840' },
-];
+import { useAppSelector } from '../../../app/hooks';
 
 export const DashboardScreen = () => {
-  const { totalSales, pendingOrders, lowStockItems, loading } = useDashboard();
+  const { summary, recentSales, loading } = useDashboard();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const session = useAppSelector(state => state.auth.session);
   const stats = [
     {
       label: "Today's Sales",
-      value: formatCurrency(totalSales || 12450),
+      value: `₹${new Intl.NumberFormat('en-IN').format(summary.todaySales)}`,
       Icon: IndianRupee,
       iconColor: '#2EA07F',
       iconBackground: '#E9F8F3',
     },
     {
       label: 'Transactions',
-      value: '24',
+      value: String(summary.transactions),
       Icon: TrendingUp,
       iconColor: '#39B77C',
       iconBackground: '#EBF9F0',
     },
     {
       label: 'Pending Orders',
-      value: String(pendingOrders || 5),
+      value: String(summary.pendingOrders),
       Icon: Clock3,
       iconColor: '#5B8EF0',
       iconBackground: '#EAF1FF',
     },
     {
       label: 'Low Stock',
-      value: String(lowStockItems || 8),
+      value: String(summary.lowStock),
       Icon: TriangleAlert,
       iconColor: '#E86D68',
       iconBackground: '#FDEEEE',
     },
     {
       label: 'Staff Present',
-      value: '4/6',
+      value: summary.staffPresent.display,
       Icon: Users,
       iconColor: '#54B974',
       iconBackground: '#E9F8EC',
     },
     {
       label: 'Pending Approvals',
-      value: '2',
+      value: String(summary.pendingApprovals),
       Icon: ClipboardCheck,
       iconColor: '#E0A848',
       iconBackground: '#FFF4E5',
@@ -79,9 +74,24 @@ export const DashboardScreen = () => {
 
   const actions = [
     { label: 'Scan', Icon: ScanLine, color: '#2CB3A6', tab: TAB_ROUTES.POS },
-    { label: 'New Sale', Icon: ShoppingCart, color: '#22B273', tab: TAB_ROUTES.POS },
-    { label: 'Orders', Icon: ClipboardList, color: '#3A8EF5', tab: TAB_ROUTES.ORDERS },
-    { label: 'Inventory', Icon: Boxes, color: '#F18A2D', tab: TAB_ROUTES.INVENTORY },
+    {
+      label: 'New Sale',
+      Icon: ShoppingCart,
+      color: '#22B273',
+      tab: TAB_ROUTES.POS,
+    },
+    {
+      label: 'Orders',
+      Icon: ClipboardList,
+      color: '#3A8EF5',
+      tab: TAB_ROUTES.ORDERS,
+    },
+    {
+      label: 'Inventory',
+      Icon: Boxes,
+      color: '#F18A2D',
+      tab: TAB_ROUTES.INVENTORY,
+    },
   ];
 
   return (
@@ -97,7 +107,12 @@ export const DashboardScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <DashboardHeader onPressNotification={() => navigation.navigate(STACK_ROUTES.NOTIFICATIONS_HOME)} />
+      <DashboardHeader
+        username={session?.username ?? session?.fullName ?? ''}
+        onPressNotification={() =>
+          navigation.navigate(STACK_ROUTES.NOTIFICATIONS_HOME)
+        }
+      />
 
       {loading ? <ActivityIndicator style={styles.loader} /> : null}
       <DashboardStatsGrid stats={stats} />
@@ -107,8 +122,16 @@ export const DashboardScreen = () => {
       />
       <DashboardRecentSales
         sales={recentSales}
-        onPressViewAll={() => navigation.navigate(TAB_ROUTES.ORDERS)}
-        onPressSale={() => navigation.navigate(TAB_ROUTES.ORDERS)}
+        onPressViewAll={() =>
+          navigation.navigate(TAB_ROUTES.SETTINGS, {
+            screen: STACK_ROUTES.ORDERS_HISTORY,
+          })
+        }
+        onPressSale={() =>
+          navigation.navigate(TAB_ROUTES.SETTINGS, {
+            screen: STACK_ROUTES.ORDERS_HISTORY,
+          })
+        }
       />
     </ScrollView>
   );

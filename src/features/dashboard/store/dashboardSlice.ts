@@ -1,23 +1,46 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { dashboardService } from '../services/dashboardService';
+import type {
+  DashboardRecentSale,
+  DashboardStats,
+} from '../services/dashboardService';
 
 type DashboardState = {
-  totalSales: number;
+  summary: DashboardStats;
+  recentSales: DashboardRecentSale[];
   pendingOrders: number;
-  lowStockItems: number;
   loading: boolean;
 };
 
 const initialState: DashboardState = {
-  totalSales: 0,
+  summary: {
+    todaySales: 0,
+    transactions: 0,
+    pendingOrders: 0,
+    lowStock: 0,
+    staffPresent: {
+      present: 0,
+      total: 0,
+      display: '0/0',
+    },
+    pendingApprovals: 0,
+  },
+  recentSales: [],
   pendingOrders: 0,
-  lowStockItems: 0,
   loading: false,
 };
 
-export const fetchDashboardStats = createAsyncThunk('dashboard/fetchStats', async () => {
-  return dashboardService.fetchStats();
-});
+export const fetchDashboardData = createAsyncThunk(
+  'dashboard/fetchData',
+  async () => {
+    const [summary, recentSales] = await Promise.all([
+      dashboardService.fetchStats(),
+      dashboardService.fetchRecentSales(),
+    ]);
+
+    return { summary, recentSales };
+  },
+);
 
 const dashboardSlice = createSlice({
   name: 'dashboard',
@@ -25,16 +48,16 @@ const dashboardSlice = createSlice({
   reducers: {},
   extraReducers: builder => {
     builder
-      .addCase(fetchDashboardStats.pending, state => {
+      .addCase(fetchDashboardData.pending, state => {
         state.loading = true;
       })
-      .addCase(fetchDashboardStats.fulfilled, (state, action) => {
+      .addCase(fetchDashboardData.fulfilled, (state, action) => {
         state.loading = false;
-        state.totalSales = action.payload.totalSales;
-        state.pendingOrders = action.payload.pendingOrders;
-        state.lowStockItems = action.payload.lowStockItems;
+        state.summary = action.payload.summary;
+        state.recentSales = action.payload.recentSales;
+        state.pendingOrders = action.payload.summary.pendingOrders;
       })
-      .addCase(fetchDashboardStats.rejected, state => {
+      .addCase(fetchDashboardData.rejected, state => {
         state.loading = false;
       });
   },

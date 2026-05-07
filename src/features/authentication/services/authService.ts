@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export type LoginPayload = {
   email: string;
   password: string;
@@ -40,6 +42,7 @@ type LoginApiResponse = {
 
 const LOGIN_URL =
   'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_auth.login';
+const AUTH_SESSION_STORAGE_KEY = '@meds/auth-session';
 
 const getErrorMessage = (responseBody: unknown, fallback: string) => {
   if (!responseBody || typeof responseBody !== 'object') {
@@ -107,6 +110,32 @@ const normalizeSession = (responseBody: LoginApiResponse): LoginSession => {
   };
 };
 
+export const authStorage = {
+  loadSession: async (): Promise<LoginSession | null> => {
+    const rawSession = await AsyncStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+
+    if (!rawSession) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(rawSession) as LoginSession;
+    } catch {
+      await AsyncStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+      return null;
+    }
+  },
+  saveSession: async (session: LoginSession) => {
+    await AsyncStorage.setItem(
+      AUTH_SESSION_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+  },
+  clearSession: async () => {
+    await AsyncStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  },
+};
+
 export const authService = {
   login: async ({ email, password }: LoginPayload): Promise<LoginSession> => {
     const trimmedEmail = email.trim();
@@ -158,6 +187,8 @@ export const authService = {
       throw new Error('Unexpected login response from the server.');
     }
 
-    return normalizeSession(responseBody as LoginApiResponse);
+    const session = normalizeSession(responseBody as LoginApiResponse);
+    await authStorage.saveSession(session);
+    return session;
   },
 };

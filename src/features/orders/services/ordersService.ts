@@ -1,13 +1,21 @@
 import {
+  CustomerInvoicesQuery,
+  CustomerInvoicesResponse,
   OrderAPIResponse,
   PerformActionPayload,
   PerformActionResponse,
   statusMap,
 } from '../types';
 import type { Order } from '../components/OrderCard';
+import {
+  AUTH_SESSION_EXPIRED,
+  isAuthSessionExpiredResponse,
+} from '../../../shared/utils/auth';
 
 const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const ORDERS_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.order_flow`;
+const CUSTOMER_INVOICES_URL =
+  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_page.customer.customer.get_customer_invoices';
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -53,6 +61,18 @@ const getErrorMessage = (payload: unknown, fallback: string) => {
   return fallback;
 };
 
+const throwResponseError = (
+  response: Response,
+  payload: unknown,
+  fallback: string,
+) => {
+  if (response.status === 401 || isAuthSessionExpiredResponse(payload)) {
+    throw new Error(AUTH_SESSION_EXPIRED);
+  }
+
+  throw new Error(getErrorMessage(payload, fallback));
+};
+
 export const ordersService = {
   fetchPendingOrders: async (): Promise<number> => {
     await new Promise<void>(resolve => setTimeout(() => resolve(), 300));
@@ -78,7 +98,7 @@ export const ordersService = {
     )) as OrderAPIResponse | null;
 
     if (!response.ok) {
-      throw new Error(getErrorMessage(payload, 'Unable to load orders.'));
+      throwResponseError(response, payload, 'Unable to load orders.');
     }
 
     // Map API response to Order type
@@ -99,6 +119,45 @@ export const ordersService = {
 
     console.log('Fetched orders:', orders.length, 'items');
     return orders;
+  },
+
+  fetchCustomerInvoices: async ({
+    page,
+    limit,
+    search = '',
+  }: CustomerInvoicesQuery): Promise<{
+    data: CustomerInvoicesResponse['message']['data'];
+    pagination: CustomerInvoicesResponse['message']['pagination'];
+  }> => {
+    const url = new URL(CUSTOMER_INVOICES_URL);
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('limit', String(limit));
+    url.searchParams.set('search', search);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const payload = (await parseJsonSafely(
+      response,
+    )) as CustomerInvoicesResponse | null;
+
+    if (!response.ok) {
+      throwResponseError(response, payload, 'Unable to load recent sales.');
+    }
+
+    return {
+      data: payload?.message?.data ?? [],
+      pagination: payload?.message?.pagination ?? {
+        page,
+        limit,
+        total: 0,
+        total_pages: 1,
+      },
+    };
   },
 
   performAction: async (

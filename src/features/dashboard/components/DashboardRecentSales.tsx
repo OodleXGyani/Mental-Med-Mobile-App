@@ -1,21 +1,33 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { DashboardRecentSale } from '../services/dashboardService';
 
-type Sale = {
-  id: string;
-  name: string;
-  invoice: string;
-  time: string;
-  amount: string;
+const formatAmount = (amount: number) =>
+  `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
+const formatDate = (dateValue: string) => {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateValue;
+  }
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
 };
 
 type Props = {
-  sales: Sale[];
+  sales: DashboardRecentSale[];
   onPressViewAll: () => void;
-  onPressSale: () => void;
+  onPressSale: (sale: DashboardRecentSale) => void;
 };
 
-export const DashboardRecentSales = ({ sales, onPressViewAll, onPressSale }: Props) => {
+export const DashboardRecentSales = ({
+  sales,
+  onPressViewAll,
+  onPressSale,
+}: Props) => {
   return (
     <>
       <View style={styles.recentHeader}>
@@ -25,12 +37,18 @@ export const DashboardRecentSales = ({ sales, onPressViewAll, onPressSale }: Pro
         </Pressable>
       </View>
       {sales.map(sale => (
-        <Pressable key={sale.id} style={styles.saleCard} onPress={onPressSale}>
+        <Pressable
+          key={sale.invoice_id}
+          style={styles.saleCard}
+          onPress={() => onPressSale(sale)}
+        >
           <View>
-            <Text style={styles.saleName}>{sale.name}</Text>
-            <Text style={styles.saleMeta}>{`${sale.invoice} · ${sale.time}`}</Text>
+            <Text style={styles.saleName}>{sale.invoice_id}</Text>
+            <Text style={styles.saleMeta} numberOfLines={1}>{`${
+              sale.items[0] ?? sale.company
+            } · ${formatDate(sale.posting_date)}`}</Text>
           </View>
-          <Text style={styles.saleAmount}>{sale.amount}</Text>
+          <Text style={styles.saleAmount}>{formatAmount(sale.amount)}</Text>
         </Pressable>
       ))}
     </>

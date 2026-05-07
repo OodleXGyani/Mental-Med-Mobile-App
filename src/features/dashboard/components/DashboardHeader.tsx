@@ -1,16 +1,20 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bell } from 'lucide-react-native';
+import { toPascalCase } from '../../../shared/utils/format';
 
 type Props = {
   onPressNotification: () => void;
+  username: string;
 };
 
-export const DashboardHeader = ({ onPressNotification }: Props) => {
+export const DashboardHeader = ({ onPressNotification, username }: Props) => {
+  const displayName = toPascalCase(username || 'User');
+
   return (
     <View style={styles.headerRow}>
       <View>
-        <Text style={styles.greeting}>Hi, Rajesh 👋</Text>
+        <Text style={styles.greeting}>Hi, {displayName} 👋</Text>
         <Text style={styles.subGreeting}>Manager · Pharmacy Overview</Text>
       </View>
       <Pressable style={styles.notificationWrap} onPress={onPressNotification}>

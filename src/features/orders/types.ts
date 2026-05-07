@@ -53,6 +53,35 @@ export interface PerformActionResponse {
   };
 }
 
+export interface CustomerInvoice {
+  invoice_id: string;
+  posting_date: string;
+  amount: number;
+  status: string;
+  company: string;
+  items: string[];
+}
+
+export interface CustomerInvoicesPagination {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface CustomerInvoicesResponse {
+  message: {
+    data: CustomerInvoice[];
+    pagination: CustomerInvoicesPagination;
+  };
+}
+
+export interface CustomerInvoicesQuery {
+  page: number;
+  limit: number;
+  search?: string;
+}
+
 // Map workflow_state and status to internal Order type statuses
 export const statusMap: Record<
   string,
