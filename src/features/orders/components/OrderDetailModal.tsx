@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Order } from './OrderCard';
+import { orderActionFlow } from '../types';
 
 type Props = {
   order: Order | null;
@@ -17,6 +19,7 @@ type Props = {
   onClose: () => void;
   onAccept: (order: Order) => void;
   onReject: (order: Order) => void;
+  isLoading?: boolean;
 };
 
 export const OrderDetailModal = ({
@@ -25,8 +28,11 @@ export const OrderDetailModal = ({
   onClose,
   onAccept,
   onReject,
+  isLoading = false,
 }: Props) => {
   if (!order) return null;
+
+  const actionItems = orderActionFlow[order.status] ?? [];
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -75,7 +81,12 @@ export const OrderDetailModal = ({
             </View>
 
             {/* action buttons depending on status */}
-            {order.status === 'new' ? (
+            {isLoading ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator size="large" color="#1E8066" />
+                <Text style={styles.loadingText}>Updating order...</Text>
+              </View>
+            ) : actionItems.length === 0 ? null : actionItems.length === 2 ? (
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.rejectButton]}
@@ -84,14 +95,22 @@ export const OrderDetailModal = ({
                   <Text
                     style={[styles.actionButtonText, styles.rejectButtonText]}
                   >
-                    Reject
+                    {actionItems[1].actionInput}
                   </Text>
+                  {/* <Text style={styles.actionStateText}>
+                    Requires {actionItems[1].requiredCurrentState}
+                  </Text> */}
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => onAccept(order)}
                 >
-                  <Text style={styles.actionButtonText}>Accept</Text>
+                  <Text style={styles.actionButtonText}>
+                    {actionItems[0].actionInput}
+                  </Text>
+                  {/* <Text style={styles.actionStateText}>
+                    Requires {actionItems[0].requiredCurrentState}
+                  </Text> */}
                 </TouchableOpacity>
               </View>
             ) : (
@@ -100,12 +119,11 @@ export const OrderDetailModal = ({
                 onPress={() => onAccept(order)}
               >
                 <Text style={styles.actionButtonText}>
-                  {order.status === 'accepted' && 'Start Processing'}
-                  {order.status === 'processing' && 'Mark Ready'}
-                  {order.status === 'ready' && 'Dispatch'}
-                  {order.status === 'dispatched' && 'Mark Delivered'}
-                  {order.status === 'delivered' && 'Ok'}
+                  {actionItems[0].actionInput}
                 </Text>
+                {/* <Text style={styles.actionStateText}>
+                  Requires {actionItems[0].requiredCurrentState}
+                </Text> */}
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -214,5 +232,23 @@ const styles = StyleSheet.create({
   },
   rejectButtonText: {
     color: '#FFFFFF',
+  },
+  loadingBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 16,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#1E8066',
+    fontWeight: '600',
+  },
+  actionStateText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#EAF5F1',
+    fontWeight: '500',
   },
 });
