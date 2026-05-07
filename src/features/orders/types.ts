@@ -82,10 +82,52 @@ export interface CustomerInvoicesQuery {
   search?: string;
 }
 
+export interface SalesInvoiceDetailsItem {
+  item_code: string;
+  item_name: string;
+  qty: number;
+  rate: number;
+  amount: number;
+  warehouse: string;
+  uom: string;
+  sales_order: string | null;
+  sales_invoice_item: string | null;
+}
+
+export interface SalesInvoiceDetails {
+  name: string;
+  customer: string;
+  customer_name: string;
+  company: string;
+  posting_date: string;
+  due_date: string;
+  currency: string;
+  selling_price_list: string;
+  debit_to: string;
+  is_return: number;
+  return_against: string | null;
+  grand_total: number;
+  net_total: number;
+  total_taxes_and_charges: number;
+  outstanding_amount: number;
+  status: string;
+  docstatus: number;
+  items: SalesInvoiceDetailsItem[];
+}
+
+export interface SalesInvoiceDetailsResponse {
+  message: {
+    success: boolean;
+    message: string;
+    data: SalesInvoiceDetails | null;
+    error: string | null;
+  };
+}
+
 // Map workflow_state and status to internal Order type statuses
 export const statusMap: Record<
   string,
-  'new' | 'accepted' | 'ready' | 'dispatched' | 'delivered'
+  'new' | 'accepted' | 'processing' | 'ready' | 'dispatched' | 'delivered'
 > = {
   Pending: 'new',
   New: 'new',

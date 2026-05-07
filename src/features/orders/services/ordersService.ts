@@ -4,6 +4,8 @@ import {
   OrderAPIResponse,
   PerformActionPayload,
   PerformActionResponse,
+  SalesInvoiceDetails,
+  SalesInvoiceDetailsResponse,
   statusMap,
 } from '../types';
 import type { Order } from '../components/OrderCard';
@@ -16,6 +18,8 @@ const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const ORDERS_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.order_flow`;
 const CUSTOMER_INVOICES_URL =
   'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_page.customer.customer.get_customer_invoices';
+const SALES_INVOICE_DETAILS_URL =
+  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.sales.sales_invoice.get_sales_invoice_details';
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -158,6 +162,43 @@ export const ordersService = {
         total_pages: 1,
       },
     };
+  },
+
+  fetchSalesInvoiceDetails: async (
+    invoiceName: string,
+  ): Promise<SalesInvoiceDetails> => {
+    const url = new URL(SALES_INVOICE_DETAILS_URL);
+    url.searchParams.set('name', invoiceName);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const payload = (await parseJsonSafely(
+      response,
+    )) as SalesInvoiceDetailsResponse | null;
+
+    if (!response.ok) {
+      throwResponseError(response, payload, 'Unable to load invoice details.');
+    }
+
+    if (payload?.message?.success === false) {
+      throw new Error(
+        payload.message.error ||
+          payload.message.message ||
+          'Unable to load invoice details.',
+      );
+    }
+
+    const details = payload?.message?.data;
+    if (!details) {
+      throw new Error('Invoice details not found.');
+    }
+
+    return details;
   },
 
   performAction: async (
