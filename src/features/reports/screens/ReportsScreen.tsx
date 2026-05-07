@@ -1,67 +1,112 @@
-import React, { useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppDispatch } from '../../../app/hooks';
 import { useReports } from '../hooks/useReports';
+import { reportsService } from '../services/reportsService';
+import { setLastGeneratedAt } from '../store/reportsSlice';
 
 type PeriodType = 'today' | 'week' | 'month';
 
-const reportData = {
-  today: {
-    sales: 12450,
-    transactions: 24,
-    avgTicket: 519,
-    topProduct: 'Paracetamol 500mg',
-    chartData: [12, 24, 18, 22, 16, 20],
-  },
-  week: {
-    sales: 87320,
-    transactions: 156,
-    avgTicket: 559,
-    topProduct: 'Paracetamol 500mg',
-    chartData: [24, 18, 27, 22, 30, 16, 20],
-  },
-  month: {
-    sales: 345680,
-    transactions: 634,
-    avgTicket: 545,
-    topProduct: 'Amoxicillin 250mg',
-    chartData: [18, 22, 26, 20, 28, 32, 24],
-  },
-};
+const periodToFilter = {
+  today: 'Today',
+  week: 'This Week',
+  month: 'This Month',
+} as const;
 
-const topProducts = {
-  today: [
-    { name: 'Paracetamol 500mg', amount: 2125 },
-    { name: 'Amoxicillin 250mg', amount: 3570 },
-    { name: 'Cetirizine 10mg', amount: 1320 },
-  ],
-  week: [
-    { name: 'Paracetamol 500mg', amount: 15250 },
-    { name: 'Amoxicillin 250mg', amount: 22450 },
-    { name: 'Cetirizine 10mg', amount: 8920 },
-  ],
-  month: [
-    { name: 'Amoxicillin 250mg', amount: 89350 },
-    { name: 'Paracetamol 500mg', amount: 76200 },
-    { name: 'Cetirizine 10mg', amount: 42180 },
-  ],
-};
+const formatCurrency = (value: number) => `Rs ${value.toLocaleString('en-IN')}`;
 
 export const ReportsScreen = () => {
   const insets = useSafeAreaInsets();
   const { lastGeneratedAt } = useReports();
+  const dispatch = useAppDispatch();
   const [activePeriod, setActivePeriod] = useState<PeriodType>('today');
+  const [reportData, setReportData] = useState<{
+    sales: number;
+    transactions: number;
+    avgTicket: number;
+    topProduct: string;
+    chartData: number[];
+    labels: string[];
+    topProducts: Array<{ name: string; amount: number }>;
+  }>({
+    sales: 0,
+    transactions: 0,
+    avgTicket: 0,
+    topProduct: '-',
+    chartData: [],
+    labels: [],
+    topProducts: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const data = reportData[activePeriod];
-  const products = topProducts[activePeriod];
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadReport = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const response = await reportsService.fetchSalesDashboardReport(
+          periodToFilter[activePeriod],
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setReportData({
+          sales: response.summary.sales,
+          transactions: response.summary.transactions,
+          avgTicket: response.summary.avg_ticket,
+          topProduct: response.summary.top_product,
+          chartData: response.weekly_sales.map(item => item.total),
+          labels: response.weekly_sales.map(item => item.day),
+          topProducts: response.top_products.map(item => ({
+            name: item.product,
+            amount: item.sales,
+          })),
+        });
+
+        dispatch(setLastGeneratedAt(new Date().toISOString()));
+      } catch (caughtError) {
+        if (isMounted) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : 'Unable to load report.',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadReport();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activePeriod, dispatch]);
 
   const maxChartValue = useMemo(() => {
-    return Math.max(...data.chartData);
-  }, [data.chartData]);
+    return Math.max(...reportData.chartData, 1);
+  }, [reportData.chartData]);
 
   const normalizedChartData = useMemo(() => {
-    return data.chartData.map(value => (value / maxChartValue) * 120);
-  }, [data.chartData, maxChartValue]);
+    return reportData.chartData.map(value => (value / maxChartValue) * 120);
+  }, [reportData.chartData, maxChartValue]);
 
   return (
     <ScrollView
@@ -76,6 +121,11 @@ export const ReportsScreen = () => {
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>Reports</Text>
+
+      {loading ? (
+        <ActivityIndicator style={{ marginBottom: 10 }} color="#1CA39A" />
+      ) : null}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.periodBar}>
         <Pressable
@@ -132,44 +182,35 @@ export const ReportsScreen = () => {
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>Sales</Text>
           <Text style={styles.metricValue}>
-            Rs {data.sales.toLocaleString('en-IN')}
+            {formatCurrency(reportData.sales)}
           </Text>
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>Transactions</Text>
-          <Text style={styles.metricValue}>{data.transactions}</Text>
+          <Text style={styles.metricValue}>{reportData.transactions}</Text>
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>Avg Ticket</Text>
-          <Text style={styles.metricValue}>Rs {data.avgTicket}</Text>
+          <Text style={styles.metricValue}>
+            {formatCurrency(reportData.avgTicket)}
+          </Text>
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>Top Product</Text>
-          <Text style={styles.metricValueSmall}>{data.topProduct}</Text>
+          <Text style={styles.metricValueSmall}>{reportData.topProduct}</Text>
         </View>
       </View>
 
       <View style={styles.chartCard}>
-        <Text style={styles.sectionTitle}>
-          {activePeriod === 'today'
-            ? 'Hourly Sales'
-            : activePeriod === 'week'
-            ? 'Daily Sales'
-            : 'Weekly Sales'}
-        </Text>
+        <Text style={styles.sectionTitle}>Sales Trend</Text>
         <View style={styles.chartBarsRow}>
           {normalizedChartData.map((height, index) => {
-            const labels =
-              activePeriod === 'today'
-                ? ['12AM', '6AM', '12PM', '6PM', '10PM', '12AM']
-                : activePeriod === 'week'
-                ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                : ['W1', 'W2', 'W3', 'W4', 'W5'];
-
             return (
               <View key={String(index)} style={styles.barWrap}>
                 <View style={[styles.bar, { height }]} />
-                <Text style={styles.barLabel}>{labels[index] || ''}</Text>
+                <Text style={styles.barLabel}>
+                  {reportData.labels[index] || ''}
+                </Text>
               </View>
             );
           })}
@@ -178,13 +219,13 @@ export const ReportsScreen = () => {
 
       <View style={styles.productsCard}>
         <Text style={styles.sectionTitle}>Top Products</Text>
-        {products.map((product, index) => (
+        {reportData.topProducts.map((product, index) => (
           <View key={index} style={styles.productRow}>
             <Text style={styles.productName}>
               {index + 1} {product.name}
             </Text>
             <Text style={styles.productAmount}>
-              Rs {product.amount.toLocaleString('en-IN')}
+              {formatCurrency(product.amount)}
             </Text>
           </View>
         ))}

@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  PermissionsAndroid,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +16,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
-import { useAttendance } from '../hooks/useAttendance';
+import { attendanceService } from '../services/attendanceService';
+import {
+  DEFAULT_EMPLOYEE_ID,
+  profileService,
+} from '../../settings/services/profileService';
 
 const monthDays = [
   'S',
@@ -74,9 +81,77 @@ interface LeaveForm {
   reason: string;
 }
 
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
+
+const getMonthRange = (date = new Date()) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+  const toDateString = (value: Date) => value.toISOString().split('T')[0];
+
+  return {
+    fromDate: toDateString(start),
+    toDate: toDateString(end),
+  };
+};
+
+const generateCalendarDays = (
+  attendanceData: Array<{
+    attendance_date: string;
+    status: string;
+    in_time: string | null;
+    out_time: string | null;
+    working_hours: number;
+  }>,
+) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = firstDay.getDay();
+
+  // Create a map for quick lookup of attendance data
+  const attendanceMap = new Map(
+    attendanceData.map(day => [day.attendance_date, day]),
+  );
+
+  const calendarDays: Array<{
+    date: string | null;
+    dayNumber: number | null;
+    status: string | null;
+  }> = [];
+
+  // Add empty cells for days before month starts
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarDays.push({ date: null, dayNumber: null, status: null });
+  }
+
+  // Add all days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const dateString = date.toISOString().split('T')[0];
+    const attendance = attendanceMap.get(dateString);
+
+    calendarDays.push({
+      date: dateString,
+      dayNumber: day,
+      status: attendance?.status || 'Absent',
+    });
+  }
+
+  return calendarDays;
+};
+
 export const AttendanceScreen = () => {
   const insets = useSafeAreaInsets();
-  const { presentCount } = useAttendance();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [leaveForm, setLeaveForm] = useState<LeaveForm>({
@@ -85,6 +160,80 @@ export const AttendanceScreen = () => {
     toDate: '',
     reason: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [employeeName, setEmployeeName] = useState('Employee');
+  const [employeeId, setEmployeeId] = useState(DEFAULT_EMPLOYEE_ID);
+  const [checkinStatus, setCheckinStatus] = useState<'IN' | 'OUT'>('OUT');
+  const [attendanceSummary, setAttendanceSummary] = useState({
+    present: 0,
+    halfDay: 0,
+    leave: 0,
+  });
+  const [attendanceCalendar, setAttendanceCalendar] = useState<
+    Array<{
+      attendance_date: string;
+      status: string;
+      in_time: string | null;
+      out_time: string | null;
+      working_hours: number;
+    }>
+  >([]);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const monthRange = useMemo(() => getMonthRange(), []);
+  const monthLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date()),
+    [],
+  );
+
+  const loadAttendance = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const profile = await profileService.fetchUserProfile();
+      setEmployeeName(profile.full_name || profile.employee_name);
+      setEmployeeId(profile.employee || DEFAULT_EMPLOYEE_ID);
+      setCheckinStatus(profile.checkin_status ?? 'OUT');
+
+      const [summary, calendar] = await Promise.all([
+        attendanceService.fetchAttendanceSummary(
+          monthRange.fromDate,
+          monthRange.toDate,
+          profile.employee || DEFAULT_EMPLOYEE_ID,
+        ),
+        attendanceService.fetchAttendanceByDate(
+          monthRange.fromDate,
+          monthRange.toDate,
+          profile.employee || DEFAULT_EMPLOYEE_ID,
+        ),
+      ]);
+
+      console.log('Attendance Summary:', summary);
+
+      setAttendanceSummary({
+        present: summary.summary.Present,
+        halfDay: summary.summary['Half Day'],
+        leave: summary.summary.Leave,
+      });
+      setAttendanceCalendar(calendar);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Unable to load attendance.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [monthRange.fromDate, monthRange.toDate]);
+
+  useEffect(() => {
+    void loadAttendance();
+  }, [loadAttendance]);
 
   const handleSubmitLeave = () => {
     if (leaveForm.leaveType && leaveForm.fromDate && leaveForm.toDate) {
@@ -106,6 +255,101 @@ export const AttendanceScreen = () => {
     return selected ? selected.label : 'Leave Type';
   };
 
+  const requestCurrentCoordinates = useCallback(async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message:
+            'We need your location to submit attendance with real coordinates.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Cancel',
+        },
+      );
+
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        throw new Error('Location permission denied.');
+      }
+    }
+
+    const fallbackCoords = { latitude: 28.6139, longitude: 77.209 };
+
+    return await new Promise<{ latitude: number; longitude: number }>(
+      resolve => {
+        const navigator = globalThis as any;
+        const geolocation = navigator?.geolocation;
+
+        if (!geolocation?.getCurrentPosition) {
+          resolve(fallbackCoords);
+          return;
+        }
+
+        const timeoutId = setTimeout(() => {
+          resolve(fallbackCoords);
+        }, 10000);
+
+        geolocation.getCurrentPosition(
+          (position: any) => {
+            clearTimeout(timeoutId);
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            clearTimeout(timeoutId);
+            resolve(fallbackCoords);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 10000,
+          },
+        );
+      },
+    );
+  }, []);
+
+  const handleCheckin = useCallback(async () => {
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const { latitude, longitude } = await requestCurrentCoordinates();
+      const nextLogType = checkinStatus === 'OUT' ? 'IN' : 'OUT';
+
+      await attendanceService.createEmployeeCheckin({
+        employee: employeeId,
+        log_type: nextLogType,
+        latitude,
+        longitude,
+      });
+
+      Alert.alert('Success', `Attendance marked as ${nextLogType}.`);
+      setCheckinStatus(nextLogType === 'IN' ? 'IN' : 'OUT');
+      await loadAttendance();
+    } catch (error) {
+      Alert.alert(
+        'Unable to mark attendance',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    checkinStatus,
+    employeeId,
+    loadAttendance,
+    requestCurrentCoordinates,
+    submitting,
+  ]);
+
+  const checkinButtonLabel = checkinStatus === 'OUT' ? 'Check In' : 'Check Out';
+
   return (
     <>
       <ScrollView
@@ -122,40 +366,86 @@ export const AttendanceScreen = () => {
         <Text style={styles.title}>Attendance</Text>
 
         <View style={styles.checkInCard}>
-          <Text style={styles.dateText}>Wednesday, 29 April</Text>
-          <View style={styles.checkInButton}>
-            <Text style={styles.checkInText}>→ Check In</Text>
-          </View>
+          <Text style={styles.dateText}>{employeeName}</Text>
+          <Pressable
+            style={styles.checkInButton}
+            onPress={handleCheckin}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.checkInText}>→ {checkinButtonLabel}</Text>
+            )}
+          </Pressable>
           <Text style={styles.gpsText}>GPS location will be captured</Text>
         </View>
 
+        {loading ? (
+          <ActivityIndicator style={{ marginBottom: 12 }} color="#1CA39A" />
+        ) : null}
+        {errorMessage ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
+
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.presentValue}>{presentCount}</Text>
+            <Text style={styles.presentValue}>{attendanceSummary.present}</Text>
             <Text style={styles.statLabel}>Present</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.halfValue}>2</Text>
+            <Text style={styles.halfValue}>{attendanceSummary.halfDay}</Text>
             <Text style={styles.statLabel}>Half Day</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.leaveValue}>1</Text>
+            <Text style={styles.leaveValue}>{attendanceSummary.leave}</Text>
             <Text style={styles.statLabel}>Leave</Text>
           </View>
         </View>
 
-        <Text style={styles.monthTitle}>April 2026</Text>
-        <View style={styles.calendarGrid}>
-          {monthDays.map((day, index) => (
-            <View
-              key={String(index)}
-              style={[styles.dayCell, day === '29' && styles.todayCell]}
-            >
-              <Text style={[styles.dayText, day === '29' && styles.todayText]}>
-                {day}
-              </Text>
-            </View>
-          ))}
+        {/* Calendar Day Headers */}
+        <View style={styles.calendarContainer}>
+          <View style={styles.calendarHeader}>
+            <Text style={styles.calendarTitle}>{monthLabel}</Text>
+          </View>
+          <View style={styles.dayHeaderRow}>
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+              <View key={index} style={styles.dayHeader}>
+                <Text style={styles.dayHeaderText}>{day}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Calendar Grid */}
+          <View style={styles.calendarGrid}>
+            {generateCalendarDays(attendanceCalendar).map((day, index) => (
+              <View
+                key={String(index)}
+                style={[
+                  styles.dayCell,
+                  day.date === null && styles.emptyCell,
+                  day.status === 'Present' && styles.presentCell,
+                  day.status === 'Half Day' && styles.halfCell,
+                  day.status === 'Leave' && styles.leaveCell,
+                  day.status === 'Absent' && styles.absentCell,
+                ]}
+              >
+                {day.dayNumber !== null ? (
+                  <Text
+                    style={[
+                      styles.dayNumber,
+                      day.status === 'Present' && styles.presentText,
+                      day.status === 'Half Day' && styles.halfText,
+                      day.status === 'Leave' && styles.leaveText,
+                      day.status === 'Absent' && styles.absentText,
+                    ]}
+                  >
+                    {day.dayNumber}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
         </View>
 
         <Pressable
@@ -390,41 +680,92 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
-  monthTitle: {
-    color: '#3C3531',
-    fontWeight: '800',
-    fontSize: 18,
-    marginVertical: 8,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  calendarContainer: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E8E3DE',
     borderWidth: 1,
     borderRadius: 12,
-    padding: 8,
+    overflow: 'hidden',
   },
-  dayCell: {
-    width: '13.5%',
+  calendarHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE7E1',
+  },
+  calendarTitle: {
+    color: '#3C3531',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  dayHeaderRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  dayHeader: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 8,
-    marginBottom: 4,
   },
-  dayText: {
-    color: '#9F8579',
+  dayHeaderText: {
+    color: '#8B7D74',
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingBottom: 10,
+  },
+  dayCell: {
+    width: '14.285%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    marginVertical: 3,
+  },
+  emptyCell: {
+    backgroundColor: 'transparent',
+  },
+  dayNumber: {
+    color: '#4D433E',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   todayCell: {
     backgroundColor: '#FAD9D9',
   },
-  todayText: {
-    color: '#B32727',
-    fontWeight: '800',
+  presentCell: {
+    backgroundColor: '#DDF1EE',
+  },
+  halfCell: {
+    backgroundColor: '#FFE4BC',
+  },
+  leaveCell: {
+    backgroundColor: '#FFD6D6',
+  },
+  absentCell: {
+    backgroundColor: '#F2ECE7',
+  },
+  presentText: {
+    color: '#137B73',
+  },
+  halfText: {
+    color: '#B86100',
+  },
+  leaveText: {
+    color: '#C92A2A',
+  },
+  absentText: {
+    color: '#8B7D74',
+  },
+  errorText: {
+    color: '#E03131',
+    marginBottom: 10,
+    fontWeight: '600',
   },
   requestLeaveButton: {
     marginTop: 12,

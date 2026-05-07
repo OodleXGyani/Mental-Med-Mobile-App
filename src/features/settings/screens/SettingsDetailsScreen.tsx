@@ -115,27 +115,6 @@ export const SettingsDetailsScreen = () => {
           <Text style={styles.optionLabel}>Change Password</Text>
           <ChevronRight size={20} color="#AF9488" strokeWidth={2} />
         </Pressable>
-
-        <View style={styles.divider} />
-
-        <Pressable style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Data & Privacy</Text>
-          <ChevronRight size={20} color="#AF9488" strokeWidth={2} />
-        </Pressable>
-
-        <View style={styles.divider} />
-
-        <Pressable style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Help & Support</Text>
-          <ChevronRight size={20} color="#AF9488" strokeWidth={2} />
-        </Pressable>
-
-        <View style={styles.divider} />
-
-        <Pressable style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Legal</Text>
-          <ChevronRight size={20} color="#AF9488" strokeWidth={2} />
-        </Pressable>
       </View>
 
       {/* Security Section */}

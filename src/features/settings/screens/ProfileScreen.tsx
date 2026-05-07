@@ -1,23 +1,62 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Mail, Phone, MapPin, Edit, LogOut } from 'lucide-react-native';
-import { useAuth } from '../../authentication/hooks/useAuth';
+import { User, Mail, Phone, MapPin } from 'lucide-react-native';
+import { profileService, type UserProfile } from '../services/profileService';
 
 export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Mock user data
-  const userProfile = {
-    name: 'Rahul Sharma',
-    role: 'Pharmacist',
-    email: 'rahul.sharma@pharmacy.com',
-    phone: '+91 98765 43210',
-    location: 'MediPlus Pharmacy, Hyderabad',
-    joinDate: 'January 2024',
-    address: '123 Medical Street, Hyderabad, India 500001',
-  };
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      setLoading(true);
+      setErrorMessage('');
+
+      try {
+        const data = await profileService.fetchUserProfile();
+        if (mounted) {
+          setProfile(data);
+        }
+      } catch (error) {
+        if (mounted) {
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Unable to load profile.',
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <ActivityIndicator color="#1CA39A" />
+      </View>
+    );
+  }
+
+  const userProfile = profile;
 
   return (
     <ScrollView
@@ -31,30 +70,39 @@ export const ProfileScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <Text style={styles.title}>Profile</Text>
 
-      {/* Profile Card */}
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
+
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{userProfile.name.charAt(0)}</Text>
+            <Text style={styles.avatarText}>
+              {(
+                userProfile?.full_name ??
+                userProfile?.employee_name ??
+                'U'
+              ).charAt(0)}
+            </Text>
           </View>
-          <Pressable style={styles.editBadge}>
-            <Edit size={14} color="#FFFFFF" strokeWidth={2.5} />
-          </Pressable>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>
+              {userProfile?.employee_status}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{userProfile.name}</Text>
-          <Text style={styles.profileRole}>{userProfile.role}</Text>
+          <Text style={styles.profileName}>{userProfile?.full_name}</Text>
+          <Text style={styles.profileRole}>{userProfile?.designation}</Text>
           <Text style={styles.joinDate}>
-            Member since {userProfile.joinDate}
+            Joined {userProfile?.date_of_joining}
           </Text>
         </View>
       </View>
 
-      {/* Contact Information */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Contact Information</Text>
 
@@ -64,7 +112,11 @@ export const ProfileScreen = () => {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{userProfile.email}</Text>
+            <Text style={styles.infoValue}>
+              {userProfile?.company_email ??
+                userProfile?.personal_email ??
+                userProfile?.user_id}
+            </Text>
           </View>
         </View>
 
@@ -76,53 +128,47 @@ export const ProfileScreen = () => {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>{userProfile.phone}</Text>
+            <Text style={styles.infoValue}>{userProfile?.mobile_no}</Text>
           </View>
         </View>
       </View>
 
-      {/* Location Information */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Pharmacy Location</Text>
+        <Text style={styles.sectionTitle}>Work Details</Text>
 
         <View style={styles.infoRow}>
           <View style={styles.infoIconWrap}>
             <MapPin size={16} color="#1CA39A" strokeWidth={2} />
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Address</Text>
-            <Text style={styles.infoValue}>{userProfile.address}</Text>
+            <Text style={styles.infoLabel}>Company</Text>
+            <Text style={styles.infoValue}>{userProfile?.company}</Text>
+            <Text style={styles.infoLabel}>Department</Text>
+            <Text style={styles.infoValue}>{userProfile?.department}</Text>
+            <Text style={styles.infoLabel}>Employee ID</Text>
+            <Text style={styles.infoValue}>{userProfile?.employee}</Text>
           </View>
         </View>
       </View>
 
-      {/* Quick Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>1,234</Text>
-          <Text style={styles.statLabel}>Orders Processed</Text>
+          <Text style={styles.statValue}>{userProfile?.gender ?? '-'}</Text>
+          <Text style={styles.statLabel}>Gender</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>98%</Text>
-          <Text style={styles.statLabel}>Accuracy Rate</Text>
+          <Text style={styles.statValue}>
+            {userProfile?.checkin_status ?? '-'}
+          </Text>
+          <Text style={styles.statLabel}>Check-in Status</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>156</Text>
-          <Text style={styles.statLabel}>Customers Served</Text>
+          <Text style={styles.statValue}>
+            {userProfile?.enabled ? 'Yes' : 'No'}
+          </Text>
+          <Text style={styles.statLabel}>Enabled</Text>
         </View>
       </View>
-
-      {/* Edit Profile Button */}
-      <Pressable style={styles.editButton}>
-        <Edit size={16} color="#FFFFFF" strokeWidth={2.2} />
-        <Text style={styles.editButtonText}>Edit Profile</Text>
-      </Pressable>
-
-      {/* Sign Out Button */}
-      <Pressable style={styles.signOutButton} onPress={signOut}>
-        <LogOut size={16} color="#FFFFFF" strokeWidth={2.2} />
-        <Text style={styles.signOutButtonText}>Sign Out</Text>
-      </Pressable>
     </ScrollView>
   );
 };
@@ -152,8 +198,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatarContainer: {
-    position: 'relative',
     marginBottom: 12,
+    alignItems: 'center',
   },
   avatar: {
     width: 80,
@@ -168,19 +214,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1CA39A',
   },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1CA39A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+  statusBadge: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#E5F4F3',
   },
+  statusText: { color: '#1CA39A', fontSize: 11, fontWeight: '700' },
   profileInfo: {
     alignItems: 'center',
   },
@@ -275,33 +316,13 @@ const styles = StyleSheet.create({
     color: '#A68F82',
     textAlign: 'center',
   },
-  editButton: {
-    backgroundColor: '#1CA39A',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+  centered: {
     justifyContent: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  signOutButton: {
-    backgroundColor: '#E03131',
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
   },
-  signOutButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+  errorText: {
+    color: '#E03131',
+    marginBottom: 12,
+    fontWeight: '600',
   },
 });
