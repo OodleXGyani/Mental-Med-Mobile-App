@@ -124,6 +124,7 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
   };
 
   const statusColor = getStatusColor(selectedItem.status);
+  const isExpired = selectedItem.status.toLowerCase() === 'expired';
 
   return (
     <View style={[styles.screen, { paddingTop: Math.max(insets.top, 10) }]}>
@@ -224,15 +225,25 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
         style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
         <TouchableOpacity
-          style={[styles.actionButton, styles.removeButton]}
+          style={[
+            styles.actionButton,
+            styles.removeButton,
+            isExpired && styles.actionButtonDisabled,
+          ]}
           onPress={() => setShowRemoveStockModal(true)}
+          disabled={isExpired}
         >
           <Minus size={18} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.actionButtonText}>Remove</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, styles.addButton]}
+          style={[
+            styles.actionButton,
+            styles.addButton,
+            isExpired && styles.actionButtonDisabled,
+          ]}
           onPress={() => setShowAddStockModal(true)}
+          disabled={isExpired}
         >
           <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.actionButtonText}>Add Stock</Text>
@@ -424,5 +435,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  actionButtonDisabled: {
+    backgroundColor: '#C7D5D3',
   },
 });
