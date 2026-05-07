@@ -8,7 +8,6 @@ import {
   View,
   Modal,
   FlatList,
-  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { customerService } from '../services/customerService';
 import { CustomerDetails } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
@@ -43,6 +43,7 @@ const getStatusColor = (value: string | null | undefined) => {
 
 export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [details, setDetails] = useState<CustomerDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -90,7 +91,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
           10,
         );
         setInvoices(data);
-      } catch (err) {
+      } catch {
         // fail silently — keep UI simple
       } finally {
         setInvoicesLoading(false);
@@ -100,14 +101,36 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
   );
 
   return (
-    <View style={[styles.screen, { paddingTop: Math.max(insets.top, 10) }]}>
-      <View style={styles.header}>
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingTop: Math.max(insets.top, 10),
+          backgroundColor: theme.colors.background,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.colors.card,
+            borderBottomColor: theme.colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8}>
-          <ChevronLeft size={24} color="#2A2A2A" strokeWidth={2.5} />
+          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2.5} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Customer Details</Text>
-          <Text style={styles.headerSubtitle}>{route.params.customerCode}</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Customer Details
+          </Text>
+          <Text
+            style={[styles.headerSubtitle, { color: theme.colors.mutedText }]}
+          >
+            {route.params.customerCode}
+          </Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
@@ -121,16 +144,41 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
-          <View style={styles.stateBox}>
-            <ActivityIndicator size="large" color="#1CA39A" />
-            <Text style={styles.stateText}>Loading customer details...</Text>
+          <View
+            style={[
+              styles.stateBox,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              Loading customer details...
+            </Text>
           </View>
         ) : errorMessage ? (
-          <View style={styles.stateBox}>
-            <Text style={styles.stateTitle}>Unable to load details</Text>
-            <Text style={styles.stateText}>{errorMessage}</Text>
+          <View
+            style={[
+              styles.stateBox,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.stateTitle, { color: theme.colors.text }]}>
+              Unable to load details
+            </Text>
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              {errorMessage}
+            </Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[
+                styles.retryButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
               onPress={() => void loadDetails()}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -138,12 +186,26 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
           </View>
         ) : details ? (
           <>
-            <View style={styles.heroCard}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               <View style={styles.heroTopRow}>
                 <View style={styles.heroTextBlock}>
-                  <Text style={styles.name}>{details.customer_name}</Text>
-                  <Text style={styles.meta}>{details.customer_id}</Text>
-                  <Text style={styles.meta}>{details.customer_type}</Text>
+                  <Text style={[styles.name, { color: theme.colors.text }]}>
+                    {details.customer_name}
+                  </Text>
+                  <Text style={[styles.meta, { color: theme.colors.mutedText }]}>
+                    {details.customer_id}
+                  </Text>
+                  <Text style={[styles.meta, { color: theme.colors.mutedText }]}>
+                    {details.customer_type}
+                  </Text>
                 </View>
                 <View
                   style={[
@@ -160,59 +222,133 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
               </View>
 
               <View style={styles.metricRow}>
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>Credit Limit</Text>
-                  <Text style={styles.metricValue}>
+                <View
+                  style={[
+                    styles.metricCard,
+                    { backgroundColor: theme.colors.background },
+                  ]}
+                >
+                  <Text
+                    style={[styles.metricLabel, { color: theme.colors.mutedText }]}
+                  >
+                    Credit Limit
+                  </Text>
+                  <Text
+                    style={[styles.metricValue, { color: theme.colors.primary }]}
+                  >
                     {formatCurrency(details.credit_limit)}
                   </Text>
                 </View>
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>Customer Type</Text>
-                  <Text style={styles.metricValueSmall}>
+                <View
+                  style={[
+                    styles.metricCard,
+                    { backgroundColor: theme.colors.background },
+                  ]}
+                >
+                  <Text
+                    style={[styles.metricLabel, { color: theme.colors.mutedText }]}
+                  >
+                    Customer Type
+                  </Text>
+                  <Text
+                    style={[
+                      styles.metricValueSmall,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
                     {details.customer_type}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Contact Details</Text>
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Contact Details
+              </Text>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Contact Person</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  Contact Person
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
                   {details.contact_person || '—'}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Phone</Text>
-                <Text style={styles.detailValue}>{details.phone || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  Phone
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.phone || '—'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Email</Text>
-                <Text style={styles.detailValue}>{details.email || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  Email
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.email || '—'}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Address</Text>
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Address
+              </Text>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Address</Text>
-                <Text style={styles.detailValue}>{details.address || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  Address
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.address || '—'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>City</Text>
-                <Text style={styles.detailValue}>{details.city || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  City
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.city || '—'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>State</Text>
-                <Text style={styles.detailValue}>{details.state || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  State
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.state || '—'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Pincode</Text>
-                <Text style={styles.detailValue}>{details.pincode || '—'}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.mutedText }]}>
+                  Pincode
+                </Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                  {details.pincode || '—'}
+                </Text>
               </View>
               <TouchableOpacity
-                style={styles.historyButton}
+                style={[
+                  styles.historyButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={() => {
                   setShowHistoryModal(true);
                   void loadInvoices();
@@ -228,22 +364,44 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
       </ScrollView>
       <Modal visible={showHistoryModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeaderRow}>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: theme.colors.card },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalHeaderRow,
+                { borderBottomColor: theme.colors.border },
+              ]}
+            >
               <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
-                <Text style={styles.modalBack}>{'←'}</Text>
+                <Text style={[styles.modalBack, { color: theme.colors.text }]}>
+                  {'←'}
+                </Text>
               </TouchableOpacity>
               <Text
-                style={styles.modalTitleMain}
+                style={[styles.modalTitleMain, { color: theme.colors.text }]}
               >{`${details?.customer_name}'s Purchases`}</Text>
               <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, { color: theme.colors.text }]}>
+                  ✕
+                </Text>
               </TouchableOpacity>
             </View>
 
             {invoicesLoading ? (
-              <View style={styles.stateBox}>
-                <ActivityIndicator size="large" color="#1CA39A" />
+              <View
+                style={[
+                  styles.stateBox,
+                  {
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="large" color={theme.colors.primary} />
               </View>
             ) : (
               <FlatList
@@ -255,27 +413,73 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                   { paddingBottom: Math.max(insets.bottom, 16) },
                 ]}
                 ListEmptyComponent={() => (
-                  <View style={[styles.stateBox, { paddingVertical: 24 }]}>
-                    <Text style={styles.stateTitle}>No purchases found</Text>
-                    <Text style={styles.stateText}>
+                  <View
+                    style={[
+                      styles.stateBox,
+                      {
+                        paddingVertical: 24,
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.stateTitle, { color: theme.colors.text }]}>
+                      No purchases found
+                    </Text>
+                    <Text
+                      style={[styles.stateText, { color: theme.colors.mutedText }]}
+                    >
                       This customer has no invoices.
                     </Text>
                   </View>
                 )}
                 renderItem={({ item }) => (
-                  <View style={styles.invoiceCard}>
+                  <View
+                    style={[
+                      styles.invoiceCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
                     <View style={styles.invoiceHeaderRow}>
                       <View>
-                        <Text style={styles.invoiceId}>{item.invoice_id}</Text>
-                        <Text style={styles.invoiceDate}>
+                        <Text style={[styles.invoiceId, { color: theme.colors.text }]}>
+                          {item.invoice_id}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.invoiceDate,
+                            { color: theme.colors.mutedText },
+                          ]}
+                        >
                           {item.posting_date}
                         </Text>
                       </View>
-                      <Text style={styles.invoiceAmount}>₹{item.amount}</Text>
+                      <Text
+                        style={[
+                          styles.invoiceAmount,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        ₹{item.amount}
+                      </Text>
                     </View>
-                    <View style={styles.invoiceItems}>
+                    <View
+                      style={[
+                        styles.invoiceItems,
+                        { borderTopColor: theme.colors.border },
+                      ]}
+                    >
                       {item.items.map((it, idx) => (
-                        <Text key={idx} style={styles.invoiceItemText}>
+                        <Text
+                          key={idx}
+                          style={[
+                            styles.invoiceItemText,
+                            { color: theme.colors.mutedText },
+                          ]}
+                        >
                           {it}
                         </Text>
                       ))}

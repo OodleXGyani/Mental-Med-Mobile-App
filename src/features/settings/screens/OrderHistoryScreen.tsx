@@ -13,6 +13,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { useAuth } from '../../authentication/hooks/useAuth';
 import { ordersService } from '../../orders/services/ordersService';
 import type { CustomerInvoice } from '../../orders/types';
+import { useAppTheme } from '../../../shared/theme';
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +34,7 @@ const formatDate = (value: string) => {
 
 export const OrderHistoryScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<CustomerInvoice[]>([]);
@@ -110,7 +112,7 @@ export const OrderHistoryScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -120,32 +122,57 @@ export const OrderHistoryScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Order History</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Order History
+      </Text>
 
-      <View style={styles.searchContainer}>
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <TextInput
           placeholder="Search by invoice, customer, company..."
-          placeholderTextColor="#B59D90"
+          placeholderTextColor={theme.colors.mutedText}
           value={searchText}
           onChangeText={text => {
             setSearchText(text);
             setPage(1);
           }}
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.text }]}
         />
       </View>
 
       {loading ? (
-        <ActivityIndicator style={styles.loader} color="#1CA39A" />
+        <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
       ) : null}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {error}
+        </Text>
+      ) : null}
 
       {items.length > 0 ? (
         items.map(order => (
-          <Pressable key={order.invoice_id} style={styles.orderCard}>
+          <Pressable
+            key={order.invoice_id}
+            style={[
+              styles.orderCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
             <View style={styles.orderHeader}>
               <View style={styles.orderMeta}>
-                <Text style={styles.orderId}>{order.invoice_id}</Text>
+                <Text style={[styles.orderId, { color: theme.colors.text }]}>
+                  {order.invoice_id}
+                </Text>
                 <View
                   style={[
                     styles.statusBadge,
@@ -157,30 +184,51 @@ export const OrderHistoryScreen = () => {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.orderAmount}>
+              <Text style={[styles.orderAmount, { color: theme.colors.primary }]}>
                 {formatAmount(order.amount)}
               </Text>
             </View>
 
             <View style={styles.orderDetails}>
-              <Text style={styles.customerName}>{order.company}</Text>
-              <Text style={styles.customerPhone}>{order.items.join(', ')}</Text>
-              <Text style={styles.orderTime}>
+              <Text style={[styles.customerName, { color: theme.colors.text }]}>
+                {order.company}
+              </Text>
+              <Text
+                style={[styles.customerPhone, { color: theme.colors.mutedText }]}
+              >
+                {order.items.join(', ')}
+              </Text>
+              <Text style={[styles.orderTime, { color: theme.colors.mutedText }]}>
                 {formatDate(order.posting_date)}
               </Text>
             </View>
 
-            <View style={styles.orderFooter}>
+            <View
+              style={[
+                styles.orderFooter,
+                { borderTopColor: theme.colors.border },
+              ]}
+            >
               <Pressable style={styles.viewButton}>
-                <Text style={styles.viewButtonText}>View Details</Text>
-                <ChevronRight size={16} color="#1CA39A" strokeWidth={2.5} />
+                <Text
+                  style={[styles.viewButtonText, { color: theme.colors.primary }]}
+                >
+                  View Details
+                </Text>
+                <ChevronRight
+                  size={16}
+                  color={theme.colors.primary}
+                  strokeWidth={2.5}
+                />
               </Pressable>
             </View>
           </Pressable>
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No orders found</Text>
+          <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
+            No orders found
+          </Text>
         </View>
       )}
 
@@ -188,12 +236,18 @@ export const OrderHistoryScreen = () => {
         <Pressable
           onPress={() => setPage(current => Math.max(current - 1, 1))}
           disabled={page === 1}
-          style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+          style={[
+            styles.pageButton,
+            { backgroundColor: theme.colors.primary },
+            page === 1 && {
+              backgroundColor: theme.dark ? '#2F3A39' : '#C7D5D3',
+            },
+          ]}
         >
           <Text style={styles.pageButtonText}>Previous</Text>
         </Pressable>
 
-        <Text style={styles.pageLabel}>
+        <Text style={[styles.pageLabel, { color: theme.colors.mutedText }]}>
           Page {page} of {totalPages}
         </Text>
 
@@ -202,7 +256,10 @@ export const OrderHistoryScreen = () => {
           disabled={page >= totalPages}
           style={[
             styles.pageButton,
-            page >= totalPages && styles.pageButtonDisabled,
+            { backgroundColor: theme.colors.primary },
+            page >= totalPages && {
+              backgroundColor: theme.dark ? '#2F3A39' : '#C7D5D3',
+            },
           ]}
         >
           <Text style={styles.pageButtonText}>Next</Text>

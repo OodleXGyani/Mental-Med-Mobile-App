@@ -7,11 +7,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Mail, Phone, MapPin } from 'lucide-react-native';
+import { Mail, Phone, MapPin } from 'lucide-react-native';
 import { profileService, type UserProfile } from '../services/profileService';
+import { useAppTheme } from '../../../shared/theme';
 
 export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -50,8 +52,14 @@ export const ProfileScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.screen, styles.centered]}>
-        <ActivityIndicator color="#1CA39A" />
+      <View
+        style={[
+          styles.screen,
+          styles.centered,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
@@ -60,7 +68,7 @@ export const ProfileScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -70,16 +78,31 @@ export const ProfileScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Profile</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Profile</Text>
 
       {errorMessage ? (
-        <Text style={styles.errorText}>{errorMessage}</Text>
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {errorMessage}
+        </Text>
       ) : null}
 
-      <View style={styles.profileCard}>
+      <View
+        style={[
+          styles.profileCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
               {(
                 userProfile?.full_name ??
                 userProfile?.employee_name ??
@@ -87,32 +110,58 @@ export const ProfileScreen = () => {
               ).charAt(0)}
             </Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: theme.colors.primary }]}>
               {userProfile?.employee_status}
             </Text>
           </View>
         </View>
 
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{userProfile?.full_name}</Text>
-          <Text style={styles.profileRole}>{userProfile?.designation}</Text>
-          <Text style={styles.joinDate}>
+          <Text style={[styles.profileName, { color: theme.colors.text }]}>
+            {userProfile?.full_name}
+          </Text>
+          <Text style={[styles.profileRole, { color: theme.colors.mutedText }]}>
+            {userProfile?.designation}
+          </Text>
+          <Text style={[styles.joinDate, { color: theme.colors.mutedText }]}>
             Joined {userProfile?.date_of_joining}
           </Text>
         </View>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Contact Information</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Contact Information
+        </Text>
 
         <View style={styles.infoRow}>
-          <View style={styles.infoIconWrap}>
-            <Mail size={16} color="#1CA39A" strokeWidth={2} />
+          <View
+            style={[
+              styles.infoIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Mail size={16} color={theme.colors.primary} strokeWidth={2} />
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>
+            <Text style={[styles.infoLabel, { color: theme.colors.mutedText }]}>
+              Email
+            </Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
               {userProfile?.company_email ??
                 userProfile?.personal_email ??
                 userProfile?.user_id}
@@ -120,53 +169,121 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
         <View style={styles.infoRow}>
-          <View style={styles.infoIconWrap}>
-            <Phone size={16} color="#1CA39A" strokeWidth={2} />
+          <View
+            style={[
+              styles.infoIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Phone size={16} color={theme.colors.primary} strokeWidth={2} />
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>{userProfile?.mobile_no}</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.mutedText }]}>
+              Phone
+            </Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {userProfile?.mobile_no}
+            </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Work Details</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Work Details
+        </Text>
 
         <View style={styles.infoRow}>
-          <View style={styles.infoIconWrap}>
-            <MapPin size={16} color="#1CA39A" strokeWidth={2} />
+          <View
+            style={[
+              styles.infoIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <MapPin size={16} color={theme.colors.primary} strokeWidth={2} />
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Company</Text>
-            <Text style={styles.infoValue}>{userProfile?.company}</Text>
-            <Text style={styles.infoLabel}>Department</Text>
-            <Text style={styles.infoValue}>{userProfile?.department}</Text>
-            <Text style={styles.infoLabel}>Employee ID</Text>
-            <Text style={styles.infoValue}>{userProfile?.employee}</Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.mutedText }]}>
+              Company
+            </Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {userProfile?.company}
+            </Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.mutedText }]}>
+              Department
+            </Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {userProfile?.department}
+            </Text>
+            <Text style={[styles.infoLabel, { color: theme.colors.mutedText }]}>
+              Employee ID
+            </Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+              {userProfile?.employee}
+            </Text>
           </View>
         </View>
       </View>
 
       <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>{userProfile?.gender ?? '-'}</Text>
-          <Text style={styles.statLabel}>Gender</Text>
+        <View
+          style={[
+            styles.statBox,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>
+            {userProfile?.gender ?? '-'}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+            Gender
+          </Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>
             {userProfile?.checkin_status ?? '-'}
           </Text>
-          <Text style={styles.statLabel}>Check-in Status</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+            Check-in Status
+          </Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>
+        <View
+          style={[
+            styles.statBox,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.statValue, { color: theme.colors.primary }]}>
             {userProfile?.enabled ? 'Yes' : 'No'}
           </Text>
-          <Text style={styles.statLabel}>Enabled</Text>
+          <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+            Enabled
+          </Text>
         </View>
       </View>
     </ScrollView>

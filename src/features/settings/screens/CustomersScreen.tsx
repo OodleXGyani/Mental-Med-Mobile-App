@@ -20,6 +20,7 @@ import { customerService } from '../services/customerService';
 import { CreateCustomerRequest, CustomerListItem } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
@@ -61,6 +62,7 @@ const getInitial = (name: string) => name.trim().charAt(0).toUpperCase() || 'C';
 
 export const CustomersScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -216,7 +218,7 @@ export const CustomersScreen = ({ navigation }: Props) => {
     },
   ) => (
     <View style={styles.formGroup}>
-      <Text style={styles.label}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>
         {label}{' '}
         {options?.required !== false ? (
           <Text style={styles.required}>*</Text>
@@ -225,11 +227,16 @@ export const CustomersScreen = ({ navigation }: Props) => {
       <TextInput
         style={[
           styles.input,
+          {
+            backgroundColor: theme.colors.background,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
           options?.multiline && styles.multilineInput,
-          errors[field] && styles.inputError,
+          errors[field] && { borderColor: theme.colors.danger },
         ]}
         placeholder={placeholder}
-        placeholderTextColor="#B59D90"
+        placeholderTextColor={theme.colors.mutedText}
         value={formData[field]}
         onChangeText={text => {
           setFormData(prev => ({ ...prev, [field]: text }));
@@ -244,7 +251,9 @@ export const CustomersScreen = ({ navigation }: Props) => {
         maxLength={options?.maxLength}
       />
       {errors[field] ? (
-        <Text style={styles.errorText}>{errors[field]}</Text>
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {errors[field]}
+        </Text>
       ) : null}
     </View>
   );
@@ -252,7 +261,7 @@ export const CustomersScreen = ({ navigation }: Props) => {
   return (
     <>
       <ScrollView
-        style={styles.screen}
+        style={[styles.screen, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={[
           styles.content,
           {
@@ -264,41 +273,76 @@ export const CustomersScreen = ({ navigation }: Props) => {
       >
         <View style={styles.headerRow}>
           <View style={styles.headerTextBlock}>
-            <Text style={styles.title}>Customers</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              Customers
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
               Live customer directory from the backend
             </Text>
           </View>
           <Pressable
-            style={styles.addButton}
+            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => setShowAddModal(true)}
           >
             <Text style={styles.addButtonText}>+ Add</Text>
           </Pressable>
         </View>
 
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#B59D90" strokeWidth={2.2} />
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Search size={18} color={theme.colors.mutedText} strokeWidth={2.2} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.colors.text }]}
             placeholder="Search by name or phone..."
-            placeholderTextColor="#B59D90"
+            placeholderTextColor={theme.colors.mutedText}
             value={searchText}
             onChangeText={setSearchText}
           />
         </View>
 
         {loading ? (
-          <View style={styles.stateBox}>
-            <ActivityIndicator size="large" color="#1CA39A" />
-            <Text style={styles.stateText}>Loading customers...</Text>
+          <View
+            style={[
+              styles.stateBox,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              Loading customers...
+            </Text>
           </View>
         ) : errorMessage ? (
-          <View style={styles.stateBox}>
-            <Text style={styles.stateTitle}>Unable to load customers</Text>
-            <Text style={styles.stateText}>{errorMessage}</Text>
+          <View
+            style={[
+              styles.stateBox,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.stateTitle, { color: theme.colors.text }]}>
+              Unable to load customers
+            </Text>
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              {errorMessage}
+            </Text>
             <Pressable
-              style={styles.retryButton}
+              style={[
+                styles.retryButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
               onPress={() => void loadCustomers()}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -307,7 +351,13 @@ export const CustomersScreen = ({ navigation }: Props) => {
         ) : filteredCustomers.length > 0 ? (
           filteredCustomers.map(customer => (
             <Pressable
-              style={styles.customerRow}
+              style={[
+                styles.customerRow,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
               key={customer.customer_code}
               onPress={() =>
                 navigation.navigate(STACK_ROUTES.CUSTOMER_DETAILS, {
@@ -315,38 +365,69 @@ export const CustomersScreen = ({ navigation }: Props) => {
                 })
               }
             >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
+              <View
+                style={[
+                  styles.avatarCircle,
+                  { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+                ]}
+              >
+                <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
                   {getInitial(customer.customer_name)}
                 </Text>
               </View>
 
               <View style={styles.customerInfo}>
-                <Text style={styles.customerName}>
+                <Text style={[styles.customerName, { color: theme.colors.text }]}>
                   {customer.customer_name}
                 </Text>
-                <Text style={styles.customerMeta} numberOfLines={1}>
+                <Text
+                  style={[styles.customerMeta, { color: theme.colors.mutedText }]}
+                  numberOfLines={1}
+                >
                   {customer.contact.mobile || customer.customer_code} •{' '}
                   {customer.status}
                 </Text>
-                <Text style={styles.customerSubMeta} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.customerSubMeta,
+                    { color: theme.colors.mutedText },
+                  ]}
+                  numberOfLines={1}
+                >
                   {customer.contact.email || customer.customer_type} • Last
                   order {customer.last_order_date || 'N/A'}
                 </Text>
               </View>
 
               <View style={styles.customerRight}>
-                <Text style={styles.amountText} numberOfLines={1}>
+                <Text
+                  style={[styles.amountText, { color: theme.colors.primary }]}
+                  numberOfLines={1}
+                >
                   {formatCurrency(customer.total_billing)}
                 </Text>
-                <ChevronRight size={18} color="#B59D90" strokeWidth={2.5} />
+                <ChevronRight
+                  size={18}
+                  color={theme.colors.mutedText}
+                  strokeWidth={2.5}
+                />
               </View>
             </Pressable>
           ))
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No customers found</Text>
-            <Text style={styles.emptyText}>
+          <View
+            style={[
+              styles.emptyState,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+              No customers found
+            </Text>
+            <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
               Try a different search term or add a new customer.
             </Text>
           </View>
@@ -364,11 +445,23 @@ export const CustomersScreen = ({ navigation }: Props) => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardAvoid}
           >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Customer</Text>
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: theme.colors.card },
+              ]}
+            >
+              <View
+                style={[
+                  styles.modalHeader,
+                  { borderBottomColor: theme.colors.border },
+                ]}
+              >
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  Add Customer
+                </Text>
                 <Pressable onPress={handleCloseModal}>
-                  <X size={24} color="#2A2A2A" strokeWidth={2.5} />
+                  <X size={24} color={theme.colors.text} strokeWidth={2.5} />
                 </Pressable>
               </View>
 
@@ -413,10 +506,16 @@ export const CustomersScreen = ({ navigation }: Props) => {
                 })}
               </ScrollView>
 
-              <View style={styles.modalFooter}>
+              <View
+                style={[
+                  styles.modalFooter,
+                  { borderTopColor: theme.colors.border },
+                ]}
+              >
                 <Pressable
                   style={[
                     styles.addCustomerButton,
+                    { backgroundColor: theme.colors.primary },
                     submitting && styles.addCustomerButtonDisabled,
                   ]}
                   onPress={handleAddCustomer}

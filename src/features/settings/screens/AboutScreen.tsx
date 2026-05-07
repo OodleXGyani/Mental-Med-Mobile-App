@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zap, Mail, Phone, Globe } from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 export const AboutScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const features = [
     'Mobile POS with barcode scanning',
     'Real-time inventory management',
@@ -36,7 +38,7 @@ export const AboutScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -48,17 +50,31 @@ export const AboutScreen = () => {
     >
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <View style={styles.logoBadge}>
+        <View style={[styles.logoBadge, { backgroundColor: theme.colors.primary }]}>
           <Zap size={40} color="#FFFFFF" strokeWidth={2} />
         </View>
-        <Text style={styles.appName}>Meds15</Text>
-        <Text style={styles.appTagline}>Pharmacy Management System</Text>
-        <Text style={styles.appVersion}>Version 1.0.0</Text>
+        <Text style={[styles.appName, { color: theme.colors.text }]}>
+          Meds15
+        </Text>
+        <Text style={[styles.appTagline, { color: theme.colors.mutedText }]}>
+          Pharmacy Management System
+        </Text>
+        <Text style={[styles.appVersion, { color: theme.colors.mutedText }]}>
+          Version 1.0.0
+        </Text>
       </View>
 
       {/* Description */}
-      <View style={styles.descriptionCard}>
-        <Text style={styles.descriptionText}>
+      <View
+        style={[
+          styles.descriptionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.descriptionText, { color: theme.colors.mutedText }]}>
           Meds15 is a comprehensive pharmacy management solution designed to
           streamline operations for Indian pharmacies. From POS billing and
           inventory management to order tracking and fulfillment, staff
@@ -67,74 +83,142 @@ export const AboutScreen = () => {
       </View>
 
       {/* Features */}
-      <View style={styles.featuresCard}>
-        <Text style={styles.sectionTitle}>Key Features</Text>
+      <View
+        style={[
+          styles.featuresCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Key Features
+        </Text>
         {features.map((feature, index) => (
           <View key={index} style={styles.featureItem}>
-            <View style={styles.featureDot} />
-            <Text style={styles.featureText}>{feature}</Text>
+            <View
+              style={[
+                styles.featureDot,
+                { backgroundColor: theme.colors.primary },
+              ]}
+            />
+            <Text style={[styles.featureText, { color: theme.colors.mutedText }]}>
+              {feature}
+            </Text>
           </View>
         ))}
       </View>
 
       {/* Contact Section */}
-      <View style={styles.contactCard}>
-        <Text style={styles.sectionTitle}>Contact Us</Text>
+      <View
+        style={[
+          styles.contactCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Contact Us
+        </Text>
 
         <Pressable style={styles.contactRow} onPress={handleWebsite}>
-          <View style={styles.contactIconWrap}>
-            <Globe size={18} color="#1CA39A" strokeWidth={2.2} />
+          <View
+            style={[
+              styles.contactIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Globe size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Website</Text>
-            <Text style={styles.contactValue}>www.meds15.com</Text>
+            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+              Website
+            </Text>
+            <Text style={[styles.contactValue, { color: theme.colors.text }]}>
+              www.meds15.com
+            </Text>
           </View>
         </Pressable>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
         <Pressable style={styles.contactRow} onPress={handleEmail}>
-          <View style={styles.contactIconWrap}>
-            <Mail size={18} color="#1CA39A" strokeWidth={2.2} />
+          <View
+            style={[
+              styles.contactIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Mail size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Email</Text>
-            <Text style={styles.contactValue}>support@meds15.com</Text>
+            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+              Email
+            </Text>
+            <Text style={[styles.contactValue, { color: theme.colors.text }]}>
+              support@meds15.com
+            </Text>
           </View>
         </Pressable>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
 
         <Pressable style={styles.contactRow} onPress={handlePhone}>
-          <View style={styles.contactIconWrap}>
-            <Phone size={18} color="#1CA39A" strokeWidth={2.2} />
+          <View
+            style={[
+              styles.contactIconWrap,
+              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            ]}
+          >
+            <Phone size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={styles.contactLabel}>Phone</Text>
-            <Text style={styles.contactValue}>+91 98765 43210</Text>
+            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+              Phone
+            </Text>
+            <Text style={[styles.contactValue, { color: theme.colors.text }]}>
+              +91 98765 43210
+            </Text>
           </View>
         </Pressable>
       </View>
 
       {/* Legal */}
-      <View style={styles.legalCard}>
+      <View
+        style={[
+          styles.legalCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <Pressable>
-          <Text style={styles.legalLink}>Terms & Conditions</Text>
+          <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
+            Terms & Conditions
+          </Text>
         </Pressable>
         <Pressable style={styles.legalPressable}>
-          <Text style={styles.legalLink}>Privacy Policy</Text>
+          <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
+            Privacy Policy
+          </Text>
         </Pressable>
         <Pressable style={styles.legalPressable}>
-          <Text style={styles.legalLink}>License Agreement</Text>
+          <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
+            License Agreement
+          </Text>
         </Pressable>
       </View>
 
       {/* Footer */}
       <View style={styles.footerCard}>
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
           © 2024 Meds15. All rights reserved.
         </Text>
-        <Text style={styles.footerSubtext}>
+        <Text style={[styles.footerSubtext, { color: theme.colors.mutedText }]}>
           Made with ❤️ for Indian Pharmacies
         </Text>
       </View>

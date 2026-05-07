@@ -12,6 +12,7 @@ import { useAppDispatch } from '../../../app/hooks';
 import { useReports } from '../hooks/useReports';
 import { reportsService } from '../services/reportsService';
 import { setLastGeneratedAt } from '../store/reportsSlice';
+import { useAppTheme } from '../../../shared/theme';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -25,6 +26,7 @@ const formatCurrency = (value: number) => `Rs ${value.toLocaleString('en-IN')}`;
 
 export const ReportsScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const { lastGeneratedAt } = useReports();
   const dispatch = useAppDispatch();
   const [activePeriod, setActivePeriod] = useState<PeriodType>('today');
@@ -110,7 +112,7 @@ export const ReportsScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -120,25 +122,40 @@ export const ReportsScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Reports</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Reports</Text>
 
       {loading ? (
-        <ActivityIndicator style={{ marginBottom: 10 }} color="#1CA39A" />
+        <ActivityIndicator
+          style={{ marginBottom: 10 }}
+          color={theme.colors.primary}
+        />
       ) : null}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {error}
+        </Text>
+      ) : null}
 
-      <View style={styles.periodBar}>
+      <View
+        style={[
+          styles.periodBar,
+          { backgroundColor: theme.dark ? '#232323' : '#EFEBE7' },
+        ]}
+      >
         <Pressable
           onPress={() => setActivePeriod('today')}
           style={[
             styles.periodButton,
-            activePeriod === 'today' && styles.periodButtonActive,
+            activePeriod === 'today' && {
+              backgroundColor: theme.colors.card,
+            },
           ]}
         >
           <Text
             style={[
               styles.periodText,
-              activePeriod === 'today' && styles.periodTextActive,
+              { color: theme.colors.mutedText },
+              activePeriod === 'today' && { color: theme.colors.text },
             ]}
           >
             Today
@@ -148,13 +165,16 @@ export const ReportsScreen = () => {
           onPress={() => setActivePeriod('week')}
           style={[
             styles.periodButton,
-            activePeriod === 'week' && styles.periodButtonActive,
+            activePeriod === 'week' && {
+              backgroundColor: theme.colors.card,
+            },
           ]}
         >
           <Text
             style={[
               styles.periodText,
-              activePeriod === 'week' && styles.periodTextActive,
+              { color: theme.colors.mutedText },
+              activePeriod === 'week' && { color: theme.colors.text },
             ]}
           >
             This Week
@@ -164,13 +184,16 @@ export const ReportsScreen = () => {
           onPress={() => setActivePeriod('month')}
           style={[
             styles.periodButton,
-            activePeriod === 'month' && styles.periodButtonActive,
+            activePeriod === 'month' && {
+              backgroundColor: theme.colors.card,
+            },
           ]}
         >
           <Text
             style={[
               styles.periodText,
-              activePeriod === 'month' && styles.periodTextActive,
+              { color: theme.colors.mutedText },
+              activePeriod === 'month' && { color: theme.colors.text },
             ]}
           >
             This Month
@@ -179,36 +202,95 @@ export const ReportsScreen = () => {
       </View>
 
       <View style={styles.metricsGrid}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Sales</Text>
-          <Text style={styles.metricValue}>
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: theme.colors.mutedText }]}>
+            Sales
+          </Text>
+          <Text style={[styles.metricValue, { color: theme.colors.text }]}>
             {formatCurrency(reportData.sales)}
           </Text>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Transactions</Text>
-          <Text style={styles.metricValue}>{reportData.transactions}</Text>
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: theme.colors.mutedText }]}>
+            Transactions
+          </Text>
+          <Text style={[styles.metricValue, { color: theme.colors.text }]}>
+            {reportData.transactions}
+          </Text>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Avg Ticket</Text>
-          <Text style={styles.metricValue}>
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: theme.colors.mutedText }]}>
+            Avg Ticket
+          </Text>
+          <Text style={[styles.metricValue, { color: theme.colors.text }]}>
             {formatCurrency(reportData.avgTicket)}
           </Text>
         </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Top Product</Text>
-          <Text style={styles.metricValueSmall}>{reportData.topProduct}</Text>
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: theme.colors.mutedText }]}>
+            Top Product
+          </Text>
+          <Text style={[styles.metricValueSmall, { color: theme.colors.text }]}>
+            {reportData.topProduct}
+          </Text>
         </View>
       </View>
 
-      <View style={styles.chartCard}>
-        <Text style={styles.sectionTitle}>Sales Trend</Text>
+      <View
+        style={[
+          styles.chartCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Sales Trend
+        </Text>
         <View style={styles.chartBarsRow}>
           {normalizedChartData.map((height, index) => {
             return (
               <View key={String(index)} style={styles.barWrap}>
-                <View style={[styles.bar, { height }]} />
-                <Text style={styles.barLabel}>
+                <View
+                  style={[
+                    styles.bar,
+                    { height, backgroundColor: theme.colors.primary },
+                  ]}
+                />
+                <Text style={[styles.barLabel, { color: theme.colors.mutedText }]}>
                   {reportData.labels[index] || ''}
                 </Text>
               </View>
@@ -217,21 +299,31 @@ export const ReportsScreen = () => {
         </View>
       </View>
 
-      <View style={styles.productsCard}>
-        <Text style={styles.sectionTitle}>Top Products</Text>
+      <View
+        style={[
+          styles.productsCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Top Products
+        </Text>
         {reportData.topProducts.map((product, index) => (
           <View key={index} style={styles.productRow}>
-            <Text style={styles.productName}>
+            <Text style={[styles.productName, { color: theme.colors.text }]}>
               {index + 1} {product.name}
             </Text>
-            <Text style={styles.productAmount}>
+            <Text style={[styles.productAmount, { color: theme.colors.text }]}>
               {formatCurrency(product.amount)}
             </Text>
           </View>
         ))}
       </View>
 
-      <Text style={styles.lastGenerated}>
+      <Text style={[styles.lastGenerated, { color: theme.colors.mutedText }]}>
         {`Last generated: ${lastGeneratedAt ?? 'Not generated yet'}`}
       </Text>
     </ScrollView>
@@ -252,6 +344,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#2A2A2A',
     marginBottom: 12,
+  },
+  errorText: {
+    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: '600',
   },
   periodBar: {
     backgroundColor: '#EFEBE7',
