@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight, BarChart3 } from 'lucide-react-native';
 import { InventoryItem } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   item: InventoryItem;
@@ -38,19 +39,32 @@ const formatStatusLabel = (status: string) => {
 };
 
 export const InventoryCard = ({ item, onPress, onBarcodeScan }: Props) => {
+  const theme = useAppTheme();
   const statusColor = getStatusColor(item.status);
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
       onPress={() => onPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <View style={styles.titleContent}>
-            <Text style={styles.medicineName}>{item.name}</Text>
-            <Text style={styles.genericName}>{item.medicine_id}</Text>
+            <Text style={[styles.medicineName, { color: theme.colors.text }]}>
+              {item.name}
+            </Text>
+            <Text
+              style={[styles.genericName, { color: theme.colors.mutedText }]}
+            >
+              {item.medicine_id}
+            </Text>
           </View>
           <View
             style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}
@@ -62,24 +76,34 @@ export const InventoryCard = ({ item, onPress, onBarcodeScan }: Props) => {
         </View>
       </View>
 
-      <Text style={styles.metaText}>
+      <Text style={[styles.metaText, { color: theme.colors.mutedText }]}>
         {item.category} · {item.company}
       </Text>
 
       <View style={styles.footer}>
         <View style={styles.quantitySection}>
-          <Text style={styles.qtyLabel}>Qty: </Text>
-          <Text style={styles.qtyValue}>{item.quantity}</Text>
+          <Text style={[styles.qtyLabel, { color: theme.colors.mutedText }]}>
+            Qty:{' '}
+          </Text>
+          <Text style={[styles.qtyValue, { color: theme.colors.text }]}>
+            {item.quantity}
+          </Text>
         </View>
-        <Text style={styles.price}>₹{item.stock_value.toFixed(2)}</Text>
+        <Text style={[styles.price, { color: theme.colors.primary }]}>
+          ₹{item.stock_value.toFixed(2)}
+        </Text>
         <TouchableOpacity
           style={styles.barcodeButton}
           onPress={() => onBarcodeScan(item)}
           hitSlop={8}
         >
-          <BarChart3 size={16} color="#1CA39A" strokeWidth={2} />
+          <BarChart3 size={16} color={theme.colors.primary} strokeWidth={2} />
         </TouchableOpacity>
-        <ChevronRight size={16} color="#B7A59A" strokeWidth={2} />
+        <ChevronRight
+          size={16}
+          color={theme.colors.mutedText}
+          strokeWidth={2}
+        />
       </View>
     </TouchableOpacity>
   );

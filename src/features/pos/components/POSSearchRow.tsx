@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Camera, Search } from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   searchText: string;
@@ -8,20 +9,37 @@ type Props = {
   onPressScan: () => void;
 };
 
-export const POSSearchRow = ({ searchText, onSearchChange, onPressScan }: Props) => {
+export const POSSearchRow = ({
+  searchText,
+  onSearchChange,
+  onPressScan,
+}: Props) => {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.searchRow}>
-      <View style={styles.searchInput}>
-        <Search size={14} color="#8F7E74" strokeWidth={2.5} />
+      <View
+        style={[
+          styles.searchInput,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Search size={14} color={theme.colors.mutedText} strokeWidth={2.5} />
         <TextInput
           placeholder="Search Medicine"
-          placeholderTextColor="#B09A8E"
-          style={styles.searchText}
+          placeholderTextColor={theme.colors.mutedText}
+          style={[styles.searchText, { color: theme.colors.text }]}
           value={searchText}
           onChangeText={onSearchChange}
         />
       </View>
-      <Pressable style={styles.scanButton} onPress={onPressScan}>
+      <Pressable
+        style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
+        onPress={onPressScan}
+      >
         <Camera size={14} color="#FFFFFF" strokeWidth={2.4} />
         <Text style={styles.scanText}>Scan</Text>
       </Pressable>

@@ -1,20 +1,19 @@
 import React, { useEffect } from 'react';
-import {
-  ActivityIndicator,
-  StatusBar,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from './src/app/hooks';
 import { store } from './src/app/store';
 import { bootstrapAuth } from './src/features/authentication/store/authSlice';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { resolveTheme } from './src/shared/theme';
 
 const AuthBootstrapGate = () => {
   const dispatch = useAppDispatch();
   const hydrated = useAppSelector(state => state.auth.hydrated);
+  const mode = useAppSelector(state => state.settings.themeMode);
+  const systemScheme = useAppSelector(state => state.settings.systemScheme);
+  const theme = resolveTheme(mode, systemScheme);
 
   useEffect(() => {
     dispatch(bootstrapAuth());
@@ -27,10 +26,10 @@ const AuthBootstrapGate = () => {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#F8F8F8',
+          backgroundColor: theme.colors.background,
         }}
       >
-        <ActivityIndicator color="#1CA39A" />
+        <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
@@ -38,16 +37,26 @@ const AuthBootstrapGate = () => {
   return <RootNavigator />;
 };
 
-function App() {
-  const scheme = useColorScheme();
-  const isDarkMode = scheme === 'dark';
+const AppShell = () => {
+  const mode = useAppSelector(state => state.settings.themeMode);
+  const systemScheme = useAppSelector(state => state.settings.systemScheme);
+  const theme = resolveTheme(mode, systemScheme);
 
   return (
+    <SafeAreaProvider>
+      <StatusBar
+        barStyle={theme.dark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
+      <AuthBootstrapGate />
+    </SafeAreaProvider>
+  );
+};
+
+function App() {
+  return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <AuthBootstrapGate />
-      </SafeAreaProvider>
+      <AppShell />
     </Provider>
   );
 }

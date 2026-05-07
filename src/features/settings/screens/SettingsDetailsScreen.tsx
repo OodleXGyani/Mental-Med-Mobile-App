@@ -9,17 +9,27 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Lock } from 'lucide-react-native';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { setThemeMode } from '../store/settingsSlice';
+import { useAppTheme } from '../../../shared/theme';
 
 export const SettingsDetailsScreen = () => {
   const insets = useSafeAreaInsets();
+  const dispatch = useAppDispatch();
+  const theme = useAppTheme();
+  const themeMode = useAppSelector(state => state.settings.themeMode);
   const [pushNotifications, setPushNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
+  const isDarkMode = themeMode === 'dark';
+
+  const handleThemeToggle = (value: boolean) => {
+    dispatch(setThemeMode(value ? 'dark' : 'light'));
+  };
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -29,103 +39,261 @@ export const SettingsDetailsScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Settings</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Settings</Text>
 
       {/* Notifications Section */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Notifications
+        </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingContent}>
-            <Text style={styles.settingLabel}>Push Notifications</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+              Push Notifications
+            </Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: theme.colors.mutedText },
+              ]}
+            >
               Get alerts for orders & stock
             </Text>
           </View>
           <Switch
             value={pushNotifications}
             onValueChange={setPushNotifications}
-            trackColor={{ false: '#E8E3DE', true: '#B5E8E4' }}
-            thumbColor={pushNotifications ? '#1CA39A' : '#F0F0F0'}
+            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
+            thumbColor={pushNotifications ? theme.colors.primary : '#F0F0F0'}
           />
         </View>
       </View>
 
       {/* Display Section */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Display</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Display
+        </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingContent}>
-            <Text style={styles.settingLabel}>Dark Mode</Text>
-            <Text style={styles.settingDescription}>Switch to dark theme</Text>
+            <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+              Dark Mode
+            </Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: theme.colors.mutedText },
+              ]}
+            >
+              Switch to dark theme
+            </Text>
           </View>
           <Switch
-            value={darkMode}
-            onValueChange={setDarkMode}
-            trackColor={{ false: '#E8E3DE', true: '#B5E8E4' }}
-            thumbColor={darkMode ? '#1CA39A' : '#F0F0F0'}
+            value={isDarkMode}
+            onValueChange={handleThemeToggle}
+            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
+            thumbColor={isDarkMode ? theme.colors.primary : '#F0F0F0'}
           />
         </View>
       </View>
 
       {/* Sync & Storage */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Sync & Storage</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Sync & Storage
+        </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingContent}>
-            <Text style={styles.settingLabel}>Offline Mode</Text>
-            <Text style={styles.settingDescription}>
+            <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+              Offline Mode
+            </Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: theme.colors.mutedText },
+              ]}
+            >
               Enable offline data sync
             </Text>
           </View>
           <Switch
             value={offlineMode}
             onValueChange={setOfflineMode}
-            trackColor={{ false: '#E8E3DE', true: '#B5E8E4' }}
-            thumbColor={offlineMode ? '#1CA39A' : '#F0F0F0'}
+            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
+            thumbColor={offlineMode ? theme.colors.primary : '#F0F0F0'}
           />
         </View>
       </View>
 
       {/* Printing */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Printing</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Printing
+        </Text>
 
         <View style={styles.settingRow}>
           <View style={styles.settingContent}>
-            <Text style={styles.settingLabel}>Auto Print Invoice</Text>
-            <Text style={styles.settingDescription}>Print after each sale</Text>
+            <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+              Auto Print Invoice
+            </Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: theme.colors.mutedText },
+              ]}
+            >
+              Print after each sale
+            </Text>
           </View>
           <Switch
             value={autoPrint}
             onValueChange={setAutoPrint}
-            trackColor={{ false: '#E8E3DE', true: '#B5E8E4' }}
-            thumbColor={autoPrint ? '#1CA39A' : '#F0F0F0'}
+            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
+            thumbColor={autoPrint ? theme.colors.primary : '#F0F0F0'}
           />
         </View>
       </View>
 
       {/* Account Section */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Account</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Account
+        </Text>
 
         <Pressable style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Change Password</Text>
-          <ChevronRight size={20} color="#AF9488" strokeWidth={2} />
+          <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+            Change Password
+          </Text>
+          <ChevronRight
+            size={20}
+            color={theme.colors.mutedText}
+            strokeWidth={2}
+          />
         </Pressable>
       </View>
 
       {/* Security Section */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Security</Text>
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Security
+        </Text>
 
-        <View style={styles.securityBox}>
-          <Lock size={24} color="#1CA39A" strokeWidth={2} />
+        <View
+          style={[
+            styles.securityBox,
+            { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+          ]}
+        >
+          <Lock size={24} color={theme.colors.primary} strokeWidth={2} />
           <View style={styles.securityContent}>
-            <Text style={styles.securityTitle}>Your data is secure</Text>
-            <Text style={styles.securityDescription}>
+            <Text style={[styles.securityTitle, { color: theme.colors.text }]}>
+              Your data is secure
+            </Text>
+            <Text
+              style={[
+                styles.securityDescription,
+                { color: theme.colors.mutedText },
+              ]}
+            >
               All transactions are encrypted end-to-end
             </Text>
           </View>
@@ -133,10 +301,21 @@ export const SettingsDetailsScreen = () => {
       </View>
 
       {/* App Info */}
-      <View style={styles.appInfoBox}>
-        <Text style={styles.appVersion}>Meds15 Pharmacy Management</Text>
-        <Text style={styles.appVersionNumber}>Version 1.0.0</Text>
-        <Text style={styles.copyright}>
+      <View
+        style={[
+          styles.appInfoBox,
+          { backgroundColor: theme.dark ? '#1C1A18' : '#F4F2EF' },
+        ]}
+      >
+        <Text style={[styles.appVersion, { color: theme.colors.text }]}>
+          Meds15 Pharmacy Management
+        </Text>
+        <Text
+          style={[styles.appVersionNumber, { color: theme.colors.mutedText }]}
+        >
+          Version 1.0.0
+        </Text>
+        <Text style={[styles.copyright, { color: theme.colors.mutedText }]}>
           © 2024 Meds15. All rights reserved.
         </Text>
       </View>
@@ -174,16 +353,6 @@ const styles = StyleSheet.create({
     color: '#2A2A2A',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#F9F7F5',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   settingRow: {
     flexDirection: 'row',

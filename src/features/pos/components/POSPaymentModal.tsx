@@ -1,8 +1,16 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { X } from 'lucide-react-native';
 import { Customer, PaymentMethod } from '../types';
 import { formatAmount } from '../utils';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
@@ -27,63 +35,144 @@ export const POSPaymentModal = ({
   onClose,
   onCompleteSale,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
-        <View style={styles.bottomSheet}>
+        <View
+          style={[styles.bottomSheet, { backgroundColor: theme.colors.card }]}
+        >
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>{`Payment - ${formatAmount(total)}`}</Text>
+            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+              {`Payment - ${formatAmount(total)}`}
+            </Text>
             <Pressable onPress={onClose}>
-              <X size={16} color="#6E635C" />
+              <X size={16} color={theme.colors.mutedText} />
             </Pressable>
           </View>
-          <Text style={styles.fieldLabel}>Customer</Text>
+          <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
+            Customer
+          </Text>
           <View style={styles.paymentCustomerRow}>
             <TextInput
-              style={styles.paymentInput}
+              style={[
+                styles.paymentInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.background,
+                },
+              ]}
               placeholder="Name"
               value={selectedCustomer?.name || ''}
-              placeholderTextColor="#AA9A8F"
+              placeholderTextColor={theme.colors.mutedText}
               editable={false}
             />
             <TextInput
-              style={styles.paymentInput}
+              style={[
+                styles.paymentInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.background,
+                },
+              ]}
               placeholder="Phone"
               value={selectedCustomer?.phone || ''}
-              placeholderTextColor="#AA9A8F"
+              placeholderTextColor={theme.colors.mutedText}
               editable={false}
             />
           </View>
 
-          <Text style={styles.fieldLabel}>Payment Method</Text>
+          <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
+            Payment Method
+          </Text>
           <View style={styles.methodRow}>
             {(['Cash', 'UPI', 'Card'] as const).map(method => (
               <Pressable
                 key={method}
-                style={[styles.methodPill, paymentMethod === method && styles.methodPillActive]}
+                style={[
+                  styles.methodPill,
+                  { borderColor: theme.colors.border },
+                  paymentMethod === method && {
+                    backgroundColor: theme.colors.primary,
+                    borderColor: theme.colors.primary,
+                  },
+                ]}
                 onPress={() => setPaymentMethod(method)}
               >
-                <Text style={[styles.methodText, paymentMethod === method && styles.methodTextActive]}>{method}</Text>
+                <Text
+                  style={[
+                    styles.methodText,
+                    { color: theme.colors.mutedText },
+                    paymentMethod === method && styles.methodTextActive,
+                  ]}
+                >
+                  {method}
+                </Text>
               </Pressable>
             ))}
           </View>
 
-          <View style={styles.breakdownBox}>
+          <View
+            style={[styles.breakdownBox, { borderColor: theme.colors.border }]}
+          >
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValueNeutral}>{formatAmount(subtotal)}</Text>
+              <Text
+                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
+              >
+                Subtotal
+              </Text>
+              <Text
+                style={[
+                  styles.summaryValueNeutral,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {formatAmount(subtotal)}
+              </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>GST</Text>
-              <Text style={styles.summaryValueNeutral}>{formatAmount(gstAmount)}</Text>
+              <Text
+                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
+              >
+                GST
+              </Text>
+              <Text
+                style={[
+                  styles.summaryValueNeutral,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {formatAmount(gstAmount)}
+              </Text>
             </View>
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatAmount(total)}</Text>
+            <View
+              style={[
+                styles.summaryRow,
+                styles.totalRow,
+                { borderTopColor: theme.colors.border },
+              ]}
+            >
+              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
+                Total
+              </Text>
+              <Text
+                style={[styles.totalValue, { color: theme.colors.primary }]}
+              >
+                {formatAmount(total)}
+              </Text>
             </View>
           </View>
 
-          <Pressable style={styles.completeBtn} onPress={onCompleteSale}>
+          <Pressable
+            style={[
+              styles.completeBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={onCompleteSale}
+          >
             <Text style={styles.completeBtnText}>Complete Sale</Text>
           </Pressable>
         </View>

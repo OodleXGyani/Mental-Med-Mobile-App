@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 export type OrderStatus =
   | 'new'
@@ -49,13 +50,25 @@ const statusPill = (status: OrderStatus) => {
 };
 
 export const OrderCard = ({ order, onPress }: Props) => {
+  const theme = useAppTheme();
   const pill = statusPill(order.status);
 
   return (
-    <TouchableOpacity style={styles.orderCard} onPress={() => onPress(order)}>
+    <TouchableOpacity
+      style={[
+        styles.orderCard,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+      onPress={() => onPress(order)}
+    >
       <View style={styles.orderLeft}>
         <View style={styles.idRow}>
-          <Text style={styles.orderId}>{order.id}</Text>
+          <Text style={[styles.orderId, { color: theme.colors.text }]}>
+            {order.id}
+          </Text>
           <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
             <Text style={[styles.statusPillText, { color: pill.color }]}>
               {pill.text}
@@ -63,12 +76,18 @@ export const OrderCard = ({ order, onPress }: Props) => {
           </View>
         </View>
         <Text
-          style={styles.orderMeta}
+          style={[styles.orderMeta, { color: theme.colors.mutedText }]}
         >{`${order.customer} · ${order.items.length} items · ${order.time}`}</Text>
       </View>
       <View style={styles.amountWrap}>
-        <Text style={styles.amount}>₹{order.amount}</Text>
-        <ChevronRight size={14} color="#B7A59A" strokeWidth={2.4} />
+        <Text style={[styles.amount, { color: theme.colors.text }]}>
+          ₹{order.amount}
+        </Text>
+        <ChevronRight
+          size={14}
+          color={theme.colors.mutedText}
+          strokeWidth={2.4}
+        />
       </View>
     </TouchableOpacity>
   );

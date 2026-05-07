@@ -16,6 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { AuthStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   AuthStackParamList,
@@ -24,6 +25,7 @@ type Props = NativeStackScreenProps<
 
 export const LoginScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [email, setEmail] = useState('manager@meds15.test');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,7 +45,7 @@ export const LoginScreen = ({ navigation }: Props) => {
       style={styles.container}
     >
       <ScrollView
-        style={styles.screen}
+        style={[styles.screen, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={[
           styles.content,
           {
@@ -55,26 +57,44 @@ export const LoginScreen = ({ navigation }: Props) => {
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View style={styles.logoCircle}>
+          <View
+            style={[
+              styles.logoCircle,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          >
             <Link size={36} color="#FFFFFF" strokeWidth={2.5} />
           </View>
         </View>
 
         {/* Title Section */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>Meds15 Staff</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Meds15 Staff
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
+            Sign in to your account
+          </Text>
         </View>
 
         {/* Form Section */}
         <View style={styles.formSection}>
           {/* email Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>email</Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              email
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
               placeholder="Enter your email"
-              placeholderTextColor="#B59D90"
+              placeholderTextColor={theme.colors.mutedText}
               value={email}
               onChangeText={setEmail}
               editable={!loading}
@@ -85,12 +105,22 @@ export const LoginScreen = ({ navigation }: Props) => {
 
           {/* Password Input */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordInputWrapper}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Password
+            </Text>
+            <View
+              style={[
+                styles.passwordInputWrapper,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: theme.colors.text }]}
                 placeholder="Enter your password"
-                placeholderTextColor="#B59D90"
+                placeholderTextColor={theme.colors.mutedText}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -110,6 +140,7 @@ export const LoginScreen = ({ navigation }: Props) => {
           <Pressable
             style={[
               styles.signInButton,
+              { backgroundColor: theme.colors.primary },
               loading && styles.signInButtonDisabled,
             ]}
             onPress={handleLogin}
@@ -124,8 +155,18 @@ export const LoginScreen = ({ navigation }: Props) => {
 
           {/* Error Message */}
           {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: theme.dark ? '#3B1E1E' : '#FFEBEE',
+                  borderLeftColor: theme.colors.danger,
+                },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+                {error}
+              </Text>
             </View>
           ) : null}
 
@@ -135,13 +176,25 @@ export const LoginScreen = ({ navigation }: Props) => {
             style={styles.forgotPasswordLink}
             disabled={loading}
           >
-            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            <Text
+              style={[
+                styles.forgotPasswordText,
+                { color: theme.colors.primary },
+              ]}
+            >
+              Forgot password?
+            </Text>
           </Pressable>
         </View>
 
         {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
+        <View
+          style={[
+            styles.infoBox,
+            { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+          ]}
+        >
+          <Text style={[styles.infoText, { color: theme.colors.primary }]}>
             This screen uses the live ERP Pharmacy login API and shows server or
             network errors inline.
           </Text>

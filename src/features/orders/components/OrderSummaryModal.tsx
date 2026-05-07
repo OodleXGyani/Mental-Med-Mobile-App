@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Order } from './OrderCard';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   order: Order | null;
@@ -17,35 +18,64 @@ type Props = {
 };
 
 export const OrderSummaryModal = ({ order, visible, onClose }: Props) => {
+  const theme = useAppTheme();
   if (!order) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
+        <View
+          style={[styles.modalCard, { backgroundColor: theme.colors.card }]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{order.id}</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              {order.id}
+            </Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={18} color="#3B2E2B" strokeWidth={2.2} />
+              <X size={18} color={theme.colors.mutedText} strokeWidth={2.2} />
             </Pressable>
           </View>
           <View style={styles.modalBody}>
-            <Text style={styles.modalLabel}>
+            <Text style={[styles.modalLabel, { color: theme.colors.text }]}>
               <Text style={{ fontWeight: '800' }}>Customer:</Text>{' '}
               {order.customer}
             </Text>
-            <Text style={styles.modalSectionTitle}>Order Summary</Text>
+            <Text
+              style={[styles.modalSectionTitle, { color: theme.colors.text }]}
+            >
+              Order Summary
+            </Text>
             {order.items.map((it, idx) => (
               <View key={idx} style={styles.itemRow}>
-                <Text style={styles.itemText}>{it.name}</Text>
-                <Text style={styles.itemQty}>×{it.qty}</Text>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>
+                  {it.name}
+                </Text>
+                <Text
+                  style={[styles.itemQty, { color: theme.colors.mutedText }]}
+                >
+                  ×{it.qty}
+                </Text>
               </View>
             ))}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>₹{order.amount}</Text>
+            <View
+              style={[styles.totalRow, { borderTopColor: theme.colors.border }]}
+            >
+              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
+                Total
+              </Text>
+              <Text
+                style={[styles.totalAmount, { color: theme.colors.primary }]}
+              >
+                ₹{order.amount}
+              </Text>
             </View>
-            <TouchableOpacity style={styles.actionButton} onPress={onClose}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={onClose}
+            >
               <Text style={styles.actionButtonText}>Done</Text>
             </TouchableOpacity>
           </View>

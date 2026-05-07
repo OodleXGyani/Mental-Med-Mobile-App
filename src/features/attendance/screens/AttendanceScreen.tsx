@@ -21,6 +21,7 @@ import {
   DEFAULT_EMPLOYEE_ID,
   profileService,
 } from '../../settings/services/profileService';
+import { useAppTheme } from '../../../shared/theme';
 
 const monthDays = [
   'S',
@@ -152,6 +153,7 @@ const generateCalendarDays = (
 
 export const AttendanceScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [leaveForm, setLeaveForm] = useState<LeaveForm>({
@@ -353,7 +355,7 @@ export const AttendanceScreen = () => {
   return (
     <>
       <ScrollView
-        style={styles.screen}
+        style={[styles.screen, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={[
           styles.content,
           {
@@ -363,12 +365,27 @@ export const AttendanceScreen = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Attendance</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Attendance
+        </Text>
 
-        <View style={styles.checkInCard}>
-          <Text style={styles.dateText}>{employeeName}</Text>
+        <View
+          style={[
+            styles.checkInCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.dateText, { color: theme.colors.mutedText }]}>
+            {employeeName}
+          </Text>
           <Pressable
-            style={styles.checkInButton}
+            style={[
+              styles.checkInButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
             onPress={handleCheckin}
             disabled={submitting}
           >
@@ -378,40 +395,107 @@ export const AttendanceScreen = () => {
               <Text style={styles.checkInText}>→ {checkinButtonLabel}</Text>
             )}
           </Pressable>
-          <Text style={styles.gpsText}>GPS location will be captured</Text>
+          <Text style={[styles.gpsText, { color: theme.colors.mutedText }]}>
+            GPS location will be captured
+          </Text>
         </View>
 
         {loading ? (
-          <ActivityIndicator style={{ marginBottom: 12 }} color="#1CA39A" />
+          <ActivityIndicator
+            style={{ marginBottom: 12 }}
+            color={theme.colors.primary}
+          />
         ) : null}
         {errorMessage ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+            {errorMessage}
+          </Text>
         ) : null}
 
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.presentValue}>{attendanceSummary.present}</Text>
-            <Text style={styles.statLabel}>Present</Text>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.presentValue, { color: theme.colors.success }]}
+            >
+              {attendanceSummary.present}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+              Present
+            </Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.halfValue}>{attendanceSummary.halfDay}</Text>
-            <Text style={styles.statLabel}>Half Day</Text>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.halfValue, { color: theme.colors.warning }]}>
+              {attendanceSummary.halfDay}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+              Half Day
+            </Text>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.leaveValue}>{attendanceSummary.leave}</Text>
-            <Text style={styles.statLabel}>Leave</Text>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.leaveValue, { color: theme.colors.danger }]}>
+              {attendanceSummary.leave}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+              Leave
+            </Text>
           </View>
         </View>
 
         {/* Calendar Day Headers */}
-        <View style={styles.calendarContainer}>
-          <View style={styles.calendarHeader}>
-            <Text style={styles.calendarTitle}>{monthLabel}</Text>
+        <View
+          style={[
+            styles.calendarContainer,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.calendarHeader,
+              { borderBottomColor: theme.colors.border },
+            ]}
+          >
+            <Text style={[styles.calendarTitle, { color: theme.colors.text }]}>
+              {monthLabel}
+            </Text>
           </View>
           <View style={styles.dayHeaderRow}>
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
               <View key={index} style={styles.dayHeader}>
-                <Text style={styles.dayHeaderText}>{day}</Text>
+                <Text
+                  style={[
+                    styles.dayHeaderText,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >
+                  {day}
+                </Text>
               </View>
             ))}
           </View>
@@ -424,20 +508,35 @@ export const AttendanceScreen = () => {
                 style={[
                   styles.dayCell,
                   day.date === null && styles.emptyCell,
-                  day.status === 'Present' && styles.presentCell,
-                  day.status === 'Half Day' && styles.halfCell,
-                  day.status === 'Leave' && styles.leaveCell,
-                  day.status === 'Absent' && styles.absentCell,
+                  day.status === 'Present' && {
+                    backgroundColor: theme.dark ? '#1E3B38' : '#DDF1EE',
+                  },
+                  day.status === 'Half Day' && {
+                    backgroundColor: theme.dark ? '#3A2D1A' : '#FFE4BC',
+                  },
+                  day.status === 'Leave' && {
+                    backgroundColor: theme.dark ? '#3A1C1C' : '#FFD6D6',
+                  },
+                  day.status === 'Absent' && {
+                    backgroundColor: theme.dark ? '#2A2420' : '#F2ECE7',
+                  },
                 ]}
               >
                 {day.dayNumber !== null ? (
                   <Text
                     style={[
                       styles.dayNumber,
-                      day.status === 'Present' && styles.presentText,
-                      day.status === 'Half Day' && styles.halfText,
-                      day.status === 'Leave' && styles.leaveText,
-                      day.status === 'Absent' && styles.absentText,
+                      { color: theme.colors.text },
+                      day.status === 'Present' && {
+                        color: theme.colors.success,
+                      },
+                      day.status === 'Half Day' && {
+                        color: theme.colors.warning,
+                      },
+                      day.status === 'Leave' && { color: theme.colors.danger },
+                      day.status === 'Absent' && {
+                        color: theme.colors.mutedText,
+                      },
                     ]}
                   >
                     {day.dayNumber}
@@ -449,10 +548,18 @@ export const AttendanceScreen = () => {
         </View>
 
         <Pressable
-          style={styles.requestLeaveButton}
+          style={[
+            styles.requestLeaveButton,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
           onPress={() => setShowLeaveModal(true)}
         >
-          <Text style={styles.requestLeaveText}>Request Leave</Text>
+          <Text style={[styles.requestLeaveText, { color: theme.colors.text }]}>
+            Request Leave
+          </Text>
         </Pressable>
       </ScrollView>
 
@@ -469,11 +576,29 @@ export const AttendanceScreen = () => {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoid}
               >
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Request Leave</Text>
+                <View
+                  style={[
+                    styles.modalContent,
+                    { backgroundColor: theme.colors.card },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.modalHeader,
+                      { borderBottomColor: theme.colors.border },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.modalTitle, { color: theme.colors.text }]}
+                    >
+                      Request Leave
+                    </Text>
                     <Pressable onPress={handleCloseModal}>
-                      <X size={24} color="#2A2A2A" strokeWidth={2.5} />
+                      <X
+                        size={24}
+                        color={theme.colors.text}
+                        strokeWidth={2.5}
+                      />
                     </Pressable>
                   </View>
 
@@ -483,25 +608,58 @@ export const AttendanceScreen = () => {
                     showsVerticalScrollIndicator={false}
                   >
                     <View style={styles.formGroup}>
-                      <Text style={styles.label}>Leave Type</Text>
+                      <Text
+                        style={[styles.label, { color: theme.colors.text }]}
+                      >
+                        Leave Type
+                      </Text>
                       <Pressable
-                        style={styles.dropdownButton}
+                        style={[
+                          styles.dropdownButton,
+                          {
+                            backgroundColor: theme.colors.background,
+                            borderColor: theme.colors.border,
+                          },
+                        ]}
                         onPress={() => setShowDropdown(!showDropdown)}
                       >
-                        <Text style={styles.dropdownText}>
+                        <Text
+                          style={[
+                            styles.dropdownText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
                           {leaveForm.leaveType
                             ? getLeaveTypeLabel()
                             : 'Select leave type'}
                         </Text>
-                        <Text style={styles.dropdownArrow}>∨</Text>
+                        <Text
+                          style={[
+                            styles.dropdownArrow,
+                            { color: theme.colors.mutedText },
+                          ]}
+                        >
+                          ∨
+                        </Text>
                       </Pressable>
 
                       {showDropdown && (
-                        <View style={styles.dropdownMenu}>
+                        <View
+                          style={[
+                            styles.dropdownMenu,
+                            {
+                              backgroundColor: theme.colors.card,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                        >
                           {leaveTypes.map(type => (
                             <Pressable
                               key={type.value}
-                              style={styles.dropdownItem}
+                              style={[
+                                styles.dropdownItem,
+                                { borderBottomColor: theme.colors.border },
+                              ]}
                               onPress={() => {
                                 setLeaveForm({
                                   ...leaveForm,
@@ -513,8 +671,10 @@ export const AttendanceScreen = () => {
                               <Text
                                 style={[
                                   styles.dropdownItemText,
-                                  leaveForm.leaveType === type.value &&
-                                    styles.dropdownItemTextActive,
+                                  { color: theme.colors.mutedText },
+                                  leaveForm.leaveType === type.value && {
+                                    color: theme.colors.primary,
+                                  },
                                 ]}
                               >
                                 {type.label}
@@ -529,46 +689,96 @@ export const AttendanceScreen = () => {
                       <View
                         style={[styles.formGroup, { flex: 1, marginRight: 8 }]}
                       >
-                        <Text style={styles.label}>From</Text>
-                        <View style={styles.dateInputWrapper}>
+                        <Text
+                          style={[styles.label, { color: theme.colors.text }]}
+                        >
+                          From
+                        </Text>
+                        <View
+                          style={[
+                            styles.dateInputWrapper,
+                            {
+                              backgroundColor: theme.colors.background,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                        >
                           <TextInput
-                            style={styles.dateInput}
+                            style={[
+                              styles.dateInput,
+                              { color: theme.colors.text },
+                            ]}
                             placeholder="dd/mm/yyyy"
-                            placeholderTextColor="#B59D90"
+                            placeholderTextColor={theme.colors.mutedText}
                             value={leaveForm.fromDate}
                             onChangeText={text =>
                               setLeaveForm({ ...leaveForm, fromDate: text })
                             }
                           />
-                          <Calendar size={18} color="#B59D90" strokeWidth={2} />
+                          <Calendar
+                            size={18}
+                            color={theme.colors.mutedText}
+                            strokeWidth={2}
+                          />
                         </View>
                       </View>
 
                       <View
                         style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}
                       >
-                        <Text style={styles.label}>To</Text>
-                        <View style={styles.dateInputWrapper}>
+                        <Text
+                          style={[styles.label, { color: theme.colors.text }]}
+                        >
+                          To
+                        </Text>
+                        <View
+                          style={[
+                            styles.dateInputWrapper,
+                            {
+                              backgroundColor: theme.colors.background,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                        >
                           <TextInput
-                            style={styles.dateInput}
+                            style={[
+                              styles.dateInput,
+                              { color: theme.colors.text },
+                            ]}
                             placeholder="dd/mm/yyyy"
-                            placeholderTextColor="#B59D90"
+                            placeholderTextColor={theme.colors.mutedText}
                             value={leaveForm.toDate}
                             onChangeText={text =>
                               setLeaveForm({ ...leaveForm, toDate: text })
                             }
                           />
-                          <Calendar size={18} color="#B59D90" strokeWidth={2} />
+                          <Calendar
+                            size={18}
+                            color={theme.colors.mutedText}
+                            strokeWidth={2}
+                          />
                         </View>
                       </View>
                     </View>
 
                     <View style={styles.formGroup}>
-                      <Text style={styles.label}>Reason for leave</Text>
+                      <Text
+                        style={[styles.label, { color: theme.colors.text }]}
+                      >
+                        Reason for leave
+                      </Text>
                       <TextInput
-                        style={[styles.textArea, styles.input]}
+                        style={[
+                          styles.textArea,
+                          styles.input,
+                          {
+                            backgroundColor: theme.colors.background,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                          },
+                        ]}
                         placeholder="Enter reason (optional)"
-                        placeholderTextColor="#B59D90"
+                        placeholderTextColor={theme.colors.mutedText}
                         value={leaveForm.reason}
                         onChangeText={text =>
                           setLeaveForm({ ...leaveForm, reason: text })
@@ -580,9 +790,17 @@ export const AttendanceScreen = () => {
                     </View>
                   </ScrollView>
 
-                  <View style={styles.modalFooter}>
+                  <View
+                    style={[
+                      styles.modalFooter,
+                      { borderTopColor: theme.colors.border },
+                    ]}
+                  >
                     <Pressable
-                      style={styles.submitButton}
+                      style={[
+                        styles.submitButton,
+                        { backgroundColor: theme.colors.primary },
+                      ]}
                       onPress={handleSubmitLeave}
                     >
                       <Text style={styles.submitButtonText}>

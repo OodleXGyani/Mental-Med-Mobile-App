@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bell } from 'lucide-react-native';
 import { toPascalCase } from '../../../shared/utils/format';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   onPressNotification: () => void;
@@ -9,17 +10,22 @@ type Props = {
 };
 
 export const DashboardHeader = ({ onPressNotification, username }: Props) => {
+  const theme = useAppTheme();
   const displayName = toPascalCase(username || 'User');
 
   return (
     <View style={styles.headerRow}>
       <View>
-        <Text style={styles.greeting}>Hi, {displayName} 👋</Text>
-        <Text style={styles.subGreeting}>Manager · Pharmacy Overview</Text>
+        <Text style={[styles.greeting, { color: theme.colors.text }]}>
+          Hi, {displayName} 👋
+        </Text>
+        <Text style={[styles.subGreeting, { color: theme.colors.mutedText }]}>
+          Manager · Pharmacy Overview
+        </Text>
       </View>
       <Pressable style={styles.notificationWrap} onPress={onPressNotification}>
-        <Bell size={19} color="#7B7F86" strokeWidth={2.3} />
-        <View style={styles.badge}>
+        <Bell size={19} color={theme.colors.mutedText} strokeWidth={2.3} />
+        <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
           <Text style={styles.badgeText}>3</Text>
         </View>
       </Pressable>

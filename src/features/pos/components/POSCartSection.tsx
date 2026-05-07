@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Minus, Plus, ShoppingCart, X } from 'lucide-react-native';
 import { CartItem } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   cartItems: CartItem[];
@@ -9,13 +10,23 @@ type Props = {
   onRemoveItem: (id: string) => void;
 };
 
-export const POSCartSection = ({ cartItems, onUpdateQty, onRemoveItem }: Props) => {
+export const POSCartSection = ({
+  cartItems,
+  onUpdateQty,
+  onRemoveItem,
+}: Props) => {
+  const theme = useAppTheme();
+
   if (cartItems.length === 0) {
     return (
       <View style={styles.emptyWrap}>
-        <ShoppingCart size={40} color="#DACBC2" strokeWidth={2} />
-        <Text style={styles.emptyTitle}>Cart is empty</Text>
-        <Text style={styles.emptySub}>Search or scan to add medicines</Text>
+        <ShoppingCart size={40} color={theme.colors.border} strokeWidth={2} />
+        <Text style={[styles.emptyTitle, { color: theme.colors.mutedText }]}>
+          Cart is empty
+        </Text>
+        <Text style={[styles.emptySub, { color: theme.colors.mutedText }]}>
+          Search or scan to add medicines
+        </Text>
       </View>
     );
   }
@@ -25,29 +36,57 @@ export const POSCartSection = ({ cartItems, onUpdateQty, onRemoveItem }: Props) 
       {cartItems.map(item => {
         const itemSubtotal = item.price * item.qty;
         return (
-          <View key={item.id} style={styles.itemCard}>
+          <View
+            key={item.id}
+            style={[
+              styles.itemCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
             <View style={styles.itemHeader}>
               <View>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>{`Batch: ${item.batch} · Exp: ${item.exp} · GST: ${item.gst}%`}</Text>
+                <Text style={[styles.itemName, { color: theme.colors.text }]}>
+                  {item.name}
+                </Text>
+                <Text
+                  style={[styles.itemMeta, { color: theme.colors.mutedText }]}
+                >{`Batch: ${item.batch} · Exp: ${item.exp} · GST: ${item.gst}%`}</Text>
               </View>
               <Pressable onPress={() => onRemoveItem(item.id)}>
-                <X size={14} color="#D56757" />
+                <X size={14} color={theme.colors.danger} />
               </Pressable>
             </View>
             <View style={styles.itemBottom}>
               <View style={styles.qtyControls}>
-                <Pressable style={styles.qtyBtn} onPress={() => onUpdateQty(item.id, -1)}>
-                  <Minus size={12} color="#8A7B72" />
+                <Pressable
+                  style={[styles.qtyBtn, { borderColor: theme.colors.border }]}
+                  onPress={() => onUpdateQty(item.id, -1)}
+                >
+                  <Minus size={12} color={theme.colors.mutedText} />
                 </Pressable>
-                <Text style={styles.qtyText}>{item.qty}</Text>
-                <Pressable style={styles.qtyBtn} onPress={() => onUpdateQty(item.id, 1)}>
-                  <Plus size={12} color="#8A7B72" />
+                <Text style={[styles.qtyText, { color: theme.colors.text }]}>
+                  {item.qty}
+                </Text>
+                <Pressable
+                  style={[styles.qtyBtn, { borderColor: theme.colors.border }]}
+                  onPress={() => onUpdateQty(item.id, 1)}
+                >
+                  <Plus size={12} color={theme.colors.mutedText} />
                 </Pressable>
               </View>
               <View style={styles.itemPriceWrap}>
-                <Text style={styles.itemPriceMeta}>{`Rs ${item.price} x ${item.qty}`}</Text>
-                <Text style={styles.itemPrice}>{`Rs ${itemSubtotal.toFixed(2)}`}</Text>
+                <Text
+                  style={[
+                    styles.itemPriceMeta,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >{`Rs ${item.price} x ${item.qty}`}</Text>
+                <Text
+                  style={[styles.itemPrice, { color: theme.colors.text }]}
+                >{`Rs ${itemSubtotal.toFixed(2)}`}</Text>
               </View>
             </View>
           </View>

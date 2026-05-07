@@ -1,10 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type Stat = {
   label: string;
   value: string;
-  Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  Icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   iconColor: string;
   iconBackground: string;
 };
@@ -14,16 +19,38 @@ type Props = {
 };
 
 export const DashboardStatsGrid = ({ stats }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.statsGrid}>
       {stats.map(item => (
-        <View key={item.label} style={styles.statCard}>
-          <View style={[styles.statIcon, { backgroundColor: item.iconBackground }]}> 
+        <View
+          key={item.label}
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.statIcon,
+              {
+                backgroundColor: theme.dark ? '#253634' : item.iconBackground,
+              },
+            ]}
+          >
             <item.Icon size={15} color={item.iconColor} strokeWidth={2.3} />
           </View>
           <View style={styles.statTextBlock}>
-            <Text style={styles.statLabel}>{item.label}</Text>
-            <Text style={styles.statValue}>{item.value}</Text>
+            <Text style={[styles.statLabel, { color: theme.colors.mutedText }]}>
+              {item.label}
+            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
+              {item.value}
+            </Text>
           </View>
         </View>
       ))}

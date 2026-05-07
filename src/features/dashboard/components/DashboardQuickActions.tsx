@@ -1,9 +1,14 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type Action = {
   label: string;
-  Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  Icon: React.ComponentType<{
+    size?: number;
+    color?: string;
+    strokeWidth?: number;
+  }>;
   color: string;
   tab: string;
 };
@@ -14,16 +19,30 @@ type Props = {
 };
 
 export const DashboardQuickActions = ({ actions, onPressAction }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        Quick Actions
+      </Text>
       <View style={styles.actionsRow}>
         {actions.map(action => (
-          <Pressable style={styles.actionItem} key={action.label} onPress={() => onPressAction(action.tab)}>
-            <View style={[styles.actionIcon, { backgroundColor: action.color }]}> 
+          <Pressable
+            style={styles.actionItem}
+            key={action.label}
+            onPress={() => onPressAction(action.tab)}
+          >
+            <View
+              style={[styles.actionIcon, { backgroundColor: action.color }]}
+            >
               <action.Icon size={16} color="#FFFFFF" strokeWidth={2.6} />
             </View>
-            <Text style={styles.actionLabel}>{action.label}</Text>
+            <Text
+              style={[styles.actionLabel, { color: theme.colors.mutedText }]}
+            >
+              {action.label}
+            </Text>
           </Pressable>
         ))}
       </View>

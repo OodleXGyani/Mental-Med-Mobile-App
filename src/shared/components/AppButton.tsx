@@ -1,7 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { useAppSelector } from '../../app/hooks';
-import { resolveTheme } from '../theme';
+import { useAppTheme } from '../theme';
 
 type Props = {
   title: string;
@@ -10,17 +9,22 @@ type Props = {
   disabled?: boolean;
 };
 
-export const AppButton = ({ title, onPress, style, disabled = false }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+export const AppButton = ({
+  title,
+  onPress,
+  style,
+  disabled = false,
+}: Props) => {
+  const theme = useAppTheme();
 
   return (
     <Pressable
       style={[
         styles.button,
         {
-          backgroundColor: disabled ? theme.colors.border : theme.colors.primary,
+          backgroundColor: disabled
+            ? theme.colors.border
+            : theme.colors.primary,
         },
         style,
       ]}

@@ -17,6 +17,7 @@ import { inventoryService } from '../services/inventoryService';
 import { InventoryFilter, InventoryItem } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { InventoryStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   InventoryStackParamList,
@@ -57,6 +58,7 @@ const matchesSearch = (item: InventoryItem, query: string) => {
 
 export const InventoryScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<InventoryFilter>('All');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -119,6 +121,7 @@ export const InventoryScreen = ({ navigation }: Props) => {
     <View
       style={[
         styles.screen,
+        { backgroundColor: theme.colors.background },
         {
           paddingTop: Math.max(insets.top, 10),
           paddingBottom: Math.max(insets.bottom, 14),
@@ -131,31 +134,45 @@ export const InventoryScreen = ({ navigation }: Props) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Inventory</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Inventory
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
             Live stock from the pharmacy backend
           </Text>
         </View>
 
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#B59D90" strokeWidth={2} />
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Search size={18} color={theme.colors.mutedText} strokeWidth={2} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.colors.text }]}
             placeholder="Search medicine, batch, warehouse..."
-            placeholderTextColor="#B59D90"
+            placeholderTextColor={theme.colors.mutedText}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearButton}>✕</Text>
+              <Text
+                style={[styles.clearButton, { color: theme.colors.mutedText }]}
+              >
+                ✕
+              </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               onPress={() => setActiveFilter('All')}
               hitSlop={8}
             >
-              <Barcode size={18} color="#1CA39A" strokeWidth={2} />
+              <Barcode size={18} color={theme.colors.primary} strokeWidth={2} />
             </TouchableOpacity>
           )}
         </View>
@@ -166,14 +183,18 @@ export const InventoryScreen = ({ navigation }: Props) => {
               key={filter}
               style={[
                 styles.filterTab,
-                activeFilter === filter && styles.filterTabActive,
+                activeFilter === filter && {
+                  backgroundColor: theme.colors.primary,
+                  borderColor: theme.colors.primary,
+                },
               ]}
               onPress={() => setActiveFilter(filter)}
             >
               <Text
                 style={[
                   styles.filterText,
-                  activeFilter === filter && styles.filterTextActive,
+                  { color: theme.colors.mutedText },
+                  activeFilter === filter && { color: '#FFFFFF' },
                 ]}
               >
                 {filter === 'All'
@@ -188,14 +209,21 @@ export const InventoryScreen = ({ navigation }: Props) => {
 
         {loading ? (
           <View style={styles.stateContainer}>
-            <ActivityIndicator size="small" color="#1CA39A" />
-            <Text style={styles.stateText}>Loading inventory...</Text>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              Loading inventory...
+            </Text>
           </View>
         ) : errorMessage ? (
           <View style={styles.stateContainer}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+              {errorMessage}
+            </Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[
+                styles.retryButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
               onPress={loadInventory}
             >
               <Text style={styles.retryButtonText}>Try Again</Text>
@@ -212,7 +240,9 @@ export const InventoryScreen = ({ navigation }: Props) => {
           ))
         ) : (
           <View style={styles.stateContainer}>
-            <Text style={styles.stateText}>No inventory items found</Text>
+            <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+              No inventory items found
+            </Text>
           </View>
         )}
       </ScrollView>

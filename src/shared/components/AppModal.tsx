@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAppSelector } from '../../app/hooks';
-import { resolveTheme } from '../theme';
+import { useAppTheme } from '../theme';
 
 type Props = {
   visible: boolean;
@@ -11,17 +10,27 @@ type Props = {
 };
 
 export const AppModal = ({ visible, title, message, onClose }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+  const theme = useAppTheme();
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.colors.card }]}> 
-          <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-          <Text style={[styles.message, { color: theme.colors.mutedText }]}>{message}</Text>
-          <Pressable style={[styles.action, { backgroundColor: theme.colors.primary }]} onPress={onClose}>
+        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            {title}
+          </Text>
+          <Text style={[styles.message, { color: theme.colors.mutedText }]}>
+            {message}
+          </Text>
+          <Pressable
+            style={[styles.action, { backgroundColor: theme.colors.primary }]}
+            onPress={onClose}
+          >
             <Text style={styles.actionText}>Close</Text>
           </Pressable>
         </View>

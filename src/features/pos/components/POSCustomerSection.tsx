@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { User, X } from 'lucide-react-native';
 import { Customer } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   selectedCustomer: Customer | null;
@@ -16,28 +17,67 @@ export const POSCustomerSection = ({
   onPressViewOrders,
   onPressRemoveCustomer,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <>
-      <Pressable style={styles.customerRow} onPress={onPressAddCustomer}>
-        <User size={13} color="#7A6860" />
-        <Text style={styles.customerText}>Add Customer</Text>
+      <Pressable
+        style={[
+          styles.customerRow,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+        onPress={onPressAddCustomer}
+      >
+        <User size={13} color={theme.colors.mutedText} />
+        <Text style={[styles.customerText, { color: theme.colors.mutedText }]}>
+          Add Customer
+        </Text>
       </Pressable>
 
       {selectedCustomer ? (
-        <View style={styles.selectedCustomerCard}>
+        <View
+          style={[
+            styles.selectedCustomerCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
           <View style={styles.selectedCustomerLeft}>
-            <User size={13} color="#2CA798" />
+            <User size={13} color={theme.colors.primary} />
             <View>
-              <Text style={styles.selectedCustomerName}>{selectedCustomer.name}</Text>
-              <Text style={styles.selectedCustomerPhone}>{selectedCustomer.phone}</Text>
+              <Text
+                style={[
+                  styles.selectedCustomerName,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {selectedCustomer.name}
+              </Text>
+              <Text
+                style={[
+                  styles.selectedCustomerPhone,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                {selectedCustomer.phone}
+              </Text>
             </View>
           </View>
           <View style={styles.selectedCustomerActions}>
             <Pressable onPress={onPressViewOrders}>
-              <Text style={styles.viewOrdersText}>View Orders</Text>
+              <Text
+                style={[styles.viewOrdersText, { color: theme.colors.success }]}
+              >
+                View Orders
+              </Text>
             </Pressable>
             <Pressable onPress={onPressRemoveCustomer}>
-              <X size={14} color="#7B6C62" />
+              <X size={14} color={theme.colors.mutedText} />
             </Pressable>
           </View>
         </View>

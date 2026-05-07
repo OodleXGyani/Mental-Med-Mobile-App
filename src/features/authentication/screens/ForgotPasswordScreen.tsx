@@ -15,6 +15,7 @@ import { ChevronLeft, Mail } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { AuthStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   AuthStackParamList,
@@ -23,6 +24,7 @@ type Props = NativeStackScreenProps<
 
 export const ForgotPasswordScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [email, setEmail] = useState('your@email.com');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -31,7 +33,6 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
   const handleSendResetLink = async () => {
     setError('');
 
-    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim() || !emailRegex.test(email)) {
       setError('Please enter a valid email address');
@@ -40,10 +41,8 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
 
     setLoading(true);
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       setSubmitted(true);
-      // Auto-redirect after 3 seconds
       setTimeout(() => {
         navigation.goBack();
       }, 3000);
@@ -60,7 +59,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
       style={styles.container}
     >
       <ScrollView
-        style={styles.screen}
+        style={[styles.screen, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={[
           styles.content,
           {
@@ -70,58 +69,79 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back Button */}
         <Pressable
           onPress={() => navigation.goBack()}
           style={styles.backButton}
           disabled={loading}
         >
-          <ChevronLeft size={24} color="#2A2A2A" strokeWidth={2.5} />
+          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2.5} />
         </Pressable>
 
         {submitted ? (
-          <>
-            {/* Success State */}
-            <View style={styles.successSection}>
-              <View style={styles.successIcon}>
-                <Text style={styles.checkmark}>✓</Text>
-              </View>
-              <Text style={styles.successTitle}>Reset Link Sent</Text>
-              <Text style={styles.successMessage}>
-                Check your email for the password reset link. We'll redirect you
-                back to login shortly.
+          <View style={styles.successSection}>
+            <View
+              style={[
+                styles.successIcon,
+                { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+              ]}
+            >
+              <Text style={[styles.checkmark, { color: theme.colors.primary }]}>
+                ✓
               </Text>
             </View>
-          </>
+            <Text style={[styles.successTitle, { color: theme.colors.text }]}>
+              Reset Link Sent
+            </Text>
+            <Text
+              style={[styles.successMessage, { color: theme.colors.mutedText }]}
+            >
+              Check your email for the password reset link. We'll redirect you
+              back to login shortly.
+            </Text>
+          </View>
         ) : (
           <>
-            {/* Icon Section */}
             <View style={styles.iconSection}>
-              <View style={styles.mailIconCircle}>
-                <Mail size={40} color="#1CA39A" strokeWidth={2} />
+              <View
+                style={[
+                  styles.mailIconCircle,
+                  { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+                ]}
+              >
+                <Mail size={40} color={theme.colors.primary} strokeWidth={2} />
               </View>
             </View>
 
-            {/* Title Section */}
             <View style={styles.titleSection}>
-              <Text style={styles.title}>Forgot Password?</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Forgot Password?
+              </Text>
+              <Text
+                style={[styles.subtitle, { color: theme.colors.mutedText }]}
+              >
                 Enter your email to receive a reset link
               </Text>
             </View>
 
-            {/* Form Section */}
             <View style={styles.formSection}>
-              {/* Email Input */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email Address</Text>
+                <Text style={[styles.label, { color: theme.colors.text }]}>
+                  Email Address
+                </Text>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
                   placeholder="your@email.com"
-                  placeholderTextColor="#B59D90"
+                  placeholderTextColor={theme.colors.mutedText}
                   value={email}
-                  onChangeText={email => {
-                    setEmail(email);
+                  onChangeText={nextEmail => {
+                    setEmail(nextEmail);
                     setError('');
                   }}
                   editable={!loading}
@@ -131,17 +151,28 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
                 />
               </View>
 
-              {/* Error Message */}
               {error ? (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{error}</Text>
+                <View
+                  style={[
+                    styles.errorBox,
+                    {
+                      backgroundColor: theme.dark ? '#3B1E1E' : '#FFEBEE',
+                      borderLeftColor: theme.colors.danger,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.errorText, { color: theme.colors.danger }]}
+                  >
+                    {error}
+                  </Text>
                 </View>
               ) : null}
 
-              {/* Send Reset Link Button */}
               <Pressable
                 style={[
                   styles.sendButton,
+                  { backgroundColor: theme.colors.primary },
                   loading && styles.sendButtonDisabled,
                 ]}
                 onPress={handleSendResetLink}
@@ -155,9 +186,13 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
               </Pressable>
             </View>
 
-            {/* Info Box */}
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
+            <View
+              style={[
+                styles.infoBox,
+                { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+              ]}
+            >
+              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
                 Don't receive the email? Check your spam folder or try another
                 email address.
               </Text>
@@ -175,7 +210,6 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: '#F5F5F6',
   },
   content: {
     paddingHorizontal: 20,
@@ -196,7 +230,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E8F5F4',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -207,13 +240,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2A2A2A',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#9B8378',
     textAlign: 'center',
   },
   formSection: {
@@ -225,36 +256,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2A2A2A',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E8E3DE',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#2A2A2A',
     fontWeight: '500',
   },
   errorBox: {
-    backgroundColor: '#FFEBEE',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#E03131',
   },
   errorText: {
-    color: '#E03131',
     fontSize: 13,
     fontWeight: '600',
   },
   sendButton: {
-    backgroundColor: '#1CA39A',
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
@@ -269,14 +292,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   infoBox: {
-    backgroundColor: '#E8F5F4',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 20,
   },
   infoText: {
-    color: '#2B9A92',
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
@@ -291,7 +312,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#E8F5F4',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -299,18 +319,15 @@ const styles = StyleSheet.create({
   checkmark: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#1CA39A',
   },
   successTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#2A2A2A',
     marginBottom: 12,
   },
   successMessage: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#9B8378',
     textAlign: 'center',
     paddingHorizontal: 20,
   },

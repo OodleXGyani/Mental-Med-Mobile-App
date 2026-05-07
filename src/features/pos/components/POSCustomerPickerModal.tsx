@@ -1,7 +1,16 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { User, X } from 'lucide-react-native';
 import { Customer } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
@@ -20,38 +29,85 @@ export const POSCustomerPickerModal = ({
   onSelectCustomer,
   onClose,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
-        <View style={styles.bottomSheet}>
+        <View
+          style={[styles.bottomSheet, { backgroundColor: theme.colors.card }]}
+        >
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Select Customer</Text>
+            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+              Select Customer
+            </Text>
             <Pressable onPress={onClose}>
-              <X size={16} color="#6E635C" />
+              <X size={16} color={theme.colors.mutedText} />
             </Pressable>
           </View>
 
           <TextInput
-            style={styles.customerSearchInput}
+            style={[
+              styles.customerSearchInput,
+              {
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+                backgroundColor: theme.colors.background,
+              },
+            ]}
             placeholder="Search by name or phone..."
-            placeholderTextColor="#AA9A8F"
+            placeholderTextColor={theme.colors.mutedText}
             value={searchValue}
             onChangeText={onSearchChange}
           />
 
           <ScrollView style={styles.customerList}>
             {customers.map(customer => (
-              <Pressable key={customer.id} style={styles.customerListItem} onPress={() => onSelectCustomer(customer)}>
+              <Pressable
+                key={customer.id}
+                style={[
+                  styles.customerListItem,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.card,
+                  },
+                ]}
+                onPress={() => onSelectCustomer(customer)}
+              >
                 <View style={styles.customerListLeft}>
-                  <View style={styles.customerAvatar}>
-                    <User size={12} color="#3BAE9D" />
+                  <View
+                    style={[
+                      styles.customerAvatar,
+                      { backgroundColor: theme.dark ? '#163330' : '#ECF8F6' },
+                    ]}
+                  >
+                    <User size={12} color={theme.colors.primary} />
                   </View>
                   <View>
-                    <Text style={styles.customerListName}>{customer.name}</Text>
-                    <Text style={styles.customerListPhone}>{customer.phone}</Text>
+                    <Text
+                      style={[
+                        styles.customerListName,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      {customer.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.customerListPhone,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      {customer.phone}
+                    </Text>
                   </View>
                 </View>
-                <View style={styles.selectDot} />
+                <View
+                  style={[
+                    styles.selectDot,
+                    { backgroundColor: theme.colors.mutedText },
+                  ]}
+                />
               </Pressable>
             ))}
           </ScrollView>

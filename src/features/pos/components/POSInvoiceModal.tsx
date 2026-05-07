@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Check, Download, Phone, Printer, Share2 } from 'lucide-react-native';
 import { CartItem, Customer, PaymentMethod } from '../types';
 import { formatAmount } from '../utils';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
@@ -33,60 +34,189 @@ export const POSInvoiceModal = ({
   onPressShare,
   onPressDone,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
-        <View style={styles.invoiceSheet}>
-          <View style={styles.saleDoneCard}>
-            <Text style={styles.saleDoneTitle}>Sale completed!</Text>
-            <Text style={styles.saleDoneMeta}>{`Invoice INV-155654 - ${formatAmount(total)}`}</Text>
+        <View
+          style={[styles.invoiceSheet, { backgroundColor: theme.colors.card }]}
+        >
+          <View
+            style={[styles.saleDoneCard, { borderColor: theme.colors.border }]}
+          >
+            <Text style={[styles.saleDoneTitle, { color: theme.colors.text }]}>
+              Sale completed!
+            </Text>
+            <Text
+              style={[styles.saleDoneMeta, { color: theme.colors.mutedText }]}
+            >
+              {`Invoice INV-155654 - ${formatAmount(total)}`}
+            </Text>
           </View>
 
-          <View style={styles.invoiceHeaderBox}>
-            <Text style={styles.pharmacyName}>MedPlus Pharmacy</Text>
-            <Text style={styles.pharmacyAddress}>Plot No. 45, Jubilee Hills, Hyderabad - 500033</Text>
-            <Text style={styles.pharmacyAddress}>Ph: +91 98765 43210 | GSTIN: 36AABCU9603R1ZJ</Text>
+          <View
+            style={[
+              styles.invoiceHeaderBox,
+              { backgroundColor: theme.colors.background },
+            ]}
+          >
+            <Text style={[styles.pharmacyName, { color: theme.colors.text }]}>
+              MedPlus Pharmacy
+            </Text>
+            <Text
+              style={[
+                styles.pharmacyAddress,
+                { color: theme.colors.mutedText },
+              ]}
+            >
+              Plot No. 45, Jubilee Hills, Hyderabad - 500033
+            </Text>
+            <Text
+              style={[
+                styles.pharmacyAddress,
+                { color: theme.colors.mutedText },
+              ]}
+            >
+              Ph: +91 98765 43210 | GSTIN: 36AABCU9603R1ZJ
+            </Text>
           </View>
 
-          <Text style={styles.invoiceLine}>{`Customer: ${selectedCustomer?.name || 'Walk-in'}`}</Text>
-          <Text style={styles.invoiceLine}>Date: 24/4/2026, 3:52 pm</Text>
-          <Text style={styles.invoiceLine}>{`Payment: ${paymentMethod.toUpperCase()}`}</Text>
+          <Text
+            style={[styles.invoiceLine, { color: theme.colors.text }]}
+          >{`Customer: ${selectedCustomer?.name || 'Walk-in'}`}</Text>
+          <Text style={[styles.invoiceLine, { color: theme.colors.text }]}>
+            Date: 24/4/2026, 3:52 pm
+          </Text>
+          <Text
+            style={[styles.invoiceLine, { color: theme.colors.text }]}
+          >{`Payment: ${paymentMethod.toUpperCase()}`}</Text>
 
           <View style={styles.invoiceItemsWrap}>
             {cartItems.map(item => (
               <View style={styles.invoiceItemRow} key={item.id}>
                 <View>
-                  <Text style={styles.invoiceItemName}>{item.name}</Text>
-                  <Text style={styles.invoiceItemMeta}>{`Batch: ${item.batch}`}</Text>
+                  <Text
+                    style={[
+                      styles.invoiceItemName,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.invoiceItemMeta,
+                      { color: theme.colors.mutedText },
+                    ]}
+                  >{`Batch: ${item.batch}`}</Text>
                 </View>
-                <Text style={styles.invoiceItemPrice}>{formatAmount(item.price * item.qty)}</Text>
+                <Text
+                  style={[
+                    styles.invoiceItemPrice,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  {formatAmount(item.price * item.qty)}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.invoiceSummaryBorder}>
+          <View
+            style={[
+              styles.invoiceSummaryBorder,
+              { borderTopColor: theme.colors.border },
+            ]}
+          >
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValueNeutral}>{formatAmount(subtotal)}</Text>
+              <Text
+                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
+              >
+                Subtotal
+              </Text>
+              <Text
+                style={[
+                  styles.summaryValueNeutral,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {formatAmount(subtotal)}
+              </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>GST</Text>
-              <Text style={styles.summaryValueNeutral}>{formatAmount(gstAmount)}</Text>
+              <Text
+                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
+              >
+                GST
+              </Text>
+              <Text
+                style={[
+                  styles.summaryValueNeutral,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {formatAmount(gstAmount)}
+              </Text>
             </View>
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatAmount(total)}</Text>
+            <View
+              style={[
+                styles.summaryRow,
+                styles.totalRow,
+                { borderTopColor: theme.colors.border },
+              ]}
+            >
+              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
+                Total
+              </Text>
+              <Text
+                style={[styles.totalValue, { color: theme.colors.primary }]}
+              >
+                {formatAmount(total)}
+              </Text>
             </View>
           </View>
 
           <View style={styles.invoiceActionRow}>
-            <Pressable style={styles.actionBtnLight} onPress={onPressDownload}>
-              <Download size={14} color="#6C6059" />
-              <Text style={styles.actionBtnLightText}>Download</Text>
+            <Pressable
+              style={[
+                styles.actionBtnLight,
+                {
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                },
+              ]}
+              onPress={onPressDownload}
+            >
+              <Download size={14} color={theme.colors.mutedText} />
+              <Text
+                style={[
+                  styles.actionBtnLightText,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                Download
+              </Text>
             </Pressable>
-            <Pressable style={styles.actionBtnLight} onPress={onPressPrint}>
-              <Printer size={14} color="#6C6059" />
-              <Text style={styles.actionBtnLightText}>Print</Text>
+            <Pressable
+              style={[
+                styles.actionBtnLight,
+                {
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.card,
+                },
+              ]}
+              onPress={onPressPrint}
+            >
+              <Printer size={14} color={theme.colors.mutedText} />
+              <Text
+                style={[
+                  styles.actionBtnLightText,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                Print
+              </Text>
             </Pressable>
           </View>
           <View style={styles.invoiceActionRow}>
@@ -94,13 +224,25 @@ export const POSInvoiceModal = ({
               <Phone size={14} color="#FFFFFF" />
               <Text style={styles.actionBtnGreenText}>WhatsApp</Text>
             </Pressable>
-            <Pressable style={styles.actionBtnTeal} onPress={onPressShare}>
+            <Pressable
+              style={[
+                styles.actionBtnTeal,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={onPressShare}
+            >
               <Share2 size={14} color="#FFFFFF" />
               <Text style={styles.actionBtnGreenText}>Share</Text>
             </Pressable>
           </View>
 
-          <Pressable style={styles.closeInvoiceBtn} onPress={onPressDone}>
+          <Pressable
+            style={[
+              styles.closeInvoiceBtn,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={onPressDone}
+          >
             <Check size={14} color="#FFFFFF" />
             <Text style={styles.closeInvoiceBtnText}>Done</Text>
           </Pressable>

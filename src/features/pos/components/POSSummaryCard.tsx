@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatAmount } from '../utils';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   subtotal: number;
@@ -21,34 +22,83 @@ export const POSSummaryCard = ({
   canProceed,
   onPressProceed,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.summaryCard}>
+    <View
+      style={[
+        styles.summaryCard,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
       <View style={styles.summaryRow}>
-        <Text style={styles.summaryLabel}>Subtotal</Text>
-        <Text style={styles.summaryValueNeutral}>{formatAmount(subtotal)}</Text>
+        <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
+          Subtotal
+        </Text>
+        <Text
+          style={[styles.summaryValueNeutral, { color: theme.colors.text }]}
+        >
+          {formatAmount(subtotal)}
+        </Text>
       </View>
       <View style={styles.summaryRow}>
-        <Text style={styles.summaryLabel}>GST</Text>
-        <Text style={styles.summaryValueNeutral}>{formatAmount(gstAmount)}</Text>
+        <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
+          GST
+        </Text>
+        <Text
+          style={[styles.summaryValueNeutral, { color: theme.colors.text }]}
+        >
+          {formatAmount(gstAmount)}
+        </Text>
       </View>
       <View style={styles.summaryRow}>
-        <Text style={styles.summaryLabel}>Bill Discount</Text>
+        <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
+          Bill Discount
+        </Text>
         <View style={styles.discountInputWrap}>
           <TextInput
             value={discountPercent}
             onChangeText={onDiscountChange}
             keyboardType="number-pad"
-            style={styles.discountInput}
+            style={[
+              styles.discountInput,
+              {
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+                backgroundColor: theme.colors.background,
+              },
+            ]}
           />
-          <Text style={styles.discountSuffix}>%</Text>
+          <Text
+            style={[styles.discountSuffix, { color: theme.colors.mutedText }]}
+          >
+            %
+          </Text>
         </View>
       </View>
-      <View style={[styles.summaryRow, styles.totalRow]}>
-        <Text style={styles.totalLabel}>Total</Text>
-        <Text style={styles.totalValue}>{formatAmount(total)}</Text>
+      <View
+        style={[
+          styles.summaryRow,
+          styles.totalRow,
+          { borderTopColor: theme.colors.border },
+        ]}
+      >
+        <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
+          Total
+        </Text>
+        <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
+          {formatAmount(total)}
+        </Text>
       </View>
       <Pressable
-        style={[styles.proceedBtn, !canProceed && styles.proceedBtnDisabled]}
+        style={[
+          styles.proceedBtn,
+          { backgroundColor: theme.colors.primary },
+          !canProceed && styles.proceedBtnDisabled,
+        ]}
         onPress={onPressProceed}
         disabled={!canProceed}
       >

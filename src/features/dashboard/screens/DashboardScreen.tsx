@@ -21,12 +21,14 @@ import { DashboardStatsGrid } from '../components/DashboardStatsGrid';
 import { DashboardQuickActions } from '../components/DashboardQuickActions';
 import { DashboardRecentSales } from '../components/DashboardRecentSales';
 import { useAppSelector } from '../../../app/hooks';
+import { useAppTheme } from '../../../shared/theme';
 
 export const DashboardScreen = () => {
   const { summary, recentSales, loading } = useDashboard();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const session = useAppSelector(state => state.auth.session);
+  const theme = useAppTheme();
   const stats = [
     {
       label: "Today's Sales",
@@ -96,7 +98,7 @@ export const DashboardScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -114,7 +116,9 @@ export const DashboardScreen = () => {
         }
       />
 
-      {loading ? <ActivityIndicator style={styles.loader} /> : null}
+      {loading ? (
+        <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
+      ) : null}
       <DashboardStatsGrid stats={stats} />
       <DashboardQuickActions
         actions={actions}

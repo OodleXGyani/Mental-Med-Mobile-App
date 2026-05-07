@@ -12,6 +12,7 @@ import {
 import { X } from 'lucide-react-native';
 import { Order } from './OrderCard';
 import { orderActionFlow } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   order: Order | null;
@@ -30,6 +31,7 @@ export const OrderDetailModal = ({
   onReject,
   isLoading = false,
 }: Props) => {
+  const theme = useAppTheme();
   if (!order) return null;
 
   const actionItems = orderActionFlow[order.status] ?? [];
@@ -37,11 +39,15 @@ export const OrderDetailModal = ({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
+        <View
+          style={[styles.modalCard, { backgroundColor: theme.colors.card }]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{order.id}</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              {order.id}
+            </Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={18} color="#3B2E2B" strokeWidth={2.2} />
+              <X size={18} color={theme.colors.mutedText} strokeWidth={2.2} />
             </Pressable>
           </View>
 
@@ -49,42 +55,65 @@ export const OrderDetailModal = ({
             style={styles.modalBody}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.modalLabel}>
+            <Text style={[styles.modalLabel, { color: theme.colors.text }]}>
               <Text style={{ fontWeight: '800' }}>Customer:</Text>{' '}
               {order.customer}
             </Text>
             {order.phone ? (
-              <Text style={styles.modalLabel}>
+              <Text style={[styles.modalLabel, { color: theme.colors.text }]}>
                 <Text style={{ fontWeight: '800' }}>Phone:</Text> {order.phone}
               </Text>
             ) : null}
             {order.source ? (
-              <Text style={styles.modalLabel}>
+              <Text style={[styles.modalLabel, { color: theme.colors.text }]}>
                 <Text style={{ fontWeight: '800' }}>Source:</Text>{' '}
                 {order.source}
               </Text>
             ) : null}
 
-            <Text style={[styles.modalSectionTitle, { marginTop: 10 }]}>
+            <Text
+              style={[
+                styles.modalSectionTitle,
+                { marginTop: 10, color: theme.colors.text },
+              ]}
+            >
               Items:
             </Text>
             {order.items.map((it, idx) => (
               <View key={idx} style={styles.itemRow}>
-                <Text style={styles.itemText}>{it.name}</Text>
-                <Text style={styles.itemQty}>×{it.qty}</Text>
+                <Text style={[styles.itemText, { color: theme.colors.text }]}>
+                  {it.name}
+                </Text>
+                <Text
+                  style={[styles.itemQty, { color: theme.colors.mutedText }]}
+                >
+                  ×{it.qty}
+                </Text>
               </View>
             ))}
 
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>₹{order.amount}</Text>
+            <View
+              style={[styles.totalRow, { borderTopColor: theme.colors.border }]}
+            >
+              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
+                Total
+              </Text>
+              <Text
+                style={[styles.totalAmount, { color: theme.colors.primary }]}
+              >
+                ₹{order.amount}
+              </Text>
             </View>
 
             {/* action buttons depending on status */}
             {isLoading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="large" color="#1E8066" />
-                <Text style={styles.loadingText}>Updating order...</Text>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text
+                  style={[styles.loadingText, { color: theme.colors.primary }]}
+                >
+                  Updating order...
+                </Text>
               </View>
             ) : actionItems.length === 0 ? null : actionItems.length === 2 ? (
               <View style={styles.buttonRow}>
@@ -102,7 +131,10 @@ export const OrderDetailModal = ({
                   </Text> */}
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
                   onPress={() => onAccept(order)}
                 >
                   <Text style={styles.actionButtonText}>
@@ -115,7 +147,10 @@ export const OrderDetailModal = ({
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.actionButton}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={() => onAccept(order)}
               >
                 <Text style={styles.actionButtonText}>

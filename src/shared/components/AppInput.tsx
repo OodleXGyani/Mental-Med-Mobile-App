@@ -6,21 +6,20 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
-import { useAppSelector } from '../../app/hooks';
-import { resolveTheme } from '../theme';
+import { useAppTheme } from '../theme';
 
 type Props = TextInputProps & {
   label: string;
 };
 
 export const AppInput = ({ label, ...props }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+  const theme = useAppTheme();
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: theme.colors.mutedText }]}>{label}</Text>
+      <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+        {label}
+      </Text>
       <TextInput
         placeholderTextColor={theme.colors.mutedText}
         style={[

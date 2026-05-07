@@ -1,7 +1,14 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, Check, CircleAlert, Package, ShoppingCart } from 'lucide-react-native';
+import {
+  Bell,
+  Check,
+  CircleAlert,
+  Package,
+  ShoppingCart,
+} from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type NotificationItem = {
   id: string;
@@ -52,27 +59,50 @@ const notifications: NotificationItem[] = [
   },
 ];
 
-const getItemIcon = (variant: NotificationItem['variant']) => {
-  switch (variant) {
-    case 'order':
-      return <ShoppingCart size={14} color="#2FAF9A" strokeWidth={2.4} />;
-    case 'stock':
-      return <Bell size={14} color="#2FAF9A" strokeWidth={2.4} />;
-    case 'expiry':
-      return <CircleAlert size={14} color="#C98D78" strokeWidth={2.4} />;
-    case 'dispatch':
-      return <ShoppingCart size={14} color="#C98D78" strokeWidth={2.4} />;
-    default:
-      return <Package size={14} color="#C98D78" strokeWidth={2.4} />;
-  }
-};
-
 export const NotificationsScreen = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
+
+  const getItemIcon = (variant: NotificationItem['variant']) => {
+    switch (variant) {
+      case 'order':
+        return (
+          <ShoppingCart
+            size={14}
+            color={theme.colors.primary}
+            strokeWidth={2.4}
+          />
+        );
+      case 'stock':
+        return (
+          <Bell size={14} color={theme.colors.primary} strokeWidth={2.4} />
+        );
+      case 'expiry':
+        return (
+          <CircleAlert
+            size={14}
+            color={theme.colors.warning}
+            strokeWidth={2.4}
+          />
+        );
+      case 'dispatch':
+        return (
+          <ShoppingCart
+            size={14}
+            color={theme.colors.warning}
+            strokeWidth={2.4}
+          />
+        );
+      default:
+        return (
+          <Package size={14} color={theme.colors.warning} strokeWidth={2.4} />
+        );
+    }
+  };
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -84,26 +114,66 @@ export const NotificationsScreen = () => {
     >
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Notifications</Text>
-          <View style={styles.pill}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Notifications
+          </Text>
+          <View
+            style={[styles.pill, { backgroundColor: theme.colors.primary }]}
+          >
             <Text style={styles.pillText}>2 new</Text>
           </View>
         </View>
         <View style={styles.markWrap}>
-          <Check size={13} color="#5A4A42" strokeWidth={2.6} />
-          <Text style={styles.markText}>Mark all read</Text>
+          <Check size={13} color={theme.colors.mutedText} strokeWidth={2.6} />
+          <Text style={[styles.markText, { color: theme.colors.mutedText }]}>
+            Mark all read
+          </Text>
         </View>
       </View>
 
       {notifications.map(item => (
-        <View key={item.id} style={[styles.card, item.unread ? styles.cardUnread : null]}>
-          <View style={styles.iconWrap}>{getItemIcon(item.variant)}</View>
-          <View style={styles.textWrap}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardMessage}>{item.message}</Text>
-            <Text style={styles.cardTime}>{item.time}</Text>
+        <View
+          key={item.id}
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+            item.unread
+              ? {
+                  backgroundColor: theme.dark ? '#1E2C2A' : '#F2FBF8',
+                  borderColor: theme.dark ? '#2C3A37' : '#CFE9E3',
+                }
+              : null,
+          ]}
+        >
+          <View
+            style={[
+              styles.iconWrap,
+              { backgroundColor: theme.dark ? '#1A2624' : '#EAF7F4' },
+            ]}
+          >
+            {getItemIcon(item.variant)}
           </View>
-          {item.unread ? <View style={styles.dot} /> : null}
+          <View style={styles.textWrap}>
+            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+              {item.title}
+            </Text>
+            <Text
+              style={[styles.cardMessage, { color: theme.colors.mutedText }]}
+            >
+              {item.message}
+            </Text>
+            <Text style={[styles.cardTime, { color: theme.colors.mutedText }]}>
+              {item.time}
+            </Text>
+          </View>
+          {item.unread ? (
+            <View
+              style={[styles.dot, { backgroundColor: theme.colors.primary }]}
+            />
+          ) : null}
         </View>
       ))}
     </ScrollView>

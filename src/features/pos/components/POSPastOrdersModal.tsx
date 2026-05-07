@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Customer } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
@@ -9,35 +10,99 @@ type Props = {
   onClose: () => void;
 };
 
-export const POSPastOrdersModal = ({ visible, selectedCustomer, onClose }: Props) => {
+export const POSPastOrdersModal = ({
+  visible,
+  selectedCustomer,
+  onClose,
+}: Props) => {
+  const theme = useAppTheme();
+
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
-        <View style={styles.bottomSheet}>
+        <View
+          style={[styles.bottomSheet, { backgroundColor: theme.colors.card }]}
+        >
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>{`${selectedCustomer?.name || 'Customer'} - Past Orders`}</Text>
+            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+              {`${selectedCustomer?.name || 'Customer'} - Past Orders`}
+            </Text>
             <Pressable onPress={onClose}>
-              <X size={16} color="#6E635C" />
+              <X size={16} color={theme.colors.mutedText} />
             </Pressable>
           </View>
 
-          <View style={styles.pastOrderCard}>
+          <View
+            style={[
+              styles.pastOrderCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
             <View style={styles.pastOrderHeader}>
-              <Text style={styles.pastOrderId}>INV-2025-001</Text>
-              <Text style={styles.pastOrderDate}>2026-04-10</Text>
+              <Text style={[styles.pastOrderId, { color: theme.colors.text }]}>
+                INV-2025-001
+              </Text>
+              <Text
+                style={[
+                  styles.pastOrderDate,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                2026-04-10
+              </Text>
             </View>
-            <Text style={styles.pastOrderItem}>Paracetamol 500mg</Text>
-            <Text style={styles.pastOrderItem}>Cetirizine 10mg</Text>
-            <Text style={styles.pastOrderAmount}>Rs 123.20</Text>
+            <Text
+              style={[styles.pastOrderItem, { color: theme.colors.mutedText }]}
+            >
+              Paracetamol 500mg
+            </Text>
+            <Text
+              style={[styles.pastOrderItem, { color: theme.colors.mutedText }]}
+            >
+              Cetirizine 10mg
+            </Text>
+            <Text
+              style={[styles.pastOrderAmount, { color: theme.colors.text }]}
+            >
+              Rs 123.20
+            </Text>
           </View>
 
-          <View style={styles.pastOrderCard}>
+          <View
+            style={[
+              styles.pastOrderCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
             <View style={styles.pastOrderHeader}>
-              <Text style={styles.pastOrderId}>INV-2025-005</Text>
-              <Text style={styles.pastOrderDate}>2026-03-28</Text>
+              <Text style={[styles.pastOrderId, { color: theme.colors.text }]}>
+                INV-2025-005
+              </Text>
+              <Text
+                style={[
+                  styles.pastOrderDate,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                2026-03-28
+              </Text>
             </View>
-            <Text style={styles.pastOrderItem}>Amoxicillin 250mg</Text>
-            <Text style={styles.pastOrderAmount}>Rs 95.20</Text>
+            <Text
+              style={[styles.pastOrderItem, { color: theme.colors.mutedText }]}
+            >
+              Amoxicillin 250mg
+            </Text>
+            <Text
+              style={[styles.pastOrderAmount, { color: theme.colors.text }]}
+            >
+              Rs 95.20
+            </Text>
           </View>
         </View>
       </View>

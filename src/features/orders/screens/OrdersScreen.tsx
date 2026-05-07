@@ -17,9 +17,11 @@ import { OrderDetailModal } from '../components/OrderDetailModal';
 import { OrderSummaryModal } from '../components/OrderSummaryModal';
 import { ordersService } from '../services/ordersService';
 import { orderActionFlow, statusMap } from '../types';
+import { useAppTheme } from '../../../shared/theme';
 
 export const OrdersScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -245,7 +247,7 @@ export const OrdersScreen: React.FC = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -255,17 +257,23 @@ export const OrdersScreen: React.FC = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Orders</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Orders</Text>
 
       {loading ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#1CA39A" />
-          <Text style={styles.centerText}>Loading orders...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.centerText, { color: theme.colors.mutedText }]}>
+            Loading orders...
+          </Text>
         </View>
       ) : error ? (
         <View style={styles.centerBox}>
-          <Text style={styles.centerTitle}>Error</Text>
-          <Text style={styles.centerText}>{error}</Text>
+          <Text style={[styles.centerTitle, { color: theme.colors.text }]}>
+            Error
+          </Text>
+          <Text style={[styles.centerText, { color: theme.colors.danger }]}>
+            {error}
+          </Text>
         </View>
       ) : (
         <>
@@ -277,7 +285,11 @@ export const OrdersScreen: React.FC = () => {
 
           {sectionOrders(activeTab).length === 0 ? (
             <View style={styles.centerBox}>
-              <Text style={styles.centerText}>No orders in this category</Text>
+              <Text
+                style={[styles.centerText, { color: theme.colors.mutedText }]}
+              >
+                No orders in this category
+              </Text>
             </View>
           ) : (
             sectionOrders(activeTab).map(order => (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Clock3 } from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   itemCount: number;
@@ -8,18 +9,33 @@ type Props = {
 };
 
 export const POSHeader = ({ itemCount, onPressHistory }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.headerRow}>
-      <Text style={styles.title}>POS Billing</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        POS Billing
+      </Text>
       <View style={styles.headerRight}>
         <Pressable onPress={onPressHistory}>
           <View style={styles.historyWrap}>
-            <Clock3 size={12} color="#7D6A5F" />
-            <Text style={styles.history}>History</Text>
+            <Clock3 size={12} color={theme.colors.mutedText} />
+            <Text style={[styles.history, { color: theme.colors.mutedText }]}>
+              History
+            </Text>
           </View>
         </Pressable>
-        <View style={styles.itemsPill}>
-          <Text style={styles.itemsPillText}>{`${itemCount} items`}</Text>
+        <View
+          style={[
+            styles.itemsPill,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          <Text
+            style={[styles.itemsPillText, { color: theme.colors.mutedText }]}
+          >
+            {`${itemCount} items`}
+          </Text>
         </View>
       </View>
     </View>

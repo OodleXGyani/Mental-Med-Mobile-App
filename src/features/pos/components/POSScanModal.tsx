@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export const POSScanModal = ({ visible, progress, onClose }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -20,7 +23,11 @@ export const POSScanModal = ({ visible, progress, onClose }: Props) => {
             <View style={styles.scanLine} />
           </View>
           <Text style={styles.scanHint}>Point camera at barcode...</Text>
-          <Text style={styles.scanProgress}>{`Scanning ${Math.min(progress, 100)}%`}</Text>
+          <Text
+            style={[styles.scanProgress, { color: theme.colors.mutedText }]}
+          >
+            {`Scanning ${Math.min(progress, 100)}%`}
+          </Text>
         </View>
       </View>
     </Modal>

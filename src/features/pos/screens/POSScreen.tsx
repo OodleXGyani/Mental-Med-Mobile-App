@@ -17,11 +17,13 @@ import { POSCustomerPickerModal } from '../components/POSCustomerPickerModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
 import { CartItem, Customer, PaymentMethod } from '../types';
 import { formatAmount } from '../utils';
+import { useAppTheme } from '../../../shared/theme';
 
 export const POSScreen = () => {
   const { updateBillTotal } = usePOS();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -157,7 +159,7 @@ export const POSScreen = () => {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -254,7 +256,6 @@ export const POSScreen = () => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F5F5F6',
   },
   content: {
     paddingHorizontal: 16,

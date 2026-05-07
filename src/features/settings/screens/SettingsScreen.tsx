@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../authentication/hooks/useAuth';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
@@ -25,10 +26,11 @@ const menuItems = [
 export const SettingsScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
+  const theme = useAppTheme();
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={[
         styles.content,
         {
@@ -38,24 +40,40 @@ export const SettingsScreen = ({ navigation }: Props) => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>More</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>More</Text>
       {menuItems.map(item => (
         <Pressable
           key={item.label}
-          style={styles.menuRow}
+          style={[
+            styles.menuRow,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
           onPress={() => {
             if (item.route) {
               navigation.navigate(item.route);
             }
           }}
         >
-          <Text style={styles.menuLabel}>{item.label}</Text>
-          <Text style={styles.menuArrow}>›</Text>
+          <Text style={[styles.menuLabel, { color: theme.colors.text }]}>
+            {item.label}
+          </Text>
+          <Text style={[styles.menuArrow, { color: theme.colors.mutedText }]}>
+            ›
+          </Text>
         </Pressable>
       ))}
 
       <View style={styles.signOutWrap}>
-        <Pressable style={styles.signOutButton} onPress={signOut}>
+        <Pressable
+          style={[
+            styles.signOutButton,
+            { backgroundColor: theme.colors.primary },
+          ]}
+          onPress={signOut}
+        >
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
       </View>

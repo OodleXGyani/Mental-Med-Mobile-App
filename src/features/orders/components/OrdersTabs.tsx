@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAppTheme } from '../../../shared/theme';
 
 export type TabType = 'New' | 'Active' | 'Ready' | 'Done';
 
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export const OrdersTabs = ({ activeTab, onTabChange, counts }: Props) => {
+  const theme = useAppTheme();
   const tabs: TabType[] = ['New', 'Active', 'Ready', 'Done'];
   const tabCounts = {
     New: counts.cNew,
@@ -24,15 +26,28 @@ export const OrdersTabs = ({ activeTab, onTabChange, counts }: Props) => {
   };
 
   return (
-    <View style={styles.tabsRow}>
+    <View style={[styles.tabsRow, { borderBottomColor: theme.colors.border }]}>
       {tabs.map(tab => (
         <TouchableOpacity
           key={tab}
-          style={[styles.tab, activeTab === tab && styles.tabActive]}
+          style={[
+            styles.tab,
+            activeTab === tab && {
+              borderBottomColor: theme.colors.primary,
+              borderBottomWidth: 2,
+            },
+          ]}
           onPress={() => onTabChange(tab)}
         >
           <Text
-            style={[styles.tabText, activeTab === tab && styles.tabTextActive]}
+            style={[
+              styles.tabText,
+              { color: theme.colors.mutedText },
+              activeTab === tab && {
+                color: theme.colors.primary,
+                fontWeight: '700',
+              },
+            ]}
           >
             {tab} ({tabCounts[tab]})
           </Text>

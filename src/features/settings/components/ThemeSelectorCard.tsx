@@ -2,8 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton, AppCard } from '../../../shared/components';
 import { ThemeMode } from '../../../shared/theme';
-import { useAppSelector } from '../../../app/hooks';
-import { resolveTheme } from '../../../shared/theme';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   mode: ThemeMode;
@@ -11,18 +10,32 @@ type Props = {
 };
 
 export const ThemeSelectorCard = ({ mode, onChange }: Props) => {
-  const currentMode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(currentMode, systemScheme);
+  const theme = useAppTheme();
 
   return (
     <AppCard>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Theme Mode</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>Current: {mode}</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Theme Mode
+      </Text>
+      <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
+        Current: {mode}
+      </Text>
       <View style={styles.row}>
-        <AppButton title="System" onPress={() => onChange('system')} style={styles.button} />
-        <AppButton title="Light" onPress={() => onChange('light')} style={styles.button} />
-        <AppButton title="Dark" onPress={() => onChange('dark')} style={styles.button} />
+        <AppButton
+          title="System"
+          onPress={() => onChange('system')}
+          style={styles.button}
+        />
+        <AppButton
+          title="Light"
+          onPress={() => onChange('light')}
+          style={styles.button}
+        />
+        <AppButton
+          title="Dark"
+          onPress={() => onChange('dark')}
+          style={styles.button}
+        />
       </View>
     </AppCard>
   );

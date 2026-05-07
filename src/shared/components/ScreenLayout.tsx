@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useAppSelector } from '../../app/hooks';
-import { resolveTheme } from '../theme';
+import { useAppTheme } from '../theme';
 
 type Props = {
   title: string;
@@ -10,9 +9,7 @@ type Props = {
 };
 
 export const ScreenLayout = ({ title, subtitle, children }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+  const theme = useAppTheme();
 
   return (
     <ScrollView
@@ -22,9 +19,13 @@ export const ScreenLayout = ({ title, subtitle, children }: Props) => {
       ]}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          {title}
+        </Text>
         {subtitle ? (
-          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
+            {subtitle}
+          </Text>
         ) : null}
       </View>
       {children}

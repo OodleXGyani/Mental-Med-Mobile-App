@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { useAppSelector } from '../../app/hooks';
-import { resolveTheme } from '../theme';
+import { useAppTheme } from '../theme';
 
 type Props = {
   children: React.ReactNode;
@@ -9,16 +8,28 @@ type Props = {
 };
 
 export const AppCard = ({ children, style }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+  const theme = useAppTheme();
 
-  return <View style={[styles.card, { backgroundColor: theme.colors.card }, style]}>{children}</View>;
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
+    borderWidth: 1,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',

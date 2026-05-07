@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { DashboardRecentSale } from '../services/dashboardService';
+import { useAppTheme } from '../../../shared/theme';
 
 const formatAmount = (amount: number) =>
   `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
@@ -28,27 +29,46 @@ export const DashboardRecentSales = ({
   onPressViewAll,
   onPressSale,
 }: Props) => {
+  const theme = useAppTheme();
+
   return (
     <>
       <View style={styles.recentHeader}>
-        <Text style={styles.sectionTitle}>Recent Sales</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Recent Sales
+        </Text>
         <Pressable onPress={onPressViewAll}>
-          <Text style={styles.viewAll}>View All ›</Text>
+          <Text style={[styles.viewAll, { color: theme.colors.primary }]}>
+            View All ›
+          </Text>
         </Pressable>
       </View>
       {sales.map(sale => (
         <Pressable
           key={sale.invoice_id}
-          style={styles.saleCard}
+          style={[
+            styles.saleCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
           onPress={() => onPressSale(sale)}
         >
           <View>
-            <Text style={styles.saleName}>{sale.invoice_id}</Text>
-            <Text style={styles.saleMeta} numberOfLines={1}>{`${
-              sale.items[0] ?? sale.company
-            } · ${formatDate(sale.posting_date)}`}</Text>
+            <Text style={[styles.saleName, { color: theme.colors.text }]}>
+              {sale.invoice_id}
+            </Text>
+            <Text
+              style={[styles.saleMeta, { color: theme.colors.mutedText }]}
+              numberOfLines={1}
+            >{`${sale.items[0] ?? sale.company} · ${formatDate(
+              sale.posting_date,
+            )}`}</Text>
           </View>
-          <Text style={styles.saleAmount}>{formatAmount(sale.amount)}</Text>
+          <Text style={[styles.saleAmount, { color: theme.colors.success }]}>
+            {formatAmount(sale.amount)}
+          </Text>
         </Pressable>
       ))}
     </>

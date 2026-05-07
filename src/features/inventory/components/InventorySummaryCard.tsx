@@ -1,22 +1,23 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { AppCard } from '../../../shared/components';
-import { useAppSelector } from '../../../app/hooks';
-import { resolveTheme } from '../../../shared/theme';
+import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   lowStockCount: number;
 };
 
 export const InventorySummaryCard = ({ lowStockCount }: Props) => {
-  const mode = useAppSelector(state => state.settings.themeMode);
-  const systemScheme = useAppSelector(state => state.settings.systemScheme);
-  const theme = resolveTheme(mode, systemScheme);
+  const theme = useAppTheme();
 
   return (
     <AppCard>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Low Stock Alerts</Text>
-      <Text style={[styles.count, { color: theme.colors.danger }]}>{lowStockCount}</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Low Stock Alerts
+      </Text>
+      <Text style={[styles.count, { color: theme.colors.danger }]}>
+        {lowStockCount}
+      </Text>
     </AppCard>
   );
 };
