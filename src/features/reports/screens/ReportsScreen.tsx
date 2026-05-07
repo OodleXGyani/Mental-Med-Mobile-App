@@ -71,8 +71,8 @@ export const ReportsScreen = () => {
           transactions: response.summary.transactions,
           avgTicket: response.summary.avg_ticket,
           topProduct: response.summary.top_product,
-          chartData: response.weekly_sales.map(item => item.total),
-          labels: response.weekly_sales.map(item => item.day),
+          chartData: response.sales_chart.map(item => item.total),
+          labels: response.sales_chart.map(item => item.day ?? item.label),
           topProducts: response.top_products.map(item => ({
             name: item.product,
             amount: item.sales,

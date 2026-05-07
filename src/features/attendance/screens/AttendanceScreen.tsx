@@ -17,56 +17,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
 import { attendanceService } from '../services/attendanceService';
-import {
-  DEFAULT_EMPLOYEE_ID,
-  profileService,
-} from '../../settings/services/profileService';
+import { profileService } from '../../settings/services/profileService';
 import { useAppTheme } from '../../../shared/theme';
 
-const monthDays = [
-  'S',
-  'M',
-  'T',
-  'W',
-  'T',
-  'F',
-  'S',
-  ' ',
-  ' ',
-  ' ',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  '11',
-  '12',
-  '13',
-  '14',
-  '15',
-  '16',
-  '17',
-  '18',
-  '19',
-  '20',
-  '21',
-  '22',
-  '23',
-  '24',
-  '25',
-  '26',
-  '27',
-  '28',
-  '29',
-  '30',
-  ' ',
-  ' ',
-];
+const DEFAULT_EMPLOYEE_ID = 'HR-EMP-00001';
 
 const leaveTypes = [
   { label: 'Sick Leave', value: 'sick' },
@@ -81,13 +35,6 @@ interface LeaveForm {
   toDate: string;
   reason: string;
 }
-
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
 
 const getMonthRange = (date = new Date()) => {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
