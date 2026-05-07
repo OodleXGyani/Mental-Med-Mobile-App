@@ -1,3 +1,18 @@
+export type LeaveTypeOption = {
+  label: string;
+  value: string;
+};
+
+export type CreateLeaveRequestPayload = {
+  employee: string;
+  leave_type: string;
+  from_date: string;
+  to_date: string;
+  company: string;
+  description: string;
+  half_day: 0 | 1;
+};
+
 export const attendanceService = {
   fetchAttendanceSummary: async (
     fromDate: string,
@@ -101,5 +116,67 @@ export const attendanceService = {
       latitude: number;
       longitude: number;
     };
+  },
+
+  fetchLeaveTypeDropdown: async (): Promise<LeaveTypeOption[]> => {
+    const response = await fetch(
+      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.staff_management.get_leave_type_dropdown',
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      },
+    );
+
+    const payload = await response.json();
+
+    if (!response.ok || payload.message?.success === false) {
+      throw new Error(
+        payload.message?.error ||
+          payload.message?.message ||
+          'Unable to load leave types.',
+      );
+    }
+
+    const leaveTypes = Array.isArray(payload.message?.data)
+      ? payload.message.data
+      : [];
+
+    return leaveTypes
+      .filter(
+        (item: Partial<LeaveTypeOption>) =>
+          typeof item.label === 'string' && typeof item.value === 'string',
+      )
+      .map((item: LeaveTypeOption) => ({
+        label: item.label,
+        value: item.value,
+      }));
+  },
+
+  createLeaveRequest: async (payload: CreateLeaveRequestPayload) => {
+    const response = await fetch(
+      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.staff_management.create_leave_request',
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.message?.success === false) {
+      throw new Error(
+        data.message?.error ||
+          data.message?.message ||
+          'Unable to submit leave request.',
+      );
+    }
+
+    return data.message;
   },
 };

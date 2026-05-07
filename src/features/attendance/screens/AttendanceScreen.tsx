@@ -10,24 +10,19 @@ import {
   Pressable,
   Modal,
   TextInput,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Calendar } from 'lucide-react-native';
-import { attendanceService } from '../services/attendanceService';
+import {
+  attendanceService,
+  type LeaveTypeOption,
+} from '../services/attendanceService';
 import { profileService } from '../../settings/services/profileService';
 import { useAppTheme } from '../../../shared/theme';
 
 const DEFAULT_EMPLOYEE_ID = 'HR-EMP-00001';
-
-const leaveTypes = [
-  { label: 'Sick Leave', value: 'sick' },
-  { label: 'Personal Leave', value: 'personal' },
-  { label: 'Casual Leave', value: 'casual' },
-  { label: 'Earned Leave', value: 'earned' },
-];
 
 interface LeaveForm {
   leaveType: string;
@@ -35,6 +30,8 @@ interface LeaveForm {
   toDate: string;
   reason: string;
 }
+
+type LeaveDateField = 'fromDate' | 'toDate';
 
 const getMonthRange = (date = new Date()) => {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -46,6 +43,71 @@ const getMonthRange = (date = new Date()) => {
     fromDate: toDateString(start),
     toDate: toDateString(end),
   };
+};
+
+const normalizeLeaveDate = (value: string) => {
+  const trimmed = value.trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!match) {
+    return '';
+  }
+
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+const formatDisplayDate = (value: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+};
+
+const toDateValue = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const getPickerDays = (monthDate: Date) => {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const days: Array<Date | null> = [];
+
+  for (let index = 0; index < firstDay; index++) {
+    days.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    days.push(new Date(year, month, day));
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+
+  return days;
 };
 
 const generateCalendarDays = (
@@ -103,6 +165,13 @@ export const AttendanceScreen = () => {
   const theme = useAppTheme();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeOption[]>([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
+  const [leaveTypesError, setLeaveTypesError] = useState('');
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+  const [activeDateField, setActiveDateField] =
+    useState<LeaveDateField | null>(null);
+  const [pickerMonth, setPickerMonth] = useState(() => new Date());
   const [leaveForm, setLeaveForm] = useState<LeaveForm>({
     leaveType: '',
     fromDate: '',
@@ -113,6 +182,7 @@ export const AttendanceScreen = () => {
   const [submitting, setSubmitting] = useState(false);
   const [employeeName, setEmployeeName] = useState('Employee');
   const [employeeId, setEmployeeId] = useState(DEFAULT_EMPLOYEE_ID);
+  const [company, setCompany] = useState('');
   const [checkinStatus, setCheckinStatus] = useState<'IN' | 'OUT'>('OUT');
   const [attendanceSummary, setAttendanceSummary] = useState({
     present: 0,
@@ -139,6 +209,14 @@ export const AttendanceScreen = () => {
       }).format(new Date()),
     [],
   );
+  const pickerMonthLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        year: 'numeric',
+      }).format(pickerMonth),
+    [pickerMonth],
+  );
 
   const loadAttendance = useCallback(async () => {
     setLoading(true);
@@ -148,6 +226,7 @@ export const AttendanceScreen = () => {
       const profile = await profileService.fetchUserProfile();
       setEmployeeName(profile.full_name || profile.employee_name);
       setEmployeeId(profile.employee || DEFAULT_EMPLOYEE_ID);
+      setCompany(profile.company || '');
       setCheckinStatus(profile.checkin_status ?? 'OUT');
 
       const [summary, calendar] = await Promise.all([
@@ -184,24 +263,120 @@ export const AttendanceScreen = () => {
     void loadAttendance();
   }, [loadAttendance]);
 
-  const handleSubmitLeave = () => {
-    if (leaveForm.leaveType && leaveForm.fromDate && leaveForm.toDate) {
-      // Handle submit
-      console.log('Leave request submitted:', leaveForm);
+  const loadLeaveTypes = useCallback(async () => {
+    setLeaveTypesLoading(true);
+    setLeaveTypesError('');
+    setLeaveTypes([]);
+    setLeaveForm(current => ({ ...current, leaveType: '' }));
+
+    try {
+      const nextLeaveTypes = await attendanceService.fetchLeaveTypeDropdown();
+      setLeaveTypes(nextLeaveTypes);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to load leave types.';
+      setLeaveTypes([]);
+      setLeaveTypesError(message);
+      Alert.alert('Unable to load leave types', message);
+    } finally {
+      setLeaveTypesLoading(false);
+    }
+  }, []);
+
+  const handleOpenLeaveModal = () => {
+    setShowLeaveModal(true);
+    setShowDropdown(false);
+    setActiveDateField(null);
+    void loadLeaveTypes();
+  };
+
+  const handleSubmitLeave = async () => {
+    if (leaveSubmitting) {
+      return;
+    }
+
+    const fromDate = normalizeLeaveDate(leaveForm.fromDate);
+    const toDate = normalizeLeaveDate(leaveForm.toDate);
+
+    if (!leaveForm.leaveType || !fromDate || !toDate) {
+      Alert.alert(
+        'Missing leave details',
+        'Please select a leave type and enter From/To dates as yyyy-mm-dd or dd/mm/yyyy.',
+      );
+      return;
+    }
+
+    setLeaveSubmitting(true);
+
+    try {
+      await attendanceService.createLeaveRequest({
+        employee: employeeId,
+        leave_type: leaveForm.leaveType,
+        from_date: fromDate,
+        to_date: toDate,
+        company,
+        description: leaveForm.reason.trim(),
+        half_day: 0,
+      });
+
+      Alert.alert('Success', 'Leave request submitted.');
       setLeaveForm({ leaveType: '', fromDate: '', toDate: '', reason: '' });
       setShowLeaveModal(false);
+      setShowDropdown(false);
+      await loadAttendance();
+    } catch (error) {
+      Alert.alert(
+        'Unable to submit leave request',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    } finally {
+      setLeaveSubmitting(false);
     }
   };
 
   const handleCloseModal = () => {
+    if (leaveSubmitting) {
+      return;
+    }
+
     setShowLeaveModal(false);
     setShowDropdown(false);
+    setActiveDateField(null);
+    setLeaveTypesError('');
     setLeaveForm({ leaveType: '', fromDate: '', toDate: '', reason: '' });
   };
 
   const getLeaveTypeLabel = () => {
     const selected = leaveTypes.find(t => t.value === leaveForm.leaveType);
     return selected ? selected.label : 'Leave Type';
+  };
+
+  const handleOpenDatePicker = (field: LeaveDateField) => {
+    const currentValue = leaveForm[field];
+    const parsedDate = currentValue ? new Date(`${currentValue}T00:00:00`) : null;
+
+    setPickerMonth(
+      parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date(),
+    );
+    setActiveDateField(field);
+  };
+
+  const handleSelectDate = (date: Date) => {
+    if (!activeDateField) {
+      return;
+    }
+
+    setLeaveForm(current => ({
+      ...current,
+      [activeDateField]: toDateValue(date),
+    }));
+    setActiveDateField(null);
+  };
+
+  const handleChangePickerMonth = (direction: -1 | 1) => {
+    setPickerMonth(
+      current => new Date(current.getFullYear(), current.getMonth() + direction, 1),
+    );
   };
 
   const requestCurrentCoordinates = useCallback(async () => {
@@ -502,7 +677,7 @@ export const AttendanceScreen = () => {
               borderColor: theme.colors.border,
             },
           ]}
-          onPress={() => setShowLeaveModal(true)}
+          onPress={handleOpenLeaveModal}
         >
           <Text style={[styles.requestLeaveText, { color: theme.colors.text }]}>
             Request Leave
@@ -516,13 +691,11 @@ export const AttendanceScreen = () => {
         animationType="slide"
         onRequestClose={handleCloseModal}
       >
-        <TouchableWithoutFeedback onPress={handleCloseModal}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardAvoid}
-              >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoid}
+          >
                 <View
                   style={[
                     styles.modalContent,
@@ -552,6 +725,7 @@ export const AttendanceScreen = () => {
                   <ScrollView
                     style={styles.modalBody}
                     contentContainerStyle={styles.modalBodyContent}
+                    keyboardShouldPersistTaps="always"
                     showsVerticalScrollIndicator={false}
                   >
                     <View style={styles.formGroup}>
@@ -568,7 +742,11 @@ export const AttendanceScreen = () => {
                             borderColor: theme.colors.border,
                           },
                         ]}
-                        onPress={() => setShowDropdown(!showDropdown)}
+                        onPress={() => {
+                          if (!leaveTypesLoading && leaveTypes.length > 0) {
+                            setShowDropdown(!showDropdown);
+                          }
+                        }}
                       >
                         <Text
                           style={[
@@ -578,6 +756,8 @@ export const AttendanceScreen = () => {
                         >
                           {leaveForm.leaveType
                             ? getLeaveTypeLabel()
+                            : leaveTypesLoading
+                            ? 'Loading leave types...'
                             : 'Select leave type'}
                         </Text>
                         <Text
@@ -590,7 +770,31 @@ export const AttendanceScreen = () => {
                         </Text>
                       </Pressable>
 
-                      {showDropdown && (
+                      {leaveTypesError ? (
+                        <Text
+                          style={[
+                            styles.errorText,
+                            { color: theme.colors.danger },
+                          ]}
+                        >
+                          {leaveTypesError}
+                        </Text>
+                      ) : null}
+
+                      {!leaveTypesLoading &&
+                      !leaveTypesError &&
+                      leaveTypes.length === 0 ? (
+                        <Text
+                          style={[
+                            styles.errorText,
+                            { color: theme.colors.mutedText },
+                          ]}
+                        >
+                          No leave types available.
+                        </Text>
+                      ) : null}
+
+                      {showDropdown && leaveTypes.length > 0 && (
                         <View
                           style={[
                             styles.dropdownMenu,
@@ -641,7 +845,7 @@ export const AttendanceScreen = () => {
                         >
                           From
                         </Text>
-                        <View
+                        <Pressable
                           style={[
                             styles.dateInputWrapper,
                             {
@@ -649,25 +853,27 @@ export const AttendanceScreen = () => {
                               borderColor: theme.colors.border,
                             },
                           ]}
+                          onPress={() => handleOpenDatePicker('fromDate')}
                         >
-                          <TextInput
+                          <Text
                             style={[
                               styles.dateInput,
-                              { color: theme.colors.text },
+                              {
+                                color: leaveForm.fromDate
+                                  ? theme.colors.text
+                                  : theme.colors.mutedText,
+                              },
                             ]}
-                            placeholder="dd/mm/yyyy"
-                            placeholderTextColor={theme.colors.mutedText}
-                            value={leaveForm.fromDate}
-                            onChangeText={text =>
-                              setLeaveForm({ ...leaveForm, fromDate: text })
-                            }
-                          />
+                          >
+                            {formatDisplayDate(leaveForm.fromDate) ||
+                              'Select date'}
+                          </Text>
                           <Calendar
                             size={18}
                             color={theme.colors.mutedText}
                             strokeWidth={2}
                           />
-                        </View>
+                        </Pressable>
                       </View>
 
                       <View
@@ -678,7 +884,7 @@ export const AttendanceScreen = () => {
                         >
                           To
                         </Text>
-                        <View
+                        <Pressable
                           style={[
                             styles.dateInputWrapper,
                             {
@@ -686,27 +892,135 @@ export const AttendanceScreen = () => {
                               borderColor: theme.colors.border,
                             },
                           ]}
+                          onPress={() => handleOpenDatePicker('toDate')}
                         >
-                          <TextInput
+                          <Text
                             style={[
                               styles.dateInput,
-                              { color: theme.colors.text },
+                              {
+                                color: leaveForm.toDate
+                                  ? theme.colors.text
+                                  : theme.colors.mutedText,
+                              },
                             ]}
-                            placeholder="dd/mm/yyyy"
-                            placeholderTextColor={theme.colors.mutedText}
-                            value={leaveForm.toDate}
-                            onChangeText={text =>
-                              setLeaveForm({ ...leaveForm, toDate: text })
-                            }
-                          />
+                          >
+                            {formatDisplayDate(leaveForm.toDate) ||
+                              'Select date'}
+                          </Text>
                           <Calendar
                             size={18}
                             color={theme.colors.mutedText}
                             strokeWidth={2}
                           />
-                        </View>
+                        </Pressable>
                       </View>
                     </View>
+
+                    {activeDateField ? (
+                      <View
+                        style={[
+                          styles.datePickerCard,
+                          styles.inlineDatePickerCard,
+                          {
+                            backgroundColor: theme.colors.card,
+                            borderColor: theme.colors.border,
+                          },
+                        ]}
+                      >
+                        <View style={styles.datePickerHeader}>
+                          <Pressable
+                            style={styles.monthButton}
+                            onPress={() => handleChangePickerMonth(-1)}
+                          >
+                            <Text
+                              style={[
+                                styles.monthButtonText,
+                                { color: theme.colors.text },
+                              ]}
+                            >
+                              ‹
+                            </Text>
+                          </Pressable>
+                          <Text
+                            style={[
+                              styles.datePickerTitle,
+                              { color: theme.colors.text },
+                            ]}
+                          >
+                            {pickerMonthLabel}
+                          </Text>
+                          <Pressable
+                            style={styles.monthButton}
+                            onPress={() => handleChangePickerMonth(1)}
+                          >
+                            <Text
+                              style={[
+                                styles.monthButtonText,
+                                { color: theme.colors.text },
+                              ]}
+                            >
+                              ›
+                            </Text>
+                          </Pressable>
+                        </View>
+
+                        <View style={styles.datePickerWeekRow}>
+                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(
+                            (day, index) => (
+                              <Text
+                                key={`${day}-${index}`}
+                                style={[
+                                  styles.datePickerWeekDay,
+                                  { color: theme.colors.mutedText },
+                                ]}
+                              >
+                                {day}
+                              </Text>
+                            ),
+                          )}
+                        </View>
+
+                        <View style={styles.datePickerGrid}>
+                          {getPickerDays(pickerMonth).map((date, index) => {
+                            const value = date ? toDateValue(date) : '';
+                            const isSelected =
+                              value === leaveForm[activeDateField];
+
+                            return (
+                              <Pressable
+                                key={`${value}-${index}`}
+                                style={[
+                                  styles.datePickerDay,
+                                  isSelected && {
+                                    backgroundColor: theme.colors.primary,
+                                  },
+                                ]}
+                                disabled={!date}
+                                onPress={() => {
+                                  if (date) {
+                                    handleSelectDate(date);
+                                  }
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.datePickerDayText,
+                                    {
+                                      color: isSelected
+                                        ? '#FFFFFF'
+                                        : theme.colors.text,
+                                    },
+                                    !date && { color: 'transparent' },
+                                  ]}
+                                >
+                                  {date?.getDate() ?? ''}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ) : null}
 
                     <View style={styles.formGroup}>
                       <Text
@@ -747,20 +1061,27 @@ export const AttendanceScreen = () => {
                       style={[
                         styles.submitButton,
                         { backgroundColor: theme.colors.primary },
+                        (leaveSubmitting || leaveTypesLoading) && {
+                          opacity: 0.7,
+                        },
                       ]}
                       onPress={handleSubmitLeave}
+                      disabled={leaveSubmitting || leaveTypesLoading}
                     >
-                      <Text style={styles.submitButtonText}>
-                        Submit Request
-                      </Text>
+                      {leaveSubmitting ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>
+                          Submit Request
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
+
     </>
   );
 };
@@ -1087,5 +1408,68 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  datePickerCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+  },
+  inlineDatePickerCard: {
+    maxWidth: '100%',
+    marginBottom: 16,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  monthButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthButtonText: {
+    fontSize: 30,
+    fontWeight: '700',
+  },
+  datePickerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  datePickerWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  datePickerWeekDay: {
+    width: '14.285%',
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  datePickerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  datePickerDay: {
+    width: '14.285%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+  },
+  datePickerDayText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
