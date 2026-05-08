@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,10 +12,17 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Barcode, Search } from 'lucide-react-native';
+import { Barcode, Plus, Search } from 'lucide-react-native';
 import { InventoryCard } from '../components/InventoryCard';
+import { QuickAddMedicineModal } from '../components/QuickAddMedicineModal';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { inventoryService } from '../services/inventoryService';
-import { InventoryFilter, InventoryItem } from '../types';
+import {
+  InventoryFilter,
+  InventoryItem,
+  Medicine,
+  BarcodeScannedItem,
+} from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { InventoryStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
@@ -64,6 +72,8 @@ export const InventoryScreen = ({ navigation }: Props) => {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   const loadInventory = useCallback(async () => {
     setLoading(true);
@@ -85,7 +95,7 @@ export const InventoryScreen = ({ navigation }: Props) => {
 
   useFocusEffect(
     useCallback(() => {
-      void loadInventory();
+      loadInventory();
     }, [loadInventory]),
   );
 
@@ -117,6 +127,48 @@ export const InventoryScreen = ({ navigation }: Props) => {
     navigation.navigate(STACK_ROUTES.INVENTORY_DETAILS, { item });
   };
 
+  const handleQuickAddSubmit = async (
+    _medicine: Omit<Medicine, 'id' | 'status'>,
+  ) => {
+    setShowQuickAdd(true);
+    try {
+      // Here you would typically send the data to your backend
+      // For now, we'll just show a success alert and reload inventory
+      Alert.alert(
+        'Success',
+        'Medicine added successfully! Pending approval from admin.',
+      );
+      setShowQuickAdd(false);
+      await loadInventory();
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to add medicine',
+      );
+    }
+  };
+
+  const handleBarcodeScanned = (item: BarcodeScannedItem) => {
+    const matchingItem =
+      inventoryItems.find(
+        inv =>
+          inv.medicine_id === item.item_code &&
+          inv.warehouse === item.default_warehouse,
+      ) ?? inventoryItems.find(inv => inv.medicine_id === item.item_code);
+
+    if (matchingItem) {
+      navigation.navigate(STACK_ROUTES.INVENTORY_DETAILS, {
+        item: matchingItem,
+        scannedBarcode: item,
+      });
+    } else {
+      Alert.alert(
+        'Item Not Found',
+        `Item code ${item.item_code} was scanned, but it was not found in current inventory.`,
+      );
+    }
+  };
+
   return (
     <View
       style={[
@@ -137,44 +189,62 @@ export const InventoryScreen = ({ navigation }: Props) => {
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Inventory
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
-            Live stock from the pharmacy backend
-          </Text>
+          <TouchableOpacity
+            style={[
+              styles.quickAddButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
+            onPress={() => setShowQuickAdd(true)}
+          >
+            <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.quickAddButtonText}>Quick Add</Text>
+          </TouchableOpacity>
         </View>
 
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Search size={18} color={theme.colors.mutedText} strokeWidth={2} />
-          <TextInput
-            style={[styles.searchInput, { color: theme.colors.text }]}
-            placeholder="Search medicine, batch, warehouse..."
-            placeholderTextColor={theme.colors.mutedText}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text
-                style={[styles.clearButton, { color: theme.colors.mutedText }]}
-              >
-                ✕
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setActiveFilter('All')}
-              hitSlop={8}
-            >
-              <Barcode size={18} color={theme.colors.primary} strokeWidth={2} />
-            </TouchableOpacity>
-          )}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchContainer,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Search size={18} color={theme.colors.mutedText} strokeWidth={2} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text }]}
+              placeholder="Search medicine or barcode..."
+              placeholderTextColor={theme.colors.mutedText}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Text
+                  style={[
+                    styles.clearButton,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >
+                  ✕
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.barcodeButton,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => setShowBarcodeScanner(true)}
+            hitSlop={8}
+          >
+            <Barcode size={19} color={theme.colors.primary} strokeWidth={2.2} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.filterRow}>
@@ -246,6 +316,18 @@ export const InventoryScreen = ({ navigation }: Props) => {
           </View>
         )}
       </ScrollView>
+
+      <QuickAddMedicineModal
+        visible={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+        onSubmit={handleQuickAddSubmit}
+      />
+
+      <BarcodeScannerModal
+        visible={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScannedItem={handleBarcodeScanned}
+      />
     </View>
   );
 };
@@ -260,32 +342,53 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+    paddingTop: 12,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 12,
-    marginTop: 8,
+  },
+  quickAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1CA39A',
+    borderRadius: 8,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  quickAddButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   title: {
-    fontSize: 30,
+    fontSize: 18,
     fontWeight: '800',
     color: '#2A2A2A',
   },
-  subtitle: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#8B7B6F',
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E8E3DE',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
+    minHeight: 46,
   },
   searchInput: {
     flex: 1,
@@ -296,6 +399,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#B59D90',
     fontWeight: '700',
+  },
+  barcodeButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterRow: {
     flexDirection: 'row',

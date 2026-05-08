@@ -2,11 +2,13 @@ import {
   AdjustStockPayload,
   InventoryItem,
   InventoryListResponse,
+  BarcodeScannedItem,
 } from '../types';
 
 const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
 const ADJUST_STOCK_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.adjust_stock`;
+const BARCODE_SCAN_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -137,5 +139,58 @@ export const inventoryService = {
     }
 
     return normalizeAdjustResponse(responseBody as InventoryListResponse);
+  },
+
+  scanBarcode: async (
+    barcode: string,
+    company: string = 'Test',
+  ): Promise<BarcodeScannedItem> => {
+    let response: Response;
+
+    try {
+      const params = new URLSearchParams();
+      params.append('search_value', barcode);
+      params.append('ctx', JSON.stringify({ company }));
+
+      response = await fetch(`${BARCODE_SCAN_URL}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+    } catch {
+      throw new Error(
+        'Network error. Please check your connection and try again.',
+      );
+    }
+
+    const responseBody = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throw new Error(
+        getErrorMessage(
+          responseBody,
+          `Failed to scan barcode (${response.status}).`,
+        ),
+      );
+    }
+
+    if (!responseBody || typeof responseBody !== 'object') {
+      throw new Error('Unexpected barcode scan response from the server.');
+    }
+
+    // Extract the message from the response
+    if (
+      responseBody &&
+      typeof responseBody === 'object' &&
+      'message' in responseBody
+    ) {
+      const message = (responseBody as any).message;
+      if (message && typeof message === 'object') {
+        return message as BarcodeScannedItem;
+      }
+    }
+
+    throw new Error('Invalid barcode response format.');
   },
 };

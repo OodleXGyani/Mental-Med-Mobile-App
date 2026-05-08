@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronLeft, Minus, Plus } from 'lucide-react-native';
+import { ChevronLeft, Minus, Plus, Barcode } from 'lucide-react-native';
 import { AddStockModal } from '../components/AddStockModal';
 import { RemoveStockModal } from '../components/RemoveStockModal';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { inventoryService } from '../services/inventoryService';
-import { InventoryItem } from '../types';
+import { InventoryItem, BarcodeScannedItem } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { InventoryStackParamList } from '../../../navigation/types';
 
@@ -59,11 +60,15 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
   );
   const [showAddStockModal, setShowAddStockModal] = useState(false);
   const [showRemoveStockModal, setShowRemoveStockModal] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [scannedBarcode, setScannedBarcode] =
+    useState<BarcodeScannedItem | null>(route.params.scannedBarcode ?? null);
 
   useEffect(() => {
     setSelectedItem(route.params.item);
-  }, [route.params.item]);
+    setScannedBarcode(route.params.scannedBarcode ?? null);
+  }, [route.params.item, route.params.scannedBarcode]);
 
   const refreshSelectedItem = useCallback(async () => {
     const items = await inventoryService.fetchInventoryItems();
@@ -123,6 +128,37 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
     }
   };
 
+  const handleBarcodeScanned = async (item: BarcodeScannedItem) => {
+    setScannedBarcode(item);
+
+    try {
+      const items = await inventoryService.fetchInventoryItems();
+      const matchingItem =
+        items.find(
+          inventoryItem =>
+            inventoryItem.medicine_id === item.item_code &&
+            inventoryItem.warehouse === item.default_warehouse,
+        ) ??
+        items.find(
+          inventoryItem => inventoryItem.medicine_id === item.item_code,
+        );
+
+      if (matchingItem) {
+        setSelectedItem(matchingItem);
+      } else {
+        Alert.alert(
+          'Item Not Found',
+          `Item code ${item.item_code} was scanned, but it was not found in current inventory.`,
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Unable to refresh inventory',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    }
+  };
+
   const statusColor = getStatusColor(selectedItem.status);
   const isExpired = selectedItem.status.toLowerCase() === 'expired';
 
@@ -136,7 +172,12 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
           <Text style={styles.headerTitle}>{selectedItem.name}</Text>
           <Text style={styles.headerSubtitle}>{selectedItem.medicine_id}</Text>
         </View>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity
+          onPress={() => setShowBarcodeScanner(true)}
+          hitSlop={8}
+        >
+          <Barcode size={24} color="#1CA39A" strokeWidth={2.5} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -219,6 +260,44 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
             {formatStatusLabel(selectedItem.status).toLowerCase()}.
           </Text>
         </View>
+
+        {scannedBarcode && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Scanned Barcode Info</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Barcode</Text>
+              <Text style={styles.detailValue}>{scannedBarcode.barcode}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Item Code</Text>
+              <Text style={styles.detailValue}>{scannedBarcode.item_code}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Warehouse</Text>
+              <Text style={styles.detailValue}>
+                {scannedBarcode.default_warehouse}
+              </Text>
+            </View>
+            {scannedBarcode.uom && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>UOM</Text>
+                <Text style={styles.detailValue}>{scannedBarcode.uom}</Text>
+              </View>
+            )}
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Has Batch No</Text>
+              <Text style={styles.detailValue}>
+                {scannedBarcode.has_batch_no ? 'Yes' : 'No'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Has Serial No</Text>
+              <Text style={styles.detailValue}>
+                {scannedBarcode.has_serial_no ? 'Yes' : 'No'}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View
@@ -268,6 +347,13 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
         onSubmit={(quantity, reason) => {
           void submitStockAdjustment(quantity, reason, 'remove');
         }}
+      />
+
+      <BarcodeScannerModal
+        visible={showBarcodeScanner}
+        company={selectedItem.company}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScannedItem={handleBarcodeScanned}
       />
     </View>
   );

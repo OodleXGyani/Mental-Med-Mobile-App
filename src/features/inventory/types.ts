@@ -48,6 +48,15 @@ export type InventoryItem = {
   status: string;
 };
 
+export type BarcodeScannedItem = {
+  barcode: string;
+  item_code: string;
+  uom: string | null;
+  has_batch_no: number;
+  has_serial_no: number;
+  default_warehouse: string;
+};
+
 export type InventoryListResponse = {
   message?: {
     success?: boolean;
