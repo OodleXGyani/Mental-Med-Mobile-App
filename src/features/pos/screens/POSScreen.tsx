@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePOS } from '../hooks/usePOS';
-import { TAB_ROUTES } from '../../../shared/constants/routes';
+import { TAB_ROUTES, STACK_ROUTES } from '../../../shared/constants/routes';
 import { customers, scannedMedicine } from '../constants';
 import { POSHeader } from '../components/POSHeader';
 import { POSSearchRow } from '../components/POSSearchRow';
@@ -15,8 +15,16 @@ import { POSPaymentModal } from '../components/POSPaymentModal';
 import { POSInvoiceModal } from '../components/POSInvoiceModal';
 import { POSCustomerPickerModal } from '../components/POSCustomerPickerModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
-import { CartItem, Customer, PaymentMethod } from '../types';
+import {
+  CartItem,
+  Customer,
+  PaymentMethod,
+  Medicine,
+  CartItemAPI,
+} from '../types';
 import { formatAmount } from '../utils';
+import { posService } from '../services/posService';
+import { customerService } from '../../settings/services/customerService';
 import { useAppTheme } from '../../../shared/theme';
 
 export const POSScreen = () => {
@@ -26,10 +34,10 @@ export const POSScreen = () => {
   const theme = useAppTheme();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [searchText, setSearchText] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
+  const [customerList, setCustomerList] = useState<Customer[]>([]);
 
   const [showScan, setShowScan] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
@@ -41,6 +49,27 @@ export const POSScreen = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [discountPercent, setDiscountPercent] = useState('0');
+
+  // Load customers on mount
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        const data = await customerService.fetchCustomers();
+        // Map customer service response to Customer type
+        setCustomerList(
+          data.map(c => ({
+            id: c.customer_code || '',
+            name: c.customer_name || '',
+            phone: c.contact?.mobile || '',
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to load customers:', error);
+      }
+    };
+
+    void loadCustomers();
+  }, []);
 
   const itemCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.qty, 0),
@@ -71,6 +100,7 @@ export const POSScreen = () => {
     updateBillTotal(Number(total.toFixed(2)));
   }, [total, updateBillTotal]);
 
+  // Scan effect
   useEffect(() => {
     if (!showScan) {
       return;
@@ -92,6 +122,37 @@ export const POSScreen = () => {
     return () => clearInterval(timer);
   }, [showScan]);
 
+  // Save cart whenever items change
+  useEffect(() => {
+    if (cartItems.length === 0 || !selectedCustomer) {
+      return;
+    }
+
+    const saveCurrentCart = async () => {
+      try {
+        const itemsToSave = cartItems.map(item => ({
+          item_code: item.item_code || item.id,
+          qty: item.qty,
+          rate: item.price,
+        }));
+
+        await posService.saveCart({
+          customer: selectedCustomer.id,
+          items: itemsToSave,
+        });
+      } catch (error) {
+        console.error('Failed to save cart:', error);
+      }
+    };
+
+    // Debounce the save operation
+    const timer = setTimeout(() => {
+      void saveCurrentCart();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [cartItems, selectedCustomer]);
+
   const addOrIncrementScannedItem = () => {
     setCartItems(prev => {
       const idx = prev.findIndex(item => item.id === scannedMedicine.id);
@@ -104,11 +165,72 @@ export const POSScreen = () => {
     });
   };
 
+  const addMedicineToCart = useCallback((medicine: Medicine) => {
+    setCartItems(prev => {
+      // Check if medicine already exists in cart
+      const existingIdx = prev.findIndex(
+        item => item.item_code === medicine.item_code,
+      );
+
+      if (existingIdx >= 0) {
+        // Increment quantity if exists
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          qty: updated[existingIdx].qty + 1,
+        };
+        return updated;
+      }
+
+      // Add new medicine
+      return [
+        ...prev,
+        {
+          id: medicine.item_code,
+          name: medicine.item_name || '',
+          batch: medicine.batch || '',
+          exp: medicine.expiry_date || '',
+          gst: medicine.gst || 0,
+          price: medicine.rate || 0,
+          qty: 1,
+          item_code: medicine.item_code,
+          rate: medicine.rate,
+        },
+      ];
+    });
+  }, []);
+
+  const addItemsFromPastOrder = useCallback((items: CartItem[]) => {
+    setCartItems(prev => {
+      const updated = [...prev];
+
+      for (const newItem of items) {
+        const existingIdx = updated.findIndex(
+          item =>
+            item.item_code === newItem.item_code || item.id === newItem.id,
+        );
+
+        if (existingIdx >= 0) {
+          // Increment quantity
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            qty: updated[existingIdx].qty + newItem.qty,
+          };
+        } else {
+          // Add new item
+          updated.push(newItem);
+        }
+      }
+
+      return updated;
+    });
+  }, []);
+
   const updateQty = (id: string, delta: number) => {
     setCartItems(prev =>
       prev
         .map(item =>
-          item.id === id
+          item.id === id || item.item_code === id
             ? { ...item, qty: Math.max(1, item.qty + delta) }
             : item,
         )
@@ -117,17 +239,73 @@ export const POSScreen = () => {
   };
 
   const removeItem = (id: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
+    setCartItems(prev =>
+      prev.filter(item => item.id !== id && item.item_code !== id),
+    );
   };
+
+  const handleSelectCustomer = useCallback(async (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowCustomerPicker(false);
+
+    // Fetch or assign cart for the selected customer
+    try {
+      const cartResponse = await posService.getOrAssignCart({
+        customer: customer.id,
+        cart_name: '',
+      });
+
+      // Merge existing items with API cart items
+      if (cartResponse.items && cartResponse.items.length > 0) {
+        const apiItems = cartResponse.items.map((item: CartItemAPI) => ({
+          id: item.item_code,
+          name: item.item_name,
+          batch: item.batch || '',
+          exp: '',
+          gst: 0,
+          price: item.rate,
+          qty: Math.max(1, Math.floor(item.quantity)),
+          item_code: item.item_code,
+          rate: item.rate,
+        }));
+
+        // Merge with existing cart items
+        setCartItems(prev => {
+          const merged = [...prev];
+          for (const apiItem of apiItems) {
+            const existingIdx = merged.findIndex(
+              item =>
+                item.item_code === apiItem.item_code || item.id === apiItem.id,
+            );
+
+            if (existingIdx >= 0) {
+              // Update quantity
+              merged[existingIdx] = {
+                ...merged[existingIdx],
+                qty: merged[existingIdx].qty + apiItem.qty,
+              };
+            } else {
+              // Add new item
+              merged.push(apiItem);
+            }
+          }
+          return merged;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to get or assign cart:', error);
+      // Continue without cart data if API fails
+    }
+  }, []);
 
   const filteredCustomers = useMemo(
     () =>
-      customers.filter(
+      customerList.filter(
         c =>
           c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
           c.phone.includes(customerSearch.trim()),
       ),
-    [customerSearch],
+    [customerSearch, customerList],
   );
 
   const onCompleteSale = () => {
@@ -176,8 +354,11 @@ export const POSScreen = () => {
         }
       />
       <POSSearchRow
-        searchText={searchText}
-        onSearchChange={setSearchText}
+        onPressMedicineSearch={() =>
+          navigation.navigate(STACK_ROUTES.POS_MEDICINE_LIST, {
+            onMedicineSelected: addMedicineToCart,
+          })
+        }
         onPressScan={() => setShowScan(true)}
       />
       <POSCustomerSection
@@ -238,15 +419,14 @@ export const POSScreen = () => {
         searchValue={customerSearch}
         onSearchChange={setCustomerSearch}
         customers={filteredCustomers}
-        onSelectCustomer={(customer: Customer) => {
-          setSelectedCustomer(customer);
-          setShowCustomerPicker(false);
-        }}
+        onSelectCustomer={handleSelectCustomer}
+        onViewPastOrders={() => setShowPastOrders(true)}
         onClose={() => setShowCustomerPicker(false)}
       />
       <POSPastOrdersModal
         visible={showPastOrders}
         selectedCustomer={selectedCustomer}
+        onAddItemsToCart={addItemsFromPastOrder}
         onClose={() => setShowPastOrders(false)}
       />
     </ScrollView>

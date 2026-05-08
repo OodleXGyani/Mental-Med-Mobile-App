@@ -1,24 +1,19 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Camera, Search } from 'lucide-react-native';
 import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
-  searchText: string;
-  onSearchChange: (value: string) => void;
+  onPressMedicineSearch: () => void;
   onPressScan: () => void;
 };
 
-export const POSSearchRow = ({
-  searchText,
-  onSearchChange,
-  onPressScan,
-}: Props) => {
+export const POSSearchRow = ({ onPressMedicineSearch, onPressScan }: Props) => {
   const theme = useAppTheme();
 
   return (
     <View style={styles.searchRow}>
-      <View
+      <Pressable
         style={[
           styles.searchInput,
           {
@@ -26,16 +21,13 @@ export const POSSearchRow = ({
             borderColor: theme.colors.border,
           },
         ]}
+        onPress={onPressMedicineSearch}
       >
         <Search size={14} color={theme.colors.mutedText} strokeWidth={2.5} />
-        <TextInput
-          placeholder="Search Medicine"
-          placeholderTextColor={theme.colors.mutedText}
-          style={[styles.searchText, { color: theme.colors.text }]}
-          value={searchText}
-          onChangeText={onSearchChange}
-        />
-      </View>
+        <Text style={[styles.searchText, { color: theme.colors.mutedText }]}>
+          Search Medicine
+        </Text>
+      </Pressable>
       <Pressable
         style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
         onPress={onPressScan}
@@ -63,12 +55,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   searchText: {
     color: '#B09A8E',
     fontWeight: '500',
     flex: 1,
-    paddingVertical: 8,
     fontSize: 12.5,
   },
   scanButton: {

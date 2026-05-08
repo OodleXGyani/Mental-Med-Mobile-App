@@ -1,5 +1,6 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { BarcodeScannedItem, InventoryItem } from '../features/inventory/types';
+import { Medicine } from '../features/pos/types';
 import { STACK_ROUTES, TAB_ROUTES } from '../shared/constants/routes';
 
 export type AuthStackParamList = {
@@ -14,6 +15,9 @@ export type DashboardStackParamList = {
 
 export type POSStackParamList = {
   [STACK_ROUTES.POS_HOME]: undefined;
+  [STACK_ROUTES.POS_MEDICINE_LIST]: {
+    onMedicineSelected?: (medicine: Medicine) => void;
+  };
 };
 
 export type OrdersStackParamList = {

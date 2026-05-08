@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { User, X } from 'lucide-react-native';
+import { User, X, History } from 'lucide-react-native';
 import { Customer } from '../types';
 import { useAppTheme } from '../../../shared/theme';
 
@@ -18,6 +18,7 @@ type Props = {
   onSearchChange: (value: string) => void;
   customers: Customer[];
   onSelectCustomer: (customer: Customer) => void;
+  onViewPastOrders?: (customer: Customer) => void;
   onClose: () => void;
 };
 
@@ -27,6 +28,7 @@ export const POSCustomerPickerModal = ({
   onSearchChange,
   customers,
   onSelectCustomer,
+  onViewPastOrders,
   onClose,
 }: Props) => {
   const theme = useAppTheme();
@@ -62,9 +64,9 @@ export const POSCustomerPickerModal = ({
           />
 
           <ScrollView style={styles.customerList}>
-            {customers.map(customer => (
-              <Pressable
-                key={customer.id}
+            {customers.map((customer, index) => (
+              <View
+                key={`${customer.id || 'customer'}-${index}`}
                 style={[
                   styles.customerListItem,
                   {
@@ -72,43 +74,53 @@ export const POSCustomerPickerModal = ({
                     backgroundColor: theme.colors.card,
                   },
                 ]}
-                onPress={() => onSelectCustomer(customer)}
               >
-                <View style={styles.customerListLeft}>
-                  <View
-                    style={[
-                      styles.customerAvatar,
-                      { backgroundColor: theme.dark ? '#163330' : '#ECF8F6' },
-                    ]}
+                <Pressable
+                  style={styles.customerListContent}
+                  onPress={() => onSelectCustomer(customer)}
+                >
+                  <View style={styles.customerListLeft}>
+                    <View
+                      style={[
+                        styles.customerAvatar,
+                        { backgroundColor: theme.dark ? '#163330' : '#ECF8F6' },
+                      ]}
+                    >
+                      <User size={12} color={theme.colors.primary} />
+                    </View>
+                    <View>
+                      <Text
+                        style={[
+                          styles.customerListName,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        {customer.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.customerListPhone,
+                          { color: theme.colors.mutedText },
+                        ]}
+                      >
+                        {customer.phone}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+                {onViewPastOrders && (
+                  <Pressable
+                    style={styles.pastOrdersButton}
+                    onPress={() => onViewPastOrders(customer)}
                   >
-                    <User size={12} color={theme.colors.primary} />
-                  </View>
-                  <View>
-                    <Text
-                      style={[
-                        styles.customerListName,
-                        { color: theme.colors.text },
-                      ]}
-                    >
-                      {customer.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.customerListPhone,
-                        { color: theme.colors.mutedText },
-                      ]}
-                    >
-                      {customer.phone}
-                    </Text>
-                  </View>
-                </View>
-                <View
-                  style={[
-                    styles.selectDot,
-                    { backgroundColor: theme.colors.mutedText },
-                  ]}
-                />
-              </Pressable>
+                    <History
+                      size={16}
+                      color={theme.colors.primary}
+                      strokeWidth={2}
+                    />
+                  </Pressable>
+                )}
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -166,6 +178,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 7,
   },
+  customerListContent: {
+    flex: 1,
+  },
   customerListLeft: {
     flexDirection: 'row',
     gap: 7,
@@ -189,10 +204,8 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     marginTop: 1,
   },
-  selectDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D8B5A0',
+  pastOrdersButton: {
+    padding: 8,
+    borderRadius: 6,
   },
 });
