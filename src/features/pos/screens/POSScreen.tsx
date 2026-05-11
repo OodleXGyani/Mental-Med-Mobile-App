@@ -423,7 +423,10 @@ export const POSScreen = () => {
         onSearchChange={setCustomerSearch}
         customers={filteredCustomers}
         onSelectCustomer={handleSelectCustomer}
-        onViewPastOrders={() => setShowPastOrders(true)}
+        onViewPastOrders={(customer: Customer) => {
+          setSelectedCustomer(customer);
+          setShowPastOrders(true);
+        }}
         onClose={() => setShowCustomerPicker(false)}
       />
       <POSPastOrdersModal

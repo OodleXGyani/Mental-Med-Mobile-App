@@ -68,24 +68,72 @@ export const POSPastOrdersModal = ({
     }
 
     // Convert invoice items to CartItem format
-    const cartItems: CartItem[] = (invoice.items || []).map((item, idx) => ({
-      id: `${invoice.name}-${idx}`,
-      name: item.item_name || item.item_code || 'Unknown',
-      batch: item.batch || '',
-      exp: item.expiry_date || '',
-      gst: item.gst_rate || 0,
-      price: item.rate || 0,
-      qty: Math.max(1, Math.floor(item.qty || 1)),
-      item_code: item.item_code,
-      rate: item.rate,
-    }));
+    const cartItems: CartItem[] = (invoice.items || [])
+      .filter(item => typeof item !== 'string') // Filter out string items
+      .map((item, idx) => {
+        // item is an InvoiceItem object
+        const invoiceItem = item as any;
+        return {
+          id: `${invoice.name || invoice.invoice_id || 'invoice'}-${idx}`,
+          name: invoiceItem.item_name || invoiceItem.item_code || 'Unknown',
+          batch: invoiceItem.batch || '',
+          exp: invoiceItem.expiry_date || '',
+          gst: invoiceItem.gst_rate || 0,
+          price: invoiceItem.rate || 0,
+          qty: Math.max(1, Math.floor(invoiceItem.qty || 1)),
+          item_code: invoiceItem.item_code,
+          rate: invoiceItem.rate,
+        };
+      });
 
-    onAddItemsToCart(cartItems);
+    if (cartItems.length > 0) {
+      onAddItemsToCart(cartItems);
+    }
+  };
+
+  const handleAddSingleItem = (
+    invoice: CustomerInvoice,
+    orderItem: string | any,
+  ) => {
+    if (!onAddItemsToCart) return;
+
+    const invoiceItem =
+      typeof orderItem === 'string' ? { item_name: orderItem } : orderItem;
+
+    const cartItem: CartItem = {
+      id: `${invoice.name || invoice.invoice_id || 'invoice'}-${
+        invoiceItem.item_code || invoiceItem.item_name || 'item'
+      }`,
+      name:
+        invoiceItem.item_name ||
+        invoiceItem.item_code ||
+        (typeof orderItem === 'string' ? orderItem : 'Unknown'),
+      batch: invoiceItem.batch || '',
+      exp: invoiceItem.expiry_date || '',
+      gst: invoiceItem.gst_rate || 0,
+      price: invoiceItem.rate || 0,
+      qty: Math.max(1, Math.floor(invoiceItem.qty || 1)),
+      item_code: invoiceItem.item_code,
+      rate: invoiceItem.rate,
+    };
+
+    onAddItemsToCart([cartItem]);
+    // Close modal to return to POS card with selected customer
+    onClose();
+  };
+
+  const getItemDisplayName = (item: string | any): string => {
+    if (typeof item === 'string') {
+      return item;
+    }
+    return item.item_name || item.item_code || 'Unknown Item';
   };
 
   const renderInvoiceItem = ({ item }: { item: CustomerInvoice }) => {
     const itemCount = (item.items || []).length;
-    const total = item.grand_total || 0;
+    const total = item.amount || item.grand_total || 0;
+    const invoiceId = item.name || item.invoice_id || 'Invoice';
+    const statusColor = item.status === 'Overdue' ? '#E74C3C' : '#27AE60';
 
     return (
       <View
@@ -98,50 +146,70 @@ export const POSPastOrdersModal = ({
         ]}
       >
         <View style={styles.pastOrderHeader}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.pastOrderId, { color: theme.colors.text }]}>
-              {item.name}
+              {invoiceId}
             </Text>
-            <Text
-              style={[styles.pastOrderDate, { color: theme.colors.mutedText }]}
-            >
-              {item.posting_date}
-            </Text>
+            <View style={styles.dateStatusRow}>
+              <Text
+                style={[
+                  styles.pastOrderDate,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                {item.posting_date}
+              </Text>
+              <Text style={[styles.statusBadge, { color: statusColor }]}>
+                {item.status}
+              </Text>
+            </View>
           </View>
-          {onAddItemsToCart && (
-            <Pressable
-              style={[
-                styles.addButton,
-                { backgroundColor: theme.colors.primary },
-              ]}
-              onPress={() => handleAddItemsFromInvoice(item)}
-            >
-              <Plus size={14} color="#FFFFFF" strokeWidth={2} />
-            </Pressable>
-          )}
+          {/* Removed invoice-level add button; per-item add buttons remain */}
         </View>
 
         <Text style={[styles.itemCountText, { color: theme.colors.mutedText }]}>
           {itemCount} item{itemCount !== 1 ? 's' : ''}
         </Text>
 
-        {(item.items || []).slice(0, 2).map((orderItem, idx) => (
-          <Text
-            key={`${item.name}-item-${idx}`}
-            style={[styles.pastOrderItem, { color: theme.colors.mutedText }]}
-            numberOfLines={1}
-          >
-            • {orderItem.item_name}
-          </Text>
-        ))}
+        <View style={styles.itemsList}>
+          {(item.items || []).slice(0, 2).map((orderItem, idx) => (
+            <View
+              key={`${invoiceId}-item-${idx}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text
+                style={[
+                  styles.pastOrderItem,
+                  { color: theme.colors.mutedText, flex: 1 },
+                ]}
+                numberOfLines={1}
+              >
+                • {getItemDisplayName(orderItem)}
+              </Text>
+              <Pressable
+                style={[
+                  styles.addButton,
+                  { marginLeft: 8, backgroundColor: theme.colors.primary },
+                ]}
+                onPress={() => handleAddSingleItem(item, orderItem)}
+              >
+                <Plus size={12} color="#FFFFFF" strokeWidth={2} />
+              </Pressable>
+            </View>
+          ))}
 
-        {itemCount > 2 && (
-          <Text
-            style={[styles.moreItemsText, { color: theme.colors.mutedText }]}
-          >
-            +{itemCount - 2} more
-          </Text>
-        )}
+          {itemCount > 2 && (
+            <Text
+              style={[styles.moreItemsText, { color: theme.colors.mutedText }]}
+            >
+              +{itemCount - 2} more
+            </Text>
+          )}
+        </View>
 
         <Text style={[styles.pastOrderAmount, { color: theme.colors.text }]}>
           {formatAmount(total)}
@@ -260,6 +328,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
+  dateStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  statusBadge: {
+    fontSize: 9,
+    fontWeight: '600',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
   addButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -268,6 +350,9 @@ const styles = StyleSheet.create({
   itemCountText: {
     fontSize: 10,
     marginBottom: 4,
+  },
+  itemsList: {
+    marginVertical: 4,
   },
   pastOrderItem: {
     color: '#5E5148',

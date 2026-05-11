@@ -54,12 +54,24 @@ export interface PerformActionResponse {
 }
 
 export interface CustomerInvoice {
-  invoice_id: string;
+  invoice_id?: string;
+  name?: string;
   posting_date: string;
-  amount: number;
+  amount?: number;
+  grand_total?: number;
   status: string;
   company: string;
-  items: string[];
+  items: string[] | InvoiceItem[];
+}
+
+export interface InvoiceItem {
+  item_name?: string;
+  item_code?: string;
+  batch?: string;
+  expiry_date?: string;
+  qty?: number;
+  rate?: number;
+  gst_rate?: number;
 }
 
 export interface CustomerInvoicesPagination {
