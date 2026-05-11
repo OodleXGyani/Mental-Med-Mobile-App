@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  ChevronLeft,
   ChevronRight,
   Download,
   Phone,
@@ -77,6 +79,7 @@ const buildInvoiceMessage = (invoice: SalesInvoiceDetails) => {
 export const OrderHistoryScreen = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const navigation = useNavigation<any>();
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<CustomerInvoice[]>([]);
@@ -278,9 +281,19 @@ export const OrderHistoryScreen = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Order History
-        </Text>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+          </Pressable>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Order History
+          </Text>
+          <View style={styles.backButton} />
+        </View>
 
         <View
           style={[
@@ -762,11 +775,25 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: '#252628',
-    marginBottom: 12,
+    marginBottom: 0,
+    flex: 1,
+    textAlign: 'center',
   },
   searchContainer: {
     backgroundColor: '#FFFFFF',

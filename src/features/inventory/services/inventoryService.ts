@@ -3,12 +3,14 @@ import {
   InventoryItem,
   InventoryListResponse,
   BarcodeScannedItem,
+  Medicine,
 } from '../types';
 
 const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
 const ADJUST_STOCK_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.adjust_stock`;
 const BARCODE_SCAN_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;
+const ADD_MEDICINE_URL = `${API_BASE_URL}api/resource/Item`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -192,5 +194,64 @@ export const inventoryService = {
     }
 
     throw new Error('Invalid barcode response format.');
+  },
+
+  addMedicine: async (
+    medicine: Omit<Medicine, 'id' | 'status'>,
+  ): Promise<string> => {
+    let response: Response;
+
+    try {
+      const payload = {
+        item_code: medicine.name,
+        item_name: medicine.name,
+        item_group: 'Medicines',
+        stock_uom: 'Nos',
+        opening_stock: medicine.quantity,
+        valuation_rate: medicine.purchaseRate,
+        description: medicine.genericName,
+        // brand: medicine.genericName,
+        gst_hsn_code: medicine.hsnSacCode,
+        item_tax_template: medicine.gst,
+        standard_selling_rate: medicine.mrp,
+        standard_cost: medicine.purchaseRate,
+        barcode: medicine.barcode,
+        batch_no: medicine.batch,
+        expiry_date: medicine.expiryDate,
+        warehouse_location: medicine.rackLocation,
+        min_order_qty: medicine.minQuantity,
+        margin_percent: medicine.margin,
+      };
+
+      response = await fetch(ADD_MEDICINE_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      throw new Error(
+        'Network error. Please check your connection and try again.',
+      );
+    }
+
+    const responseBody = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throw new Error(
+        getErrorMessage(
+          responseBody,
+          `Failed to add medicine (${response.status}).`,
+        ),
+      );
+    }
+
+    if (!responseBody || typeof responseBody !== 'object') {
+      throw new Error('Unexpected response from the server.');
+    }
+
+    return 'Medicine added successfully!';
   },
 };

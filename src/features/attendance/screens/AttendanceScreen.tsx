@@ -14,13 +14,22 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Calendar } from 'lucide-react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { X, Calendar, ChevronLeft } from 'lucide-react-native';
 import {
   attendanceService,
   type LeaveTypeOption,
 } from '../services/attendanceService';
 import { profileService } from '../../settings/services/profileService';
 import { useAppTheme } from '../../../shared/theme';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
+import { STACK_ROUTES } from '../../../shared/constants/routes';
+import { SettingsStackParamList } from '../../../navigation/types';
+
+type Props = NativeStackScreenProps<
+  SettingsStackParamList,
+  typeof STACK_ROUTES.ATTENDANCE_HOME
+>;
 
 const DEFAULT_EMPLOYEE_ID = 'HR-EMP-00001';
 
@@ -160,7 +169,7 @@ const generateCalendarDays = (
   return calendarDays;
 };
 
-export const AttendanceScreen = () => {
+export const AttendanceScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -169,8 +178,9 @@ export const AttendanceScreen = () => {
   const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
   const [leaveTypesError, setLeaveTypesError] = useState('');
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
-  const [activeDateField, setActiveDateField] =
-    useState<LeaveDateField | null>(null);
+  const [activeDateField, setActiveDateField] = useState<LeaveDateField | null>(
+    null,
+  );
   const [pickerMonth, setPickerMonth] = useState(() => new Date());
   const [leaveForm, setLeaveForm] = useState<LeaveForm>({
     leaveType: '',
@@ -353,10 +363,14 @@ export const AttendanceScreen = () => {
 
   const handleOpenDatePicker = (field: LeaveDateField) => {
     const currentValue = leaveForm[field];
-    const parsedDate = currentValue ? new Date(`${currentValue}T00:00:00`) : null;
+    const parsedDate = currentValue
+      ? new Date(`${currentValue}T00:00:00`)
+      : null;
 
     setPickerMonth(
-      parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date(),
+      parsedDate && !Number.isNaN(parsedDate.getTime())
+        ? parsedDate
+        : new Date(),
     );
     setActiveDateField(field);
   };
@@ -375,7 +389,8 @@ export const AttendanceScreen = () => {
 
   const handleChangePickerMonth = (direction: -1 | 1) => {
     setPickerMonth(
-      current => new Date(current.getFullYear(), current.getMonth() + direction, 1),
+      current =>
+        new Date(current.getFullYear(), current.getMonth() + direction, 1),
     );
   };
 
@@ -482,14 +497,24 @@ export const AttendanceScreen = () => {
           styles.content,
           {
             paddingTop: Math.max(insets.top, 10) + 8,
-            paddingBottom: Math.max(insets.bottom, 14) + 18,
+            paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Attendance
-        </Text>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+          </Pressable>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Attendance
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
 
         <View
           style={[
@@ -696,392 +721,363 @@ export const AttendanceScreen = () => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardAvoid}
           >
-                <View
-                  style={[
-                    styles.modalContent,
-                    { backgroundColor: theme.colors.card },
-                  ]}
-                >
-                  <View
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: theme.colors.card },
+              ]}
+            >
+              <View
+                style={[
+                  styles.modalHeader,
+                  { borderBottomColor: theme.colors.border },
+                ]}
+              >
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  Request Leave
+                </Text>
+                <Pressable onPress={handleCloseModal}>
+                  <X size={24} color={theme.colors.text} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={styles.modalBody}
+                contentContainerStyle={styles.modalBodyContent}
+                keyboardShouldPersistTaps="always"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>
+                    Leave Type
+                  </Text>
+                  <Pressable
                     style={[
-                      styles.modalHeader,
-                      { borderBottomColor: theme.colors.border },
+                      styles.dropdownButton,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.border,
+                      },
                     ]}
+                    onPress={() => {
+                      if (!leaveTypesLoading && leaveTypes.length > 0) {
+                        setShowDropdown(!showDropdown);
+                      }
+                    }}
                   >
                     <Text
-                      style={[styles.modalTitle, { color: theme.colors.text }]}
+                      style={[
+                        styles.dropdownText,
+                        { color: theme.colors.text },
+                      ]}
                     >
-                      Request Leave
+                      {leaveForm.leaveType
+                        ? getLeaveTypeLabel()
+                        : leaveTypesLoading
+                        ? 'Loading leave types...'
+                        : 'Select leave type'}
                     </Text>
-                    <Pressable onPress={handleCloseModal}>
-                      <X
-                        size={24}
-                        color={theme.colors.text}
-                        strokeWidth={2.5}
+                    <Text
+                      style={[
+                        styles.dropdownArrow,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      ∨
+                    </Text>
+                  </Pressable>
+
+                  {leaveTypesError ? (
+                    <Text
+                      style={[styles.errorText, { color: theme.colors.danger }]}
+                    >
+                      {leaveTypesError}
+                    </Text>
+                  ) : null}
+
+                  {!leaveTypesLoading &&
+                  !leaveTypesError &&
+                  leaveTypes.length === 0 ? (
+                    <Text
+                      style={[
+                        styles.errorText,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      No leave types available.
+                    </Text>
+                  ) : null}
+
+                  {showDropdown && leaveTypes.length > 0 && (
+                    <View
+                      style={[
+                        styles.dropdownMenu,
+                        {
+                          backgroundColor: theme.colors.card,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                    >
+                      {leaveTypes.map(type => (
+                        <Pressable
+                          key={type.value}
+                          style={[
+                            styles.dropdownItem,
+                            { borderBottomColor: theme.colors.border },
+                          ]}
+                          onPress={() => {
+                            setLeaveForm({
+                              ...leaveForm,
+                              leaveType: type.value,
+                            });
+                            setShowDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownItemText,
+                              { color: theme.colors.mutedText },
+                              leaveForm.leaveType === type.value && {
+                                color: theme.colors.primary,
+                              },
+                            ]}
+                          >
+                            {type.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.dateRow}>
+                  <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                    <Text style={[styles.label, { color: theme.colors.text }]}>
+                      From
+                    </Text>
+                    <Pressable
+                      style={[
+                        styles.dateInputWrapper,
+                        {
+                          backgroundColor: theme.colors.background,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                      onPress={() => handleOpenDatePicker('fromDate')}
+                    >
+                      <Text
+                        style={[
+                          styles.dateInput,
+                          {
+                            color: leaveForm.fromDate
+                              ? theme.colors.text
+                              : theme.colors.mutedText,
+                          },
+                        ]}
+                      >
+                        {formatDisplayDate(leaveForm.fromDate) || 'Select date'}
+                      </Text>
+                      <Calendar
+                        size={18}
+                        color={theme.colors.mutedText}
+                        strokeWidth={2}
                       />
                     </Pressable>
                   </View>
 
-                  <ScrollView
-                    style={styles.modalBody}
-                    contentContainerStyle={styles.modalBodyContent}
-                    keyboardShouldPersistTaps="always"
-                    showsVerticalScrollIndicator={false}
-                  >
-                    <View style={styles.formGroup}>
-                      <Text
-                        style={[styles.label, { color: theme.colors.text }]}
-                      >
-                        Leave Type
-                      </Text>
-                      <Pressable
-                        style={[
-                          styles.dropdownButton,
-                          {
-                            backgroundColor: theme.colors.background,
-                            borderColor: theme.colors.border,
-                          },
-                        ]}
-                        onPress={() => {
-                          if (!leaveTypesLoading && leaveTypes.length > 0) {
-                            setShowDropdown(!showDropdown);
-                          }
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dropdownText,
-                            { color: theme.colors.text },
-                          ]}
-                        >
-                          {leaveForm.leaveType
-                            ? getLeaveTypeLabel()
-                            : leaveTypesLoading
-                            ? 'Loading leave types...'
-                            : 'Select leave type'}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.dropdownArrow,
-                            { color: theme.colors.mutedText },
-                          ]}
-                        >
-                          ∨
-                        </Text>
-                      </Pressable>
-
-                      {leaveTypesError ? (
-                        <Text
-                          style={[
-                            styles.errorText,
-                            { color: theme.colors.danger },
-                          ]}
-                        >
-                          {leaveTypesError}
-                        </Text>
-                      ) : null}
-
-                      {!leaveTypesLoading &&
-                      !leaveTypesError &&
-                      leaveTypes.length === 0 ? (
-                        <Text
-                          style={[
-                            styles.errorText,
-                            { color: theme.colors.mutedText },
-                          ]}
-                        >
-                          No leave types available.
-                        </Text>
-                      ) : null}
-
-                      {showDropdown && leaveTypes.length > 0 && (
-                        <View
-                          style={[
-                            styles.dropdownMenu,
-                            {
-                              backgroundColor: theme.colors.card,
-                              borderColor: theme.colors.border,
-                            },
-                          ]}
-                        >
-                          {leaveTypes.map(type => (
-                            <Pressable
-                              key={type.value}
-                              style={[
-                                styles.dropdownItem,
-                                { borderBottomColor: theme.colors.border },
-                              ]}
-                              onPress={() => {
-                                setLeaveForm({
-                                  ...leaveForm,
-                                  leaveType: type.value,
-                                });
-                                setShowDropdown(false);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.dropdownItemText,
-                                  { color: theme.colors.mutedText },
-                                  leaveForm.leaveType === type.value && {
-                                    color: theme.colors.primary,
-                                  },
-                                ]}
-                              >
-                                {type.label}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-
-                    <View style={styles.dateRow}>
-                      <View
-                        style={[styles.formGroup, { flex: 1, marginRight: 8 }]}
-                      >
-                        <Text
-                          style={[styles.label, { color: theme.colors.text }]}
-                        >
-                          From
-                        </Text>
-                        <Pressable
-                          style={[
-                            styles.dateInputWrapper,
-                            {
-                              backgroundColor: theme.colors.background,
-                              borderColor: theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => handleOpenDatePicker('fromDate')}
-                        >
-                          <Text
-                            style={[
-                              styles.dateInput,
-                              {
-                                color: leaveForm.fromDate
-                                  ? theme.colors.text
-                                  : theme.colors.mutedText,
-                              },
-                            ]}
-                          >
-                            {formatDisplayDate(leaveForm.fromDate) ||
-                              'Select date'}
-                          </Text>
-                          <Calendar
-                            size={18}
-                            color={theme.colors.mutedText}
-                            strokeWidth={2}
-                          />
-                        </Pressable>
-                      </View>
-
-                      <View
-                        style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}
-                      >
-                        <Text
-                          style={[styles.label, { color: theme.colors.text }]}
-                        >
-                          To
-                        </Text>
-                        <Pressable
-                          style={[
-                            styles.dateInputWrapper,
-                            {
-                              backgroundColor: theme.colors.background,
-                              borderColor: theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => handleOpenDatePicker('toDate')}
-                        >
-                          <Text
-                            style={[
-                              styles.dateInput,
-                              {
-                                color: leaveForm.toDate
-                                  ? theme.colors.text
-                                  : theme.colors.mutedText,
-                              },
-                            ]}
-                          >
-                            {formatDisplayDate(leaveForm.toDate) ||
-                              'Select date'}
-                          </Text>
-                          <Calendar
-                            size={18}
-                            color={theme.colors.mutedText}
-                            strokeWidth={2}
-                          />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    {activeDateField ? (
-                      <View
-                        style={[
-                          styles.datePickerCard,
-                          styles.inlineDatePickerCard,
-                          {
-                            backgroundColor: theme.colors.card,
-                            borderColor: theme.colors.border,
-                          },
-                        ]}
-                      >
-                        <View style={styles.datePickerHeader}>
-                          <Pressable
-                            style={styles.monthButton}
-                            onPress={() => handleChangePickerMonth(-1)}
-                          >
-                            <Text
-                              style={[
-                                styles.monthButtonText,
-                                { color: theme.colors.text },
-                              ]}
-                            >
-                              ‹
-                            </Text>
-                          </Pressable>
-                          <Text
-                            style={[
-                              styles.datePickerTitle,
-                              { color: theme.colors.text },
-                            ]}
-                          >
-                            {pickerMonthLabel}
-                          </Text>
-                          <Pressable
-                            style={styles.monthButton}
-                            onPress={() => handleChangePickerMonth(1)}
-                          >
-                            <Text
-                              style={[
-                                styles.monthButtonText,
-                                { color: theme.colors.text },
-                              ]}
-                            >
-                              ›
-                            </Text>
-                          </Pressable>
-                        </View>
-
-                        <View style={styles.datePickerWeekRow}>
-                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(
-                            (day, index) => (
-                              <Text
-                                key={`${day}-${index}`}
-                                style={[
-                                  styles.datePickerWeekDay,
-                                  { color: theme.colors.mutedText },
-                                ]}
-                              >
-                                {day}
-                              </Text>
-                            ),
-                          )}
-                        </View>
-
-                        <View style={styles.datePickerGrid}>
-                          {getPickerDays(pickerMonth).map((date, index) => {
-                            const value = date ? toDateValue(date) : '';
-                            const isSelected =
-                              value === leaveForm[activeDateField];
-
-                            return (
-                              <Pressable
-                                key={`${value}-${index}`}
-                                style={[
-                                  styles.datePickerDay,
-                                  isSelected && {
-                                    backgroundColor: theme.colors.primary,
-                                  },
-                                ]}
-                                disabled={!date}
-                                onPress={() => {
-                                  if (date) {
-                                    handleSelectDate(date);
-                                  }
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.datePickerDayText,
-                                    {
-                                      color: isSelected
-                                        ? '#FFFFFF'
-                                        : theme.colors.text,
-                                    },
-                                    !date && { color: 'transparent' },
-                                  ]}
-                                >
-                                  {date?.getDate() ?? ''}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    ) : null}
-
-                    <View style={styles.formGroup}>
-                      <Text
-                        style={[styles.label, { color: theme.colors.text }]}
-                      >
-                        Reason for leave
-                      </Text>
-                      <TextInput
-                        style={[
-                          styles.textArea,
-                          styles.input,
-                          {
-                            backgroundColor: theme.colors.background,
-                            borderColor: theme.colors.border,
-                            color: theme.colors.text,
-                          },
-                        ]}
-                        placeholder="Enter reason (optional)"
-                        placeholderTextColor={theme.colors.mutedText}
-                        value={leaveForm.reason}
-                        onChangeText={text =>
-                          setLeaveForm({ ...leaveForm, reason: text })
-                        }
-                        multiline
-                        numberOfLines={3}
-                        textAlignVertical="top"
-                      />
-                    </View>
-                  </ScrollView>
-
-                  <View
-                    style={[
-                      styles.modalFooter,
-                      { borderTopColor: theme.colors.border },
-                    ]}
-                  >
+                  <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={[styles.label, { color: theme.colors.text }]}>
+                      To
+                    </Text>
                     <Pressable
                       style={[
-                        styles.submitButton,
-                        { backgroundColor: theme.colors.primary },
-                        (leaveSubmitting || leaveTypesLoading) && {
-                          opacity: 0.7,
+                        styles.dateInputWrapper,
+                        {
+                          backgroundColor: theme.colors.background,
+                          borderColor: theme.colors.border,
                         },
                       ]}
-                      onPress={handleSubmitLeave}
-                      disabled={leaveSubmitting || leaveTypesLoading}
+                      onPress={() => handleOpenDatePicker('toDate')}
                     >
-                      {leaveSubmitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.submitButtonText}>
-                          Submit Request
-                        </Text>
-                      )}
+                      <Text
+                        style={[
+                          styles.dateInput,
+                          {
+                            color: leaveForm.toDate
+                              ? theme.colors.text
+                              : theme.colors.mutedText,
+                          },
+                        ]}
+                      >
+                        {formatDisplayDate(leaveForm.toDate) || 'Select date'}
+                      </Text>
+                      <Calendar
+                        size={18}
+                        color={theme.colors.mutedText}
+                        strokeWidth={2}
+                      />
                     </Pressable>
                   </View>
                 </View>
+
+                {activeDateField ? (
+                  <View
+                    style={[
+                      styles.datePickerCard,
+                      styles.inlineDatePickerCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={styles.datePickerHeader}>
+                      <Pressable
+                        style={styles.monthButton}
+                        onPress={() => handleChangePickerMonth(-1)}
+                      >
+                        <Text
+                          style={[
+                            styles.monthButtonText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
+                          ‹
+                        </Text>
+                      </Pressable>
+                      <Text
+                        style={[
+                          styles.datePickerTitle,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        {pickerMonthLabel}
+                      </Text>
+                      <Pressable
+                        style={styles.monthButton}
+                        onPress={() => handleChangePickerMonth(1)}
+                      >
+                        <Text
+                          style={[
+                            styles.monthButtonText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
+                          ›
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.datePickerWeekRow}>
+                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                        <Text
+                          key={`${day}-${index}`}
+                          style={[
+                            styles.datePickerWeekDay,
+                            { color: theme.colors.mutedText },
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      ))}
+                    </View>
+
+                    <View style={styles.datePickerGrid}>
+                      {getPickerDays(pickerMonth).map((date, index) => {
+                        const value = date ? toDateValue(date) : '';
+                        const isSelected = value === leaveForm[activeDateField];
+
+                        return (
+                          <Pressable
+                            key={`${value}-${index}`}
+                            style={[
+                              styles.datePickerDay,
+                              isSelected && {
+                                backgroundColor: theme.colors.primary,
+                              },
+                            ]}
+                            disabled={!date}
+                            onPress={() => {
+                              if (date) {
+                                handleSelectDate(date);
+                              }
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.datePickerDayText,
+                                {
+                                  color: isSelected
+                                    ? '#FFFFFF'
+                                    : theme.colors.text,
+                                },
+                                !date && { color: 'transparent' },
+                              ]}
+                            >
+                              {date?.getDate() ?? ''}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>
+                    Reason for leave
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.textArea,
+                      styles.input,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
+                    placeholder="Enter reason (optional)"
+                    placeholderTextColor={theme.colors.mutedText}
+                    value={leaveForm.reason}
+                    onChangeText={text =>
+                      setLeaveForm({ ...leaveForm, reason: text })
+                    }
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </ScrollView>
+
+              <View
+                style={[
+                  styles.modalFooter,
+                  { borderTopColor: theme.colors.border },
+                ]}
+              >
+                <Pressable
+                  style={[
+                    styles.submitButton,
+                    { backgroundColor: theme.colors.primary },
+                    (leaveSubmitting || leaveTypesLoading) && {
+                      opacity: 0.7,
+                    },
+                  ]}
+                  onPress={handleSubmitLeave}
+                  disabled={leaveSubmitting || leaveTypesLoading}
+                >
+                  {leaveSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Submit Request</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
-
     </>
   );
 };
@@ -1095,11 +1091,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#2A2A2A',
-    marginBottom: 12,
+    marginBottom: 0,
+    flex: 1,
+    textAlign: 'center',
   },
   checkInCard: {
     backgroundColor: '#FFFFFF',

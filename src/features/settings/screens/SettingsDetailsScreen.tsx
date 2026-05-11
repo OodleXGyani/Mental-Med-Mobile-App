@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   ScrollView,
   StyleSheet,
@@ -8,13 +9,14 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, Lock } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { setThemeMode } from '../store/settingsSlice';
 import { useAppTheme } from '../../../shared/theme';
 
 export const SettingsDetailsScreen = () => {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const theme = useAppTheme();
   const themeMode = useAppSelector(state => state.settings.themeMode);
@@ -39,7 +41,19 @@ export const SettingsDetailsScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Settings</Text>
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          style={styles.backButton}
+        >
+          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+        </Pressable>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Settings
+        </Text>
+        <View style={styles.backButton} />
+      </View>
 
       {/* Notifications Section */}
       <View
@@ -332,11 +346,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#2A2A2A',
-    marginBottom: 16,
+    marginBottom: 0,
+    flex: 1,
+    textAlign: 'center',
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',

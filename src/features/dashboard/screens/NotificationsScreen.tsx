@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigation } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
   Check,
+  ChevronLeft,
   CircleAlert,
   Package,
   ShoppingCart,
@@ -62,6 +65,7 @@ const notifications: NotificationItem[] = [
 export const NotificationsScreen = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const navigation = useNavigation<any>();
 
   const getItemIcon = (variant: NotificationItem['variant']) => {
     switch (variant) {
@@ -114,6 +118,19 @@ export const NotificationsScreen = () => {
     >
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
+          {navigation.canGoBack() ? (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={8}
+              style={styles.backButton}
+            >
+              <ChevronLeft
+                size={22}
+                color={theme.colors.text}
+                strokeWidth={2}
+              />
+            </Pressable>
+          ) : null}
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Notifications
           </Text>
@@ -198,6 +215,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 26,

@@ -6,6 +6,7 @@ import { useAuth } from '../../authentication/hooks/useAuth';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
@@ -35,7 +36,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
         styles.content,
         {
           paddingTop: Math.max(insets.top, 10) + 8,
-          paddingBottom: Math.max(insets.bottom, 14) + 18,
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
         },
       ]}
       showsVerticalScrollIndicator={false}

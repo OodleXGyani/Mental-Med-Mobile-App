@@ -7,12 +7,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
 import { useAppDispatch } from '../../../app/hooks';
 import { useReports } from '../hooks/useReports';
 import { reportsService } from '../services/reportsService';
 import { setLastGeneratedAt } from '../store/reportsSlice';
 import { useAppTheme } from '../../../shared/theme';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -27,6 +30,7 @@ const formatCurrency = (value: number) => `Rs ${value.toLocaleString('en-IN')}`;
 export const ReportsScreen = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const navigation = useNavigation<any>();
   const { lastGeneratedAt } = useReports();
   const dispatch = useAppDispatch();
   const [activePeriod, setActivePeriod] = useState<PeriodType>('today');
@@ -117,12 +121,28 @@ export const ReportsScreen = () => {
         styles.content,
         {
           paddingTop: Math.max(insets.top, 10) + 8,
-          paddingBottom: Math.max(insets.bottom, 14) + 18,
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
         },
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Reports</Text>
+      <View style={styles.header}>
+        {navigation.canGoBack() ? (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+          </Pressable>
+        ) : (
+          <View style={styles.backButton} />
+        )}
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Reports
+        </Text>
+        <View style={styles.backButton} />
+      </View>
 
       {loading ? (
         <ActivityIndicator
@@ -290,7 +310,9 @@ export const ReportsScreen = () => {
                     { height, backgroundColor: theme.colors.primary },
                   ]}
                 />
-                <Text style={[styles.barLabel, { color: theme.colors.mutedText }]}>
+                <Text
+                  style={[styles.barLabel, { color: theme.colors.mutedText }]}
+                >
                   {reportData.labels[index] || ''}
                 </Text>
               </View>
@@ -339,11 +361,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#2A2A2A',
-    marginBottom: 12,
+    marginBottom: 0,
+    flex: 1,
+    textAlign: 'center',
   },
   errorText: {
     marginBottom: 10,

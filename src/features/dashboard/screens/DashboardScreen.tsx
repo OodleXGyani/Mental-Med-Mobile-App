@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import { useDashboard } from '../hooks/useDashboard';
 import { STACK_ROUTES, TAB_ROUTES } from '../../../shared/constants/routes';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { DashboardStatsGrid } from '../components/DashboardStatsGrid';
 import { DashboardQuickActions } from '../components/DashboardQuickActions';
@@ -103,7 +104,7 @@ export const DashboardScreen = () => {
         styles.content,
         {
           paddingTop: Math.max(insets.top, 10) + 6,
-          paddingBottom: Math.max(insets.bottom, 14) + 18,
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
           flexGrow: 1,
         },
       ]}

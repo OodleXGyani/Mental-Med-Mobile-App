@@ -24,6 +24,7 @@ import {
   BarcodeScannedItem,
 } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { InventoryStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
 
@@ -128,17 +129,12 @@ export const InventoryScreen = ({ navigation }: Props) => {
   };
 
   const handleQuickAddSubmit = async (
-    _medicine: Omit<Medicine, 'id' | 'status'>,
+    medicine: Omit<Medicine, 'id' | 'status'>,
   ) => {
-    setShowQuickAdd(true);
+    setShowQuickAdd(false);
     try {
-      // Here you would typically send the data to your backend
-      // For now, we'll just show a success alert and reload inventory
-      Alert.alert(
-        'Success',
-        'Medicine added successfully! Pending approval from admin.',
-      );
-      setShowQuickAdd(false);
+      await inventoryService.addMedicine(medicine);
+      Alert.alert('Success', 'Medicine added successfully!');
       await loadInventory();
     } catch (error) {
       Alert.alert(
@@ -176,7 +172,7 @@ export const InventoryScreen = ({ navigation }: Props) => {
         { backgroundColor: theme.colors.background },
         {
           paddingTop: Math.max(insets.top, 10),
-          paddingBottom: Math.max(insets.bottom, 14),
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
         },
       ]}
     >

@@ -17,6 +17,7 @@ import { OrderDetailModal } from '../components/OrderDetailModal';
 import { OrderSummaryModal } from '../components/OrderSummaryModal';
 import { ordersService } from '../services/ordersService';
 import { orderActionFlow, statusMap } from '../types';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { useAppTheme } from '../../../shared/theme';
 
 export const OrdersScreen: React.FC = () => {
@@ -252,7 +253,7 @@ export const OrdersScreen: React.FC = () => {
         styles.content,
         {
           paddingTop: Math.max(insets.top, 10) + 8,
-          paddingBottom: Math.max(insets.bottom, 14) + 18,
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
         },
       ]}
       showsVerticalScrollIndicator={false}

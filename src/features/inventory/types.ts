@@ -18,7 +18,8 @@ export type Medicine = {
   mrp: number;
   purchaseRate: number;
   margin: number; // percentage
-  gst: number; // percentage
+  gst: string; // GST template name
+  hsnSacCode: string;
   status: StockStatus;
 };
 

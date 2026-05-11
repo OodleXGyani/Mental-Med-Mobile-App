@@ -1,17 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Phone, MapPin } from 'lucide-react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Mail, Phone, MapPin, ChevronLeft } from 'lucide-react-native';
 import { profileService, type UserProfile } from '../services/profileService';
 import { useAppTheme } from '../../../shared/theme';
+import { STACK_ROUTES } from '../../../shared/constants/routes';
+import { SettingsStackParamList } from '../../../navigation/types';
 
-export const ProfileScreen = () => {
+type Props = NativeStackScreenProps<
+  SettingsStackParamList,
+  typeof STACK_ROUTES.PROFILE_HOME
+>;
+
+export const ProfileScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -78,7 +87,19 @@ export const ProfileScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Profile</Text>
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          style={styles.backButton}
+        >
+          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+        </Pressable>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Profile
+        </Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       {errorMessage ? (
         <Text style={[styles.errorText, { color: theme.colors.danger }]}>
@@ -169,7 +190,9 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
-        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+        <View
+          style={[styles.divider, { backgroundColor: theme.colors.border }]}
+        />
 
         <View style={styles.infoRow}>
           <View
@@ -299,11 +322,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 30,
     fontWeight: '800',
     color: '#2A2A2A',
-    marginBottom: 16,
+    marginBottom: 0,
+    flex: 1,
+    textAlign: 'center',
   },
   profileCard: {
     backgroundColor: '#FFFFFF',

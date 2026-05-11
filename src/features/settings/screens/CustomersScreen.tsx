@@ -15,7 +15,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronRight, Search, X } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Search, X } from 'lucide-react-native';
 import { customerService } from '../services/customerService';
 import { CreateCustomerRequest, CustomerListItem } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
@@ -272,6 +272,13 @@ export const CustomersScreen = ({ navigation }: Props) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.backButton}
+          >
+            <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+          </Pressable>
           <View style={styles.headerTextBlock}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
               Customers
@@ -281,7 +288,10 @@ export const CustomersScreen = ({ navigation }: Props) => {
             </Text>
           </View>
           <Pressable
-            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+            style={[
+              styles.addButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
             onPress={() => setShowAddModal(true)}
           >
             <Text style={styles.addButtonText}>+ Add</Text>
@@ -371,17 +381,24 @@ export const CustomersScreen = ({ navigation }: Props) => {
                   { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
                 ]}
               >
-                <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
+                <Text
+                  style={[styles.avatarText, { color: theme.colors.primary }]}
+                >
                   {getInitial(customer.customer_name)}
                 </Text>
               </View>
 
               <View style={styles.customerInfo}>
-                <Text style={[styles.customerName, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.customerName, { color: theme.colors.text }]}
+                >
                   {customer.customer_name}
                 </Text>
                 <Text
-                  style={[styles.customerMeta, { color: theme.colors.mutedText }]}
+                  style={[
+                    styles.customerMeta,
+                    { color: theme.colors.mutedText },
+                  ]}
                   numberOfLines={1}
                 >
                   {customer.contact.mobile || customer.customer_code} •{' '}
@@ -548,6 +565,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
     gap: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 3,
   },
   headerTextBlock: {
     flex: 1,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   ScrollView,
   StyleSheet,
@@ -8,12 +9,13 @@ import {
   Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Zap, Mail, Phone, Globe } from 'lucide-react-native';
+import { ChevronLeft, Zap, Mail, Phone, Globe } from 'lucide-react-native';
 import { useAppTheme } from '../../../shared/theme';
 
 export const AboutScreen = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const navigation = useNavigation<any>();
   const features = [
     'Mobile POS with barcode scanning',
     'Real-time inventory management',
@@ -48,9 +50,25 @@ export const AboutScreen = () => {
       ]}
       showsVerticalScrollIndicator={false}
     >
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          style={styles.backButton}
+        >
+          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          About
+        </Text>
+        <View style={styles.backButton} />
+      </View>
+
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <View style={[styles.logoBadge, { backgroundColor: theme.colors.primary }]}>
+        <View
+          style={[styles.logoBadge, { backgroundColor: theme.colors.primary }]}
+        >
           <Zap size={40} color="#FFFFFF" strokeWidth={2} />
         </View>
         <Text style={[styles.appName, { color: theme.colors.text }]}>
@@ -74,7 +92,9 @@ export const AboutScreen = () => {
           },
         ]}
       >
-        <Text style={[styles.descriptionText, { color: theme.colors.mutedText }]}>
+        <Text
+          style={[styles.descriptionText, { color: theme.colors.mutedText }]}
+        >
           Meds15 is a comprehensive pharmacy management solution designed to
           streamline operations for Indian pharmacies. From POS billing and
           inventory management to order tracking and fulfillment, staff
@@ -103,7 +123,9 @@ export const AboutScreen = () => {
                 { backgroundColor: theme.colors.primary },
               ]}
             />
-            <Text style={[styles.featureText, { color: theme.colors.mutedText }]}>
+            <Text
+              style={[styles.featureText, { color: theme.colors.mutedText }]}
+            >
               {feature}
             </Text>
           </View>
@@ -134,7 +156,9 @@ export const AboutScreen = () => {
             <Globe size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+            <Text
+              style={[styles.contactLabel, { color: theme.colors.mutedText }]}
+            >
               Website
             </Text>
             <Text style={[styles.contactValue, { color: theme.colors.text }]}>
@@ -143,7 +167,9 @@ export const AboutScreen = () => {
           </View>
         </Pressable>
 
-        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+        <View
+          style={[styles.divider, { backgroundColor: theme.colors.border }]}
+        />
 
         <Pressable style={styles.contactRow} onPress={handleEmail}>
           <View
@@ -155,7 +181,9 @@ export const AboutScreen = () => {
             <Mail size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+            <Text
+              style={[styles.contactLabel, { color: theme.colors.mutedText }]}
+            >
               Email
             </Text>
             <Text style={[styles.contactValue, { color: theme.colors.text }]}>
@@ -164,7 +192,9 @@ export const AboutScreen = () => {
           </View>
         </Pressable>
 
-        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+        <View
+          style={[styles.divider, { backgroundColor: theme.colors.border }]}
+        />
 
         <Pressable style={styles.contactRow} onPress={handlePhone}>
           <View
@@ -176,7 +206,9 @@ export const AboutScreen = () => {
             <Phone size={18} color={theme.colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.contactContent}>
-            <Text style={[styles.contactLabel, { color: theme.colors.mutedText }]}>
+            <Text
+              style={[styles.contactLabel, { color: theme.colors.mutedText }]}
+            >
               Phone
             </Text>
             <Text style={[styles.contactValue, { color: theme.colors.text }]}>
@@ -234,6 +266,25 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#2A2A2A',
+    flex: 1,
+    textAlign: 'center',
   },
   logoSection: {
     alignItems: 'center',

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePOS } from '../hooks/usePOS';
 import { TAB_ROUTES, STACK_ROUTES } from '../../../shared/constants/routes';
+import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { customers, scannedMedicine } from '../constants';
 import { POSHeader } from '../components/POSHeader';
 import { POSSearchRow } from '../components/POSSearchRow';
@@ -50,26 +51,28 @@ export const POSScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [discountPercent, setDiscountPercent] = useState('0');
 
-  // Load customers on mount
-  useEffect(() => {
-    const loadCustomers = async () => {
-      try {
-        const data = await customerService.fetchCustomers();
-        // Map customer service response to Customer type
-        setCustomerList(
-          data.map(c => ({
-            id: c.customer_code || '',
-            name: c.customer_name || '',
-            phone: c.contact?.mobile || '',
-          })),
-        );
-      } catch (error) {
-        console.error('Failed to load customers:', error);
-      }
-    };
-
-    void loadCustomers();
+  const loadCustomers = useCallback(async () => {
+    try {
+      const data = await customerService.fetchCustomers();
+      // Map customer service response to Customer type
+      setCustomerList(
+        data.map(c => ({
+          id: c.customer_code || '',
+          name: c.customer_name || '',
+          phone: c.contact?.mobile || '',
+        })),
+      );
+    } catch (error) {
+      console.error('Failed to load customers:', error);
+    }
   }, []);
+
+  // Load customers when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      void loadCustomers();
+    }, [loadCustomers]),
+  );
 
   const itemCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.qty, 0),
@@ -342,7 +345,7 @@ export const POSScreen = () => {
         styles.content,
         {
           paddingTop: Math.max(insets.top, 10) + 6,
-          paddingBottom: Math.max(insets.bottom, 14) + 14,
+          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
         },
       ]}
       showsVerticalScrollIndicator={false}
