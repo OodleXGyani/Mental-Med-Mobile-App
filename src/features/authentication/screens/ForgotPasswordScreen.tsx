@@ -16,6 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { AuthStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
+import { authService } from '../services/authService';
 
 type Props = NativeStackScreenProps<
   AuthStackParamList,
@@ -25,10 +26,11 @@ type Props = NativeStackScreenProps<
 export const ForgotPasswordScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const [email, setEmail] = useState('your@email.com');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSendResetLink = async () => {
     setError('');
@@ -41,13 +43,18 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
 
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const message = await authService.forgotPassword(email);
+      setSuccessMessage(message);
       setSubmitted(true);
       setTimeout(() => {
         navigation.goBack();
       }, 3000);
     } catch (err) {
-      setError('Failed to send reset link. Please try again.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to send reset link. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -95,8 +102,8 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
             <Text
               style={[styles.successMessage, { color: theme.colors.mutedText }]}
             >
-              Check your email for the password reset link. We'll redirect you
-              back to login shortly.
+              {successMessage ||
+                "Check your email for the password reset link. We'll redirect you back to login shortly."}
             </Text>
           </View>
         ) : (

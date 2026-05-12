@@ -26,7 +26,7 @@ type Props = NativeStackScreenProps<
 export const LoginScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const [email, setEmail] = useState('manager@meds15.test');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error } = useAuth();
@@ -82,7 +82,7 @@ export const LoginScreen = ({ navigation }: Props) => {
           {/* email Input */}
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
-              email
+              Email
             </Text>
             <TextInput
               style={[

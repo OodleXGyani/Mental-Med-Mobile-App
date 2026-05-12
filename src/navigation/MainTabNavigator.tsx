@@ -7,6 +7,7 @@ import {
   Menu,
   ShoppingCart,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_ROUTES } from '../shared/constants/routes';
 import { MainTabParamList } from './types';
 import { DashboardStack } from './DashboardStack';
@@ -23,6 +24,8 @@ export const MainTabNavigator = () => {
   const mode = useAppSelector(state => state.settings.themeMode);
   const systemScheme = useAppSelector(state => state.settings.systemScheme);
   const theme = resolveTheme(mode, systemScheme);
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 10);
 
   return (
     <Tab.Navigator
@@ -48,9 +51,9 @@ export const MainTabNavigator = () => {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.mutedText,
         tabBarStyle: {
-          height: 66,
+          height: 56 + bottomInset,
           paddingTop: 7,
-          paddingBottom: 10,
+          paddingBottom: bottomInset,
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
           backgroundColor: theme.colors.card,

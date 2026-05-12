@@ -40,8 +40,19 @@ type LoginApiResponse = {
   full_name?: string;
 };
 
+type ForgotPasswordApiResponse = {
+  message?: {
+    success?: boolean;
+    message?: string;
+    data?: unknown;
+    error?: string | null;
+  };
+};
+
 const LOGIN_URL =
   'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_auth.login';
+const FORGOT_PASSWORD_URL =
+  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_auth.forgot_password';
 const AUTH_SESSION_STORAGE_KEY = '@meds/auth-session';
 
 const getErrorMessage = (responseBody: unknown, fallback: string) => {
@@ -80,6 +91,23 @@ const parseJsonSafely = async (response: Response) => {
   } catch {
     return text;
   }
+};
+
+const parseForgotPasswordResponse = (responseBody: unknown) => {
+  if (!responseBody || typeof responseBody !== 'object') {
+    throw new Error('Unexpected response from the server.');
+  }
+
+  const body = responseBody as ForgotPasswordApiResponse;
+  const messageBlock = body.message;
+
+  if (!messageBlock?.success) {
+    throw new Error(
+      getErrorMessage(responseBody, 'Failed to send reset link.'),
+    );
+  }
+
+  return messageBlock.message ?? 'Reset link sent successfully.';
 };
 
 const normalizeSession = (responseBody: LoginApiResponse): LoginSession => {
@@ -190,5 +218,44 @@ export const authService = {
     const session = normalizeSession(responseBody as LoginApiResponse);
     await authStorage.saveSession(session);
     return session;
+  },
+  forgotPassword: async (email: string): Promise<string> => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      throw new Error('Email is required.');
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetch(FORGOT_PASSWORD_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+        }),
+      });
+    } catch {
+      throw new Error(
+        'Network error. Please check your connection and try again.',
+      );
+    }
+
+    const responseBody = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throw new Error(
+        getErrorMessage(
+          responseBody,
+          `Request failed (${response.status}). Please try again.`,
+        ),
+      );
+    }
+
+    return parseForgotPasswordResponse(responseBody);
   },
 };

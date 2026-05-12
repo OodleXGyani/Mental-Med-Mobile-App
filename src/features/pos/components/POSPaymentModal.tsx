@@ -69,7 +69,7 @@ export const POSPaymentModal = ({
               placeholderTextColor={theme.colors.mutedText}
               editable={false}
             />
-            <TextInput
+            {/* <TextInput
               style={[
                 styles.paymentInput,
                 {
@@ -82,7 +82,7 @@ export const POSPaymentModal = ({
               value={selectedCustomer?.phone || ''}
               placeholderTextColor={theme.colors.mutedText}
               editable={false}
-            />
+            /> */}
           </View>
 
           <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
