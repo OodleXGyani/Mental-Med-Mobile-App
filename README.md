@@ -1,97 +1,312 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Meds — Pharmacy Management App
 
-# Getting Started
+A **React Native** mobile application for pharmacy management, built with TypeScript. It provides a complete solution for POS billing, inventory tracking, order management, customer management, attendance, and reports — all backed by a Frappe/ERPNext-based REST API.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Features
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+| Module | Description |
+|---|---|
+| **Authentication** | Email/password login, forgot password, session persistence via AsyncStorage |
+| **Dashboard** | KPI cards, recent sales, quick actions, notifications |
+| **POS (Point of Sale)** | Cart management, barcode scanning, customer picker, discount & GST calculation, payment methods, invoice generation & sharing |
+| **Orders** | View and filter purchase/sales orders with detailed order summaries |
+| **Inventory** | Browse medicines, add/remove stock, barcode-based lookup, medicine detail view |
+| **Reports** | Sales and inventory reports with summary cards |
+| **Attendance** | Staff attendance tracking and summary |
+| **Settings** | Customer management, order history, user profile, theme selector, about screen |
+| **Theming** | Light / Dark / System theme modes with a fully typed `AppTheme` |
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
+
+## Tech Stack
+
+| Category | Library / Version |
+|---|---|
+| Framework | React Native `0.85.2` |
+| Language | TypeScript `^5.8.3` |
+| State Management | Redux Toolkit `^2.11.2` + React Redux `^9.2.0` |
+| Navigation | React Navigation v7 (Native Stack + Bottom Tabs) |
+| Icons | Lucide React Native `^1.9.0` |
+| Camera / Barcode | react-native-vision-camera `^5.0.9` + vision-camera-barcode-scanner `^5.0.9` |
+| Storage | AsyncStorage `^3.0.2` |
+| Safe Area | react-native-safe-area-context `^5.5.2` |
+| SVG | react-native-svg `^15.15.4` |
+| Node (required) | `>= 22.11.0` |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js `>= 22.11.0`
+- React Native CLI environment set up — see the [official guide](https://reactnative.dev/docs/set-up-your-environment)
+- Xcode (iOS) or Android Studio (Android)
+
+### Install dependencies
 
 ```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+npm install
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### iOS — install CocoaPods (first time or after native dep changes)
 
 ```sh
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### Start Metro
 
 ```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+npm start
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Run on device / simulator
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```sh
+# Android
+npm run android
 
-## Step 3: Modify your app
+# iOS
+npm run ios
+```
 
-Now that you have successfully run the app, let's make changes!
+---
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Environment / API
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+The app connects to a Frappe/ERPNext backend via ngrok tunnel. Base URLs are defined in:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+- `src/features/authentication/services/authService.ts` — `LOGIN_URL`, `FORGOT_PASSWORD_URL`
+- Individual feature service files under `src/features/*/services/`
 
-## Congratulations! :tada:
+Auth session (sid, apiKey, apiSecret, roles, etc.) is stored in AsyncStorage under the key `@meds/auth-session`.
 
-You've successfully run and modified your React Native App. :partying_face:
+---
 
-### Now what?
+## Project Structure
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+```
+Meds/
+├── App.tsx                         # Root component — Redux Provider, SafeAreaProvider, auth bootstrap gate
+├── index.js                        # React Native entry point
+├── app.json                        # App name & metadata
+├── package.json
+├── tsconfig.json
+├── babel.config.js
+├── metro.config.js
+├── jest.config.js
+├── android/                        # Android native project
+├── ios/                            # iOS native project (Xcode workspace)
+└── src/
+    ├── app/
+    │   ├── store.ts                # Redux store — combines all feature reducers
+    │   └── hooks.ts                # Typed useAppDispatch / useAppSelector hooks
+    │
+    ├── navigation/
+    │   ├── RootNavigator.tsx       # Auth gate: renders AuthNavigator or MainTabNavigator
+    │   ├── AuthNavigator.tsx       # Stack: Login → ForgotPassword
+    │   ├── MainTabNavigator.tsx    # Bottom tab bar (Home, POS, Orders, Inventory, More)
+    │   ├── DashboardStack.tsx      # Dashboard → Notifications
+    │   ├── POSStack.tsx            # POS → MedicineList
+    │   ├── OrdersStack.tsx         # Orders → OrderHistory
+    │   ├── InventoryStack.tsx      # Inventory → InventoryDetails
+    │   ├── SettingsStack.tsx       # Settings → Customers / Profile / About / etc.
+    │   ├── AttendanceStack.tsx     # Attendance screen
+    │   ├── ReportsStack.tsx        # Reports screen
+    │   └── types.ts                # Navigation param-list types
+    │
+    ├── features/
+    │   ├── authentication/
+    │   │   ├── screens/
+    │   │   │   ├── LoginScreen.tsx
+    │   │   │   └── ForgotPasswordScreen.tsx
+    │   │   ├── components/
+    │   │   │   └── AuthWelcomeCard.tsx
+    │   │   ├── hooks/
+    │   │   │   └── useAuth.ts
+    │   │   ├── services/
+    │   │   │   └── authService.ts  # login(), forgotPassword(), authStorage (AsyncStorage)
+    │   │   └── store/
+    │   │       └── authSlice.ts    # bootstrapAuth thunk, login/logout actions
+    │   │
+    │   ├── dashboard/
+    │   │   ├── screens/
+    │   │   │   ├── DashboardScreen.tsx
+    │   │   │   └── NotificationsScreen.tsx
+    │   │   ├── components/
+    │   │   │   ├── DashboardHeader.tsx
+    │   │   │   ├── DashboardStatsGrid.tsx
+    │   │   │   ├── DashboardQuickActions.tsx
+    │   │   │   ├── DashboardRecentSales.tsx
+    │   │   │   └── KpiCard.tsx
+    │   │   ├── hooks/useDashboard.ts
+    │   │   ├── services/dashboardService.ts
+    │   │   └── store/dashboardSlice.ts
+    │   │
+    │   ├── pos/
+    │   │   ├── screens/
+    │   │   │   ├── POSScreen.tsx           # Main POS screen — cart, billing, modals
+    │   │   │   └── MedicineListScreen.tsx  # Searchable medicine list for adding to cart
+    │   │   ├── components/
+    │   │   │   ├── POSHeader.tsx
+    │   │   │   ├── POSSearchRow.tsx
+    │   │   │   ├── POSCustomerSection.tsx
+    │   │   │   ├── POSCustomerPickerModal.tsx
+    │   │   │   ├── POSCartSection.tsx
+    │   │   │   ├── POSSummaryCard.tsx
+    │   │   │   ├── POSScanModal.tsx
+    │   │   │   ├── POSPaymentModal.tsx
+    │   │   │   ├── POSInvoiceModal.tsx
+    │   │   │   ├── POSPastOrdersModal.tsx
+    │   │   │   └── BillingSummaryCard.tsx
+    │   │   ├── hooks/usePOS.ts
+    │   │   ├── services/posService.ts      # saveCart, getOrAssignCart, placeOrder
+    │   │   ├── store/posSlice.ts
+    │   │   ├── types.ts                    # CartItem, Customer, Medicine, PaymentMethod, etc.
+    │   │   ├── utils.ts                    # formatAmount and other helpers
+    │   │   └── constants.ts
+    │   │
+    │   ├── inventory/
+    │   │   ├── screens/
+    │   │   │   ├── InventoryScreen.tsx
+    │   │   │   └── InventoryDetailsScreen.tsx
+    │   │   ├── components/
+    │   │   │   ├── InventoryCard.tsx
+    │   │   │   ├── InventorySummaryCard.tsx
+    │   │   │   ├── MedicineDetailModal.tsx
+    │   │   │   ├── AddStockModal.tsx
+    │   │   │   ├── RemoveStockModal.tsx
+    │   │   │   ├── QuickAddMedicineModal.tsx
+    │   │   │   └── BarcodeScannerModal.tsx
+    │   │   ├── hooks/useInventory.ts
+    │   │   ├── services/inventoryService.ts
+    │   │   ├── store/inventorySlice.ts
+    │   │   └── types.ts
+    │   │
+    │   ├── orders/
+    │   │   ├── screens/OrdersScreen.tsx
+    │   │   ├── components/
+    │   │   │   ├── OrderCard.tsx
+    │   │   │   ├── OrderDetailModal.tsx
+    │   │   │   ├── OrderSummaryModal.tsx
+    │   │   │   ├── OrdersSummaryCard.tsx
+    │   │   │   └── OrdersTabs.tsx
+    │   │   ├── hooks/useOrders.ts
+    │   │   ├── services/ordersService.ts
+    │   │   ├── store/ordersSlice.ts
+    │   │   └── types.ts
+    │   │
+    │   ├── reports/
+    │   │   ├── screens/ReportsScreen.tsx
+    │   │   ├── components/ReportsSummaryCard.tsx
+    │   │   ├── hooks/useReports.ts
+    │   │   ├── services/reportsService.ts
+    │   │   └── store/reportsSlice.ts
+    │   │
+    │   ├── attendance/
+    │   │   ├── screens/AttendanceScreen.tsx
+    │   │   ├── components/AttendanceSummaryCard.tsx
+    │   │   ├── hooks/useAttendance.ts
+    │   │   ├── services/attendanceService.ts
+    │   │   └── store/attendanceSlice.ts
+    │   │
+    │   └── settings/
+    │       ├── screens/
+    │       │   ├── SettingsScreen.tsx
+    │       │   ├── SettingsDetailsScreen.tsx
+    │       │   ├── CustomersScreen.tsx
+    │       │   ├── CustomerDetailsScreen.tsx
+    │       │   ├── OrderHistoryScreen.tsx
+    │       │   ├── ProfileScreen.tsx
+    │       │   └── AboutScreen.tsx
+    │       ├── components/
+    │       │   └── ThemeSelectorCard.tsx
+    │       ├── hooks/useSettings.ts
+    │       ├── services/
+    │       │   ├── customerService.ts
+    │       │   ├── profileService.ts
+    │       │   └── settingsService.ts
+    │       ├── store/settingsSlice.ts      # themeMode, systemScheme state
+    │       └── types.ts
+    │
+    └── shared/
+        ├── components/
+        │   ├── AppButton.tsx
+        │   ├── AppCard.tsx
+        │   ├── AppInput.tsx
+        │   ├── AppModal.tsx
+        │   ├── ScreenLayout.tsx
+        │   ├── SearchableDropdown.tsx
+        │   └── index.ts
+        ├── constants/
+        │   ├── routes.ts               # TAB_ROUTES and STACK_ROUTES constants
+        │   └── layout.ts               # SCREEN_BOTTOM_PADDING and other layout values
+        ├── theme/
+        │   ├── colors.ts               # Base color palette
+        │   ├── index.ts                # AppTheme type, lightTheme, darkTheme, resolveTheme()
+        │   └── useAppTheme.ts          # Hook returning the current resolved theme
+        └── utils/
+            ├── auth.ts                 # Auth utility helpers
+            └── format.ts              # Generic formatting utilities
+```
 
-# Troubleshooting
+---
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+## State Management
 
-# Learn More
+The Redux store (`src/app/store.ts`) combines eight feature slices:
 
-To learn more about React Native, take a look at the following resources:
+| Slice key | Feature |
+|---|---|
+| `auth` | Login state, session, hydration flag |
+| `dashboard` | KPI data, recent sales |
+| `pos` | Bill total |
+| `orders` | Order list and filters |
+| `inventory` | Medicine/stock list |
+| `reports` | Report data |
+| `attendance` | Attendance records |
+| `settings` | Theme mode, system scheme |
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+---
+
+## Theming
+
+Three modes are supported: `light`, `dark`, `system`.
+
+- `resolveTheme(mode, systemScheme)` in `src/shared/theme/index.ts` returns an `AppTheme` object.
+- `useAppTheme()` hook gives components access to the current theme.
+- The `RootNavigator` syncs the device color scheme into Redux on mount and forwards it to React Navigation's `NavigationContainer`.
+
+---
+
+## Scripts
+
+```sh
+npm start          # Start Metro bundler
+npm run android    # Build and run on Android
+npm run ios        # Build and run on iOS
+npm run lint       # ESLint
+npm test           # Jest
+```
+
+---
+
+## Troubleshooting
+
+- **Metro cache issues**: `npm start -- --reset-cache`
+- **iOS build fails**: Run `bundle exec pod install` then clean build in Xcode
+- **Android build fails**: Run `./gradlew clean` inside the `android/` directory
+- **API unreachable**: The backend uses an ngrok tunnel — update the base URLs in the service files when the tunnel URL changes
+
+---
+
+## Learn More
+
+- [React Native Docs](https://reactnative.dev/docs/getting-started)
+- [Redux Toolkit Docs](https://redux-toolkit.js.org/)
+- [React Navigation Docs](https://reactnavigation.org/docs/getting-started)
+- [Frappe Framework Docs](https://frappeframework.com/docs)

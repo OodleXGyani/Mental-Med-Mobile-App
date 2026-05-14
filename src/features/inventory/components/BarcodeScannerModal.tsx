@@ -10,14 +10,7 @@ import {
   View,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import {
-  useCameraDevice,
-  useCameraPermission,
-} from 'react-native-vision-camera';
-import {
-  CodeScanner,
-  type Barcode,
-} from 'react-native-vision-camera-barcode-scanner';
+import CameraKit, { Camera, CameraType } from 'react-native-camera-kit';
 import { BarcodeScannedItem } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
@@ -28,18 +21,27 @@ type Props = {
   onScannedItem: (item: BarcodeScannedItem) => void;
 };
 
+type PermissionState = 'unknown' | 'granted' | 'denied';
+
 export const BarcodeScannerModal = ({
   visible,
   company,
   onClose,
   onScannedItem,
 }: Props) => {
-  const device = useCameraDevice('back');
-  const { hasPermission, canRequestPermission, requestPermission } =
-    useCameraPermission();
+  const [permission, setPermission] = useState<PermissionState>('unknown');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const scannedRef = useRef(false);
+
+  const checkPermission = useCallback(async () => {
+    try {
+      const granted = await CameraKit.requestDeviceCameraAuthorization();
+      setPermission(granted ? 'granted' : 'denied');
+    } catch {
+      setPermission('denied');
+    }
+  }, []);
 
   useEffect(() => {
     if (!visible) {
@@ -49,11 +51,8 @@ export const BarcodeScannerModal = ({
     scannedRef.current = false;
     setError('');
     setLoading(false);
-
-    if (!hasPermission && canRequestPermission) {
-      void requestPermission();
-    }
-  }, [canRequestPermission, hasPermission, requestPermission, visible]);
+    void checkPermission();
+  }, [checkPermission, visible]);
 
   const submitBarcode = useCallback(
     async (barcode: string) => {
@@ -84,20 +83,6 @@ export const BarcodeScannerModal = ({
     [company, onClose, onScannedItem],
   );
 
-  const handleBarcodeScanned = useCallback(
-    (barcodes: Barcode[]) => {
-      const barcodeValue = barcodes.find(
-        barcode => barcode.rawValue || barcode.displayValue,
-      );
-      const value = barcodeValue?.rawValue ?? barcodeValue?.displayValue;
-
-      if (value) {
-        void submitBarcode(value);
-      }
-    },
-    [submitBarcode],
-  );
-
   const handleClose = () => {
     scannedRef.current = false;
     setError('');
@@ -106,7 +91,8 @@ export const BarcodeScannerModal = ({
   };
 
   const renderScannerContent = () => {
-    if (!hasPermission) {
+    if (permission !== 'granted') {
+      const canRequest = permission === 'unknown';
       return (
         <View style={styles.stateContainer}>
           <Text style={styles.stateTitle}>Camera access needed</Text>
@@ -116,38 +102,30 @@ export const BarcodeScannerModal = ({
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={
-              canRequestPermission
-                ? requestPermission
-                : () => Linking.openSettings()
+              canRequest ? checkPermission : () => Linking.openSettings()
             }
           >
             <Text style={styles.primaryButtonText}>
-              {canRequestPermission ? 'Allow Camera' : 'Open Settings'}
+              {canRequest ? 'Allow Camera' : 'Open Settings'}
             </Text>
           </TouchableOpacity>
         </View>
       );
     }
 
-    if (!device) {
-      return (
-        <View style={styles.stateContainer}>
-          <Text style={styles.stateTitle}>No back camera found</Text>
-          <Text style={styles.stateText}>
-            Barcode scanning needs a back camera on this device.
-          </Text>
-        </View>
-      );
-    }
-
     return (
       <View style={styles.scannerContainer}>
-        <CodeScanner
+        <Camera
           style={styles.scanner}
-          isActive={visible && !loading}
-          barcodeFormats={['all-formats']}
-          onBarcodeScanned={handleBarcodeScanned}
-          onError={scannerError => setError(scannerError.message)}
+          cameraType={CameraType.Back}
+          scanBarcode={visible && !loading}
+          showFrame={false}
+          onReadCode={(event: { nativeEvent: { codeStringValue: string } }) => {
+            const value = event.nativeEvent.codeStringValue;
+            if (value) {
+              void submitBarcode(value);
+            }
+          }}
         />
         <View pointerEvents="none" style={styles.scanFrame}>
           <View style={[styles.frameCorner, styles.frameCornerTopLeft]} />

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -workspace ios/Meds.xcworkspace -configuration Debug -scheme Meds -destination \"id=3B68DAF7-2F67-4B39-A18F-2499E970E3C1\")",
+      "Read(//opt/homebrew/Cellar/node/25.9.0_2/bin/**)",
+      "Read(//opt/homebrew/Cellar/node/**)",
+      "Bash(xcodebuild -workspace Meds.xcworkspace -configuration Debug -scheme Meds -destination \"generic/platform=iOS Simulator\")",
+      "Bash(npm run *)",
+      "Bash(xcodebuild -workspace Meds.xcworkspace -configuration Debug -scheme Meds -sdk iphonesimulator ARCHS=arm64 ONLY_ACTIVE_ARCH=NO)",
+      "Bash(grep -v \"^[[:space:]]*export\\\\|^[[:space:]]*$\")"
+    ]
+  }
+}
