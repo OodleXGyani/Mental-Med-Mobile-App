@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+
 export type LeaveTypeOption = {
   label: string;
   value: string;
@@ -20,7 +22,7 @@ export const attendanceService = {
     employee: string,
   ) => {
     const url = new URL(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.mobile_api.attendance.get_attendance_summary',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.attendance.get_attendance_summary`,
     );
     url.searchParams.set('from_date', fromDate);
     url.searchParams.set('to_date', toDate);
@@ -56,7 +58,7 @@ export const attendanceService = {
     employee: string,
   ) => {
     const url = new URL(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.mobile_api.attendance.get_attendance_by_date',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.attendance.get_attendance_by_date`,
     );
     url.searchParams.set('from_date', fromDate);
     url.searchParams.set('to_date', toDate);
@@ -91,7 +93,7 @@ export const attendanceService = {
     longitude: number;
   }) => {
     const response = await fetch(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/resource/Employee%20Checkin',
+      `${API_BASE_URL}api/resource/Employee%20Checkin`,
       {
         method: 'POST',
         headers: {
@@ -120,7 +122,7 @@ export const attendanceService = {
 
   fetchLeaveTypeDropdown: async (): Promise<LeaveTypeOption[]> => {
     const response = await fetch(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.staff_management.get_leave_type_dropdown',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.staff_management.get_leave_type_dropdown`,
       {
         method: 'GET',
         headers: {
@@ -156,7 +158,7 @@ export const attendanceService = {
 
   createLeaveRequest: async (payload: CreateLeaveRequestPayload) => {
     const response = await fetch(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.staff_management.create_leave_request',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.staff_management.create_leave_request`,
       {
         method: 'POST',
         headers: {

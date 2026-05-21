@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "782722980697",
+    "project_id": "astro-test-bfdd4",
+    "storage_bucket": "astro-test-bfdd4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:782722980697:android:5bfd4094720ec343318a48",
+        "android_client_info": {
+          "package_name": "com.meds"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdNP8_yHi0cPteYa8NKqIuL0nb_swoenY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

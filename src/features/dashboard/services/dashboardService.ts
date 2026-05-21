@@ -3,6 +3,7 @@ import {
   AUTH_SESSION_EXPIRED,
   isAuthSessionExpiredResponse,
 } from '../../../shared/utils/auth';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
 export type DashboardStats = {
   todaySales: number;
@@ -27,7 +28,7 @@ export type DashboardRecentSale = {
 };
 
 const DASHBOARD_SUMMARY_URL =
-  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.mobile_api.dashboard.get_dashboard_summary';
+  `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.dashboard.get_dashboard_summary`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();

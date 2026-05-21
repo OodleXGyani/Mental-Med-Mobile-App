@@ -6,8 +6,8 @@ import {
   Medicine,
   APIResponse,
 } from '../types';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
-const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const CART_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.cart`;
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
 

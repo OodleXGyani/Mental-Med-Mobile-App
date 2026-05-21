@@ -5,8 +5,8 @@ import {
   BarcodeScannedItem,
   Medicine,
 } from '../types';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
-const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
 const ADJUST_STOCK_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.adjust_stock`;
 const BARCODE_SCAN_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;

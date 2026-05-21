@@ -16,8 +16,7 @@ import {
   SearchableDropdown,
   DropdownOption,
 } from '../../../shared/components/SearchableDropdown';
-
-const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
 const toDateValue = (value: Date) => {
   const year = value.getFullYear();

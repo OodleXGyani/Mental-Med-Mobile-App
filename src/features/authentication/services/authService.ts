@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
 export type LoginPayload = {
   email: string;
@@ -50,9 +51,9 @@ type ForgotPasswordApiResponse = {
 };
 
 const LOGIN_URL =
-  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_auth.login';
+  `${API_BASE_URL}api/method/erp_pharmacy.api.user_auth.login`;
 const FORGOT_PASSWORD_URL =
-  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_auth.forgot_password';
+  `${API_BASE_URL}api/method/erp_pharmacy.api.user_auth.forgot_password`;
 const AUTH_SESSION_STORAGE_KEY = '@meds/auth-session';
 
 const getErrorMessage = (responseBody: unknown, fallback: string) => {

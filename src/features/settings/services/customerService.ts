@@ -6,8 +6,8 @@ import {
   CustomerInvoicesResponse,
   CustomerListItem,
 } from '../types';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
-const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const CUSTOMER_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.customer.customer`;
 
 const parseJsonSafely = async (response: Response) => {

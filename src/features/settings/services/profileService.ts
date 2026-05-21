@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+
 export type UserProfile = {
   employee: string;
   employee_name: string;
@@ -25,7 +27,7 @@ export type UserProfile = {
 export const profileService = {
   fetchUserProfile: async (): Promise<UserProfile> => {
     const url = new URL(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.mobile_api.profile.get_user_profile',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.profile.get_user_profile`,
     );
 
     const response = await fetch(url.toString(), {

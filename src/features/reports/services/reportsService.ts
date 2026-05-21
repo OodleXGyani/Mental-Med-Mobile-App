@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+
 export type SalesDashboardReport = {
   filter: string;
   from_date: string;
@@ -27,7 +29,7 @@ export const reportsService = {
     filterType: string,
   ): Promise<SalesDashboardReport> => {
     const url = new URL(
-      'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.mobile_api.report.get_sales_dashboard_report',
+      `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.report.get_sales_dashboard_report`,
     );
     url.searchParams.set('filter_type', filterType);
 

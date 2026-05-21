@@ -13,13 +13,13 @@ import {
   AUTH_SESSION_EXPIRED,
   isAuthSessionExpiredResponse,
 } from '../../../shared/utils/auth';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
-const API_BASE_URL = 'https://brodie-unsooty-kenny.ngrok-free.dev/';
 const ORDERS_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.order_flow`;
 const CUSTOMER_INVOICES_URL =
-  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.user_page.customer.customer.get_customer_invoices';
+  `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.customer.customer.get_customer_invoices`;
 const SALES_INVOICE_DETAILS_URL =
-  'https://brodie-unsooty-kenny.ngrok-free.dev/api/method/erp_pharmacy.api.sales.sales_invoice.get_sales_invoice_details';
+  `${API_BASE_URL}api/method/erp_pharmacy.api.sales.sales_invoice.get_sales_invoice_details`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
