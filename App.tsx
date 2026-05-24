@@ -7,6 +7,7 @@ import { store } from './src/app/store';
 import { bootstrapAuth } from './src/features/authentication/store/authSlice';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { resolveTheme } from './src/shared/theme';
+import { useFCM } from './src/shared/hooks/useFCM';
 
 const AuthBootstrapGate = () => {
   const dispatch = useAppDispatch();
@@ -41,6 +42,9 @@ const AppShell = () => {
   const mode = useAppSelector(state => state.settings.themeMode);
   const systemScheme = useAppSelector(state => state.settings.systemScheme);
   const theme = resolveTheme(mode, systemScheme);
+
+  // Initialize Firebase Cloud Messaging (FCM) hook
+  useFCM();
 
   return (
     <SafeAreaProvider>

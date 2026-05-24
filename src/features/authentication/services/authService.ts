@@ -54,6 +54,8 @@ const LOGIN_URL =
   `${API_BASE_URL}api/method/erp_pharmacy.api.user_auth.login`;
 const FORGOT_PASSWORD_URL =
   `${API_BASE_URL}api/method/erp_pharmacy.api.user_auth.forgot_password`;
+const UPLOAD_FCM_TOKEN_URL =
+  `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.fcm_api.save_fcm_token`;
 const AUTH_SESSION_STORAGE_KEY = '@meds/auth-session';
 
 const getErrorMessage = (responseBody: unknown, fallback: string) => {
@@ -258,5 +260,32 @@ export const authService = {
     }
 
     return parseForgotPasswordResponse(responseBody);
+  },
+  uploadFCMToken: async (email: string, token: string, deviceType: 'android' | 'ios'): Promise<boolean> => {
+    const trimmedEmail = email.trim();
+    const trimmedToken = token.trim();
+
+    if (!trimmedEmail || !trimmedToken) {
+      throw new Error('Email and FCM token are required.');
+    }
+
+    try {
+      const response = await fetch(UPLOAD_FCM_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: trimmedToken,
+          device_type: deviceType,
+        }),
+      });
+      console.log('FCM Token upload response status:', response.status);
+      return response.ok;
+    } catch (error) {
+      console.error('Failed to upload FCM Token to backend:', error);
+      return false;
+    }
   },
 };
