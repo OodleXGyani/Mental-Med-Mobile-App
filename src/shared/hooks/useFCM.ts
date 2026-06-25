@@ -21,20 +21,22 @@ export const useFCM = () => {
           
           // 2. Register device for remote messages (Required for iOS, safe for Android)
           try {
-            await messaging().registerDeviceForRemoteMessages();
-          } catch (regError) {
-            console.log('FCM Registration Warning (Safe to ignore):', regError);
-          }
+            if (!messaging().isDeviceRegisteredForRemoteMessages) {
+              await messaging().registerDeviceForRemoteMessages();
+            }
 
-          // 3. Fetch the registration token
-          const token = await messaging().getToken();
-          console.log('FCM Token retrieved:', token);
+            // 3. Fetch the registration token
+            const token = await messaging().getToken();
+            console.log('FCM Token retrieved:', token);
 
-          // 3. Upload token to Python server if user is logged in
-          if (isAuthenticated && session?.email && token) {
-            const deviceType = Platform.OS === 'ios' ? 'ios' : 'android';
-            const success = await authService.uploadFCMToken(session.email, token, deviceType);
-            console.log('FCM Token sync status with backend:', success ? 'Success' : 'Failed');
+            // 4. Upload token to Python server if user is logged in
+            if (isAuthenticated && session?.email && token) {
+              const deviceType = Platform.OS === 'ios' ? 'ios' : 'android';
+              const success = await authService.uploadFCMToken(session.email, token, deviceType);
+              console.log('FCM Token sync status with backend:', success ? 'Success' : 'Failed');
+            }
+          } catch (fcmError) {
+            console.log('FCM Registration/Token Warning (Safe to ignore on simulator):', fcmError);
           }
         } else {
           console.log('FCM Notification permission denied.');

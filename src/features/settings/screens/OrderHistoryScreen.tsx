@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { STACK_ROUTES } from '../../../shared/constants/routes';
 import {
   ActivityIndicator,
   Alert,
@@ -283,7 +284,7 @@ export const OrderHistoryScreen = () => {
       >
         <View style={styles.header}>
           <Pressable
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate(STACK_ROUTES.SETTINGS_HOME)}
             hitSlop={8}
             style={styles.backButton}
           >
