@@ -11,12 +11,13 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Mail } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { AuthStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
 import { authService } from '../services/authService';
+import { AppIcon } from '../../../shared/components';
 
 type Props = NativeStackScreenProps<
   AuthStackParamList,
@@ -31,6 +32,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
 
   const handleSendResetLink = async () => {
     setError('');
@@ -71,111 +73,136 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
           styles.content,
           {
             paddingTop: Math.max(insets.top, 10) + 16,
-            paddingBottom: Math.max(insets.bottom, 14) + 24,
+            paddingBottom: Math.max(insets.bottom, 20) + 32,
           },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
+        {/* Back Button */}
         <Pressable
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
+          style={[
+            styles.backButton,
+            {
+              backgroundColor: theme.dark ? '#2A2A2A' : '#F0F0F0',
+            },
+          ]}
           disabled={loading}
         >
-          <ChevronLeft size={24} color={theme.colors.text} strokeWidth={2.5} />
+          <ChevronLeft size={22} color={theme.colors.text} strokeWidth={2.5} />
         </Pressable>
 
         {submitted ? (
+          /* ── Success State ── */
           <View style={styles.successSection}>
             <View
               style={[
-                styles.successIcon,
+                styles.successIconCircle,
                 { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
               ]}
             >
-              <Text style={[styles.checkmark, { color: theme.colors.primary }]}>
-                ✓
-              </Text>
+              <AppIcon name="CheckCircle2" size={48} color={theme.colors.primary} />
             </View>
             <Text style={[styles.successTitle, { color: theme.colors.text }]}>
-              Reset Link Sent
+              Email Sent!
             </Text>
-            <Text
-              style={[styles.successMessage, { color: theme.colors.mutedText }]}
-            >
+            <Text style={[styles.successMessage, { color: theme.colors.mutedText }]}>
               {successMessage ||
-                "Check your email for the password reset link. We'll redirect you back to login shortly."}
+                "Check your inbox for the password reset link. Redirecting you back shortly."}
             </Text>
           </View>
         ) : (
+          /* ── Form State ── */
           <>
-            <View style={styles.iconSection}>
+            {/* Icon & Title */}
+            <View style={styles.headerSection}>
               <View
                 style={[
                   styles.mailIconCircle,
                   { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
                 ]}
               >
-                <Mail size={40} color={theme.colors.primary} strokeWidth={2} />
+                <AppIcon name="Mail" size={36} color={theme.colors.primary} />
               </View>
-            </View>
-
-            <View style={styles.titleSection}>
               <Text style={[styles.title, { color: theme.colors.text }]}>
                 Forgot Password?
               </Text>
-              <Text
-                style={[styles.subtitle, { color: theme.colors.mutedText }]}
-              >
-                Enter your email to receive a reset link
+              <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
+                Enter your email and we'll send you a reset link
               </Text>
             </View>
 
-            <View style={styles.formSection}>
+            {/* Form Card */}
+            <View
+              style={[
+                styles.formCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              {/* Email Input */}
               <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>
+                <Text style={[styles.label, { color: theme.colors.mutedText }]}>
                   Email Address
                 </Text>
-                <TextInput
+                <View
                   style={[
-                    styles.input,
+                    styles.inputWrapper,
                     {
-                      backgroundColor: theme.colors.card,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text,
+                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                      borderColor: emailFocused
+                        ? theme.colors.primary
+                        : theme.colors.border,
                     },
                   ]}
-                  placeholder="your@email.com"
-                  placeholderTextColor={theme.colors.mutedText}
-                  value={email}
-                  onChangeText={nextEmail => {
-                    setEmail(nextEmail);
-                    setError('');
-                  }}
-                  editable={!loading}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+                >
+                  <AppIcon
+                    name="Mail"
+                    size={18}
+                    color={emailFocused ? theme.colors.primary : theme.colors.mutedText}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholder="you@example.com"
+                    placeholderTextColor={theme.colors.mutedText}
+                    value={email}
+                    onChangeText={nextEmail => {
+                      setEmail(nextEmail);
+                      setError('');
+                    }}
+                    editable={!loading}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
               </View>
 
+              {/* Error */}
               {error ? (
                 <View
                   style={[
                     styles.errorBox,
                     {
-                      backgroundColor: theme.dark ? '#3B1E1E' : '#FFEBEE',
-                      borderLeftColor: theme.colors.danger,
+                      backgroundColor: theme.dark ? '#3B1E1E' : '#FFF1F1',
+                      borderColor: theme.colors.danger,
                     },
                   ]}
                 >
-                  <Text
-                    style={[styles.errorText, { color: theme.colors.danger }]}
-                  >
+                  <AppIcon name="AlertCircle" size={15} color={theme.colors.danger} style={styles.errorIcon} />
+                  <Text style={[styles.errorText, { color: theme.colors.danger }]}>
                     {error}
                   </Text>
                 </View>
               ) : null}
 
+              {/* Send Button */}
               <Pressable
                 style={[
                   styles.sendButton,
@@ -188,20 +215,19 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.sendButtonText}>Send Reset Link</Text>
+                  <>
+                    <Text style={styles.sendButtonText}>Send Reset Link</Text>
+                    <AppIcon name="ArrowRight" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                  </>
                 )}
               </Pressable>
             </View>
 
-            <View
-              style={[
-                styles.infoBox,
-                { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
-              ]}
-            >
-              <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-                Don't receive the email? Check your spam folder or try another
-                email address.
+            {/* Info Footer */}
+            <View style={styles.footer}>
+              <AppIcon name="Info" size={13} color={theme.colors.mutedText} />
+              <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
+                {' '}Check spam if you don't receive it
               </Text>
             </View>
           </>
@@ -219,7 +245,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    flexGrow: 1,
   },
   backButton: {
     width: 40,
@@ -227,11 +254,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 28,
   },
-  iconSection: {
+  headerSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   mailIconCircle: {
     width: 80,
@@ -239,83 +266,122 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  titleSection: {
-    marginBottom: 32,
-    alignItems: 'center',
+    marginBottom: 18,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
+    letterSpacing: -0.5,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 8,
   },
-  formSection: {
-    marginBottom: 24,
+  formCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
   },
   inputGroup: {
     marginBottom: 16,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
+    height: 52,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '500',
+    paddingVertical: 0,
   },
   errorBox: {
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 12,
-    borderLeftWidth: 4,
+    marginBottom: 16,
+  },
+  errorIcon: {
+    marginRight: 8,
   },
   errorText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
+    flex: 1,
   },
   sendButton: {
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: '#1CA39A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   sendButtonDisabled: {
     opacity: 0.7,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   sendButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  infoBox: {
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 20,
+  buttonIcon: {
+    marginLeft: 8,
   },
-  infoText: {
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
     fontSize: 12,
     fontWeight: '500',
-    textAlign: 'center',
   },
+  // ── Success State ──
   successSection: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
   },
-  successIcon: {
+  successIconCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -323,19 +389,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
   },
-  checkmark: {
-    fontSize: 48,
-    fontWeight: '800',
-  },
   successTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     marginBottom: 12,
+    letterSpacing: -0.5,
   },
   successMessage: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    lineHeight: 22,
   },
 });

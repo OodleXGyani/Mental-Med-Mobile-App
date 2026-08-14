@@ -9,14 +9,15 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Link } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { AuthStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
+import { AppIcon } from '../../../shared/components';
 
 type Props = NativeStackScreenProps<
   AuthStackParamList,
@@ -29,6 +30,8 @@ export const LoginScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const { login, loading, error } = useAuth();
 
   const handleLogin = async () => {
@@ -49,76 +52,111 @@ export const LoginScreen = ({ navigation }: Props) => {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: Math.max(insets.top, 10) + 16,
-            paddingBottom: Math.max(insets.bottom, 14) + 24,
+            paddingTop: Math.max(insets.top, 15) + 15,
+            paddingBottom: Math.max(insets.bottom, 20) + 32,
           },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View
-            style={[
-              styles.logoCircle,
-              { backgroundColor: theme.colors.primary },
-            ]}
-          >
-            <Link size={36} color="#FFFFFF" strokeWidth={2.5} />
-          </View>
+          <Image
+            source={require('../../../assets/images/Medslogo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Meds15 Staff
+            Welcome Back
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
-            Sign in to your account
+            Sign in to your Meds15 Staff account
           </Text>
         </View>
 
-        {/* Form Section */}
-        <View style={styles.formSection}>
-          {/* email Input */}
+        {/* Form Card */}
+        <View
+          style={[
+            styles.formCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          {/* Email Input */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Email
+            <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+              Email Address
             </Text>
-            <TextInput
+            <View
               style={[
-                styles.input,
+                styles.inputWrapper,
                 {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
+                  backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                  borderColor: emailFocused
+                    ? theme.colors.primary
+                    : theme.colors.border,
                 },
               ]}
-              placeholder="Enter your email"
-              placeholderTextColor={theme.colors.mutedText}
-              value={email}
-              onChangeText={setEmail}
-              editable={!loading}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            >
+              <AppIcon
+                name="Mail"
+                size={18}
+                color={emailFocused ? theme.colors.primary : theme.colors.mutedText}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                placeholder="you@example.com"
+                placeholderTextColor={theme.colors.mutedText}
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+              />
+            </View>
           </View>
 
           {/* Password Input */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Password
-            </Text>
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+                Password
+              </Text>
+              <Pressable onPress={handleForgotPassword} disabled={loading}>
+                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
+                  Forgot password?
+                </Text>
+              </Pressable>
+            </View>
             <View
               style={[
-                styles.passwordInputWrapper,
+                styles.inputWrapper,
                 {
-                  backgroundColor: theme.colors.card,
-                  borderColor: theme.colors.border,
+                  backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                  borderColor: passwordFocused
+                    ? theme.colors.primary
+                    : theme.colors.border,
                 },
               ]}
             >
+              <AppIcon
+                name="Lock"
+                size={18}
+                color={passwordFocused ? theme.colors.primary : theme.colors.mutedText}
+                style={styles.inputIcon}
+              />
               <TextInput
-                style={[styles.passwordInput, { color: theme.colors.text }]}
+                style={[styles.input, { color: theme.colors.text }]}
                 placeholder="Enter your password"
                 placeholderTextColor={theme.colors.mutedText}
                 value={password}
@@ -126,15 +164,40 @@ export const LoginScreen = ({ navigation }: Props) => {
                 secureTextEntry={!showPassword}
                 editable={!loading}
                 autoCapitalize="none"
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
+                style={styles.eyeButton}
+                hitSlop={8}
               >
-                <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <AppIcon
+                  name={showPassword ? 'Eye' : 'EyeOff'}
+                  size={18}
+                  color={theme.colors.mutedText}
+                />
               </Pressable>
             </View>
           </View>
+
+          {/* Error Message */}
+          {error ? (
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: theme.dark ? '#3B1E1E' : '#FFF1F1',
+                  borderColor: theme.colors.danger,
+                },
+              ]}
+            >
+              <AppIcon name="AlertCircle" size={15} color={theme.colors.danger} style={styles.errorIcon} />
+              <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Sign In Button */}
           <Pressable
@@ -149,54 +212,19 @@ export const LoginScreen = ({ navigation }: Props) => {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.signInButtonText}>Sign In</Text>
+              <>
+                <Text style={styles.signInButtonText}>Sign In</Text>
+                <AppIcon name="ArrowRight" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+              </>
             )}
-          </Pressable>
-
-          {/* Error Message */}
-          {error ? (
-            <View
-              style={[
-                styles.errorBox,
-                {
-                  backgroundColor: theme.dark ? '#3B1E1E' : '#FFEBEE',
-                  borderLeftColor: theme.colors.danger,
-                },
-              ]}
-            >
-              <Text style={[styles.errorText, { color: theme.colors.danger }]}>
-                {error}
-              </Text>
-            </View>
-          ) : null}
-
-          {/* Forgot Password Link */}
-          <Pressable
-            onPress={handleForgotPassword}
-            style={styles.forgotPasswordLink}
-            disabled={loading}
-          >
-            <Text
-              style={[
-                styles.forgotPasswordText,
-                { color: theme.colors.primary },
-              ]}
-            >
-              Forgot password?
-            </Text>
           </Pressable>
         </View>
 
-        {/* Info Box */}
-        <View
-          style={[
-            styles.infoBox,
-            { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
-          ]}
-        >
-          <Text style={[styles.infoText, { color: theme.colors.primary }]}>
-            This screen uses the live ERP Pharmacy login API and shows server or
-            network errors inline.
+        {/* Footer */}
+        <View style={styles.footer}>
+          <AppIcon name="Shield" size={13} color={theme.colors.mutedText} />
+          <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
+            {' '}Secured by Meds15 ERP
           </Text>
         </View>
       </ScrollView>
@@ -210,134 +238,140 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: '#F5F5F6',
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 0,
   },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#1CA39A',
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 150,
+    height: 80,
   },
   titleSection: {
-    marginBottom: 32,
     alignItems: 'center',
+    marginBottom: 28,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#2A2A2A',
-    marginBottom: 8,
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#9B8378',
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
-  formSection: {
-    marginBottom: 24,
+  formCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
   },
   inputGroup: {
     marginBottom: 16,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2A2A2A',
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#2A2A2A',
-    fontWeight: '500',
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
-  passwordInputWrapper: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
+    borderWidth: 1.5,
+    borderRadius: 12,
     paddingHorizontal: 14,
+    height: 52,
   },
-  passwordInput: {
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#2A2A2A',
+    fontSize: 15,
     fontWeight: '500',
+    paddingVertical: 0,
   },
-  eyeIcon: {
-    padding: 8,
+  eyeButton: {
+    paddingLeft: 10,
   },
-  eyeText: {
-    fontSize: 18,
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  errorIcon: {
+    marginRight: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
   },
   signInButton: {
-    backgroundColor: '#1CA39A',
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    flexDirection: 'row',
+    marginTop: 4,
+    shadowColor: '#1CA39A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   signInButtonDisabled: {
     opacity: 0.7,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   signInButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  errorBox: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E03131',
-  },
-  errorText: {
-    color: '#E03131',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  forgotPasswordLink: {
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 8,
+  buttonIcon: {
+    marginLeft: 8,
   },
   forgotPasswordText: {
-    color: '#1CA39A',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
-  infoBox: {
-    backgroundColor: '#E8F5F4',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 20,
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
   },
-  infoText: {
-    color: '#2B9A92',
+  footerText: {
     fontSize: 12,
     fontWeight: '500',
-    textAlign: 'center',
   },
 });

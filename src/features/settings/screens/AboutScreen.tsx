@@ -7,6 +7,7 @@ import {
   View,
   Pressable,
   Linking,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Zap, Mail, Phone, Globe } from 'lucide-react-native';
@@ -66,11 +67,11 @@ export const AboutScreen = () => {
 
       {/* Logo Section */}
       <View style={styles.logoSection}>
-        <View
-          style={[styles.logoBadge, { backgroundColor: theme.colors.primary }]}
-        >
-          <Zap size={40} color="#FFFFFF" strokeWidth={2} />
-        </View>
+        <Image
+          source={require('../../../assets/images/Medslogo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={[styles.appName, { color: theme.colors.text }]}>
           Meds15
         </Text>
@@ -291,13 +292,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingVertical: 12,
   },
-  logoBadge: {
+  logoImage: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1CA39A',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 12,
   },
   appName: {
