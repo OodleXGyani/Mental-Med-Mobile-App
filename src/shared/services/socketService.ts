@@ -15,8 +15,9 @@ class SocketService {
   private listeners: Set<CrudEventListener> = new Set();
   private currentSocketUrl: string | null = null;
   private currentSid: string | null = null;
+  private currentUserEmail: string | null = null;
 
-  public connect(socketUrl: string, socketPath: string = '/socket.io', sid?: string): void {
+  public connect(socketUrl: string, socketPath: string = '/socket.io', sid?: string, userEmail?: string): void {
     if (!socketUrl) {
       console.warn('[SocketService] connect() called with empty socketUrl');
       return;
@@ -35,6 +36,7 @@ class SocketService {
 
     this.currentSocketUrl = socketUrl;
     this.currentSid = sid ?? null;
+    this.currentUserEmail = userEmail ?? null;
 
     let origin = '';
     let host = '';
@@ -86,6 +88,19 @@ class SocketService {
           namespace: (this.socket as any)?.nsp,
           connected: this.socket?.connected,
         }, null, 2));
+
+        if (this.currentUserEmail) {
+          console.log(`[SocketService] 📡 Subscribing to rooms for user: ${this.currentUserEmail}`);
+          this.socket?.emit('user_subscribe', this.currentUserEmail);
+          this.socket?.emit('task_subscribe', this.currentUserEmail);
+        }
+
+        // Subscribe to relevant Doctypes to receive their crud_events
+        const doctypes = ['Customer', 'Sales Invoice', 'Payment Entry'];
+        doctypes.forEach((doctype) => {
+          console.log(`[SocketService] 📡 Subscribing to doctype: ${doctype}`);
+          this.socket?.emit('doctype_subscribe', doctype);
+        });
       });
 
       this.socket.on('connect_error', (error: any) => {

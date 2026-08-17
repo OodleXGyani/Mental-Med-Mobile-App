@@ -14,14 +14,8 @@ export const socketMiddleware: Middleware = (store) => {
     const socketPath = session.socketPath || '/socket.io';
     const sid = session.sid;
 
-    if (socketUrl) {
-      try {
-        const parsed = new URL(socketUrl);
-        socketUrl = parsed.origin;
-      } catch {
-        // Keep as-is
-      }
-    }
+    // Keep socketUrl as is to preserve the Frappe namespace in the pathname.
+    // E.g., https://domain.com/sitename -> we need the "/sitename" part for socket.io namespace.
 
     console.log('[SocketMiddleware] Preparing session for socket connection:\n' + JSON.stringify({
       tenantUrl: session.tenantUrl,
@@ -32,7 +26,7 @@ export const socketMiddleware: Middleware = (store) => {
     }, null, 2));
 
     if (socketUrl && sid) {
-      socketService.connect(socketUrl, socketPath, sid);
+      socketService.connect(socketUrl, socketPath, sid, session.email);
     }
   };
 
