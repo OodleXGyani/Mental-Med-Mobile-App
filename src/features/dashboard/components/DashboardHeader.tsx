@@ -24,8 +24,8 @@ export const DashboardHeader = ({ onPressNotification, username }: Props) => {
         </Text>
       </View>
       <Pressable style={styles.notificationWrap} onPress={onPressNotification}>
-        <Bell size={19} color={theme.colors.mutedText} strokeWidth={2.3} />
-        <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+        <Bell size={22} color={theme.colors.text} strokeWidth={2} />
+        <View style={[styles.badge, { backgroundColor: theme.colors.primary, borderColor: theme.colors.background }]}>
           <Text style={styles.badgeText}>3</Text>
         </View>
       </Pressable>
@@ -38,40 +38,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 13,
+    marginBottom: 10,
   },
   greeting: {
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#202224',
+    letterSpacing: -0.5,
   },
   subGreeting: {
-    color: '#A89D96',
-    marginTop: 3,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 13,
     fontWeight: '500',
   },
   notificationWrap: {
-    width: 28,
-    height: 28,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   badge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#1CA39A',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    top: -2,
-    right: -2,
+    top: 6,
+    right: 8,
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#F8F8F8', // Assuming background color
   },
   badgeText: {
     color: '#FFFFFF',
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

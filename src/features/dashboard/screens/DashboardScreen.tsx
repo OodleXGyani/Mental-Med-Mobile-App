@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -98,47 +98,56 @@ export const DashboardScreen = () => {
   ];
 
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: Math.max(insets.top, 10) + 6,
-          paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
-          flexGrow: 1,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <DashboardHeader
-        username={session?.username ?? session?.fullName ?? ''}
-        onPressNotification={() =>
-          navigation.navigate(STACK_ROUTES.NOTIFICATIONS_HOME)
-        }
-      />
+    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={{
+          paddingTop: Math.max(insets.top, 15) + 16,
+          paddingHorizontal: 25,
+        }}
+      >
+        <DashboardHeader
+          username={session?.username ?? session?.fullName ?? ''}
+          onPressNotification={() =>
+            navigation.navigate(STACK_ROUTES.NOTIFICATIONS_HOME)
+          }
+        />
+      </View>
 
-      {loading ? (
-        <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
-      ) : null}
-      <DashboardStatsGrid stats={stats} />
-      <DashboardQuickActions
-        actions={actions}
-        onPressAction={(tab: string) => navigation.navigate(tab)}
-      />
-      <DashboardRecentSales
-        sales={recentSales}
-        onPressViewAll={() =>
-          navigation.navigate(TAB_ROUTES.SETTINGS, {
-            screen: STACK_ROUTES.ORDERS_HISTORY,
-          })
-        }
-        onPressSale={() =>
-          navigation.navigate(TAB_ROUTES.SETTINGS, {
-            screen: STACK_ROUTES.ORDERS_HISTORY,
-          })
-        }
-      />
-    </ScrollView>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: 4,
+            paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
+            flexGrow: 1,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <ActivityIndicator style={styles.loader} color={theme.colors.primary} />
+        ) : null}
+        <DashboardStatsGrid stats={stats} />
+        <DashboardQuickActions
+          actions={actions}
+          onPressAction={(tab: string) => navigation.navigate(tab)}
+        />
+        <DashboardRecentSales
+          sales={recentSales}
+          onPressViewAll={() =>
+            navigation.navigate(TAB_ROUTES.SETTINGS, {
+              screen: STACK_ROUTES.ORDERS_HISTORY,
+            })
+          }
+          onPressSale={() =>
+            navigation.navigate(TAB_ROUTES.SETTINGS, {
+              screen: STACK_ROUTES.ORDERS_HISTORY,
+            })
+          }
+        />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -148,7 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F8F8',
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   loader: {
     marginBottom: 10,

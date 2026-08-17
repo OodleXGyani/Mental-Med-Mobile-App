@@ -77,28 +77,23 @@ export const DashboardRecentSales = ({
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    color: '#2D3035',
     fontSize: 15,
     fontWeight: '700',
-    marginTop: 12,
-    marginBottom: 10,
   },
   recentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 12,
+    marginTop: 4,
   },
   viewAll: {
-    color: '#3AA7A0',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
   },
   saleCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#EAEAEA',
     borderWidth: 1,
-    borderRadius: 11,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -107,18 +102,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   saleName: {
-    color: '#34373D',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
+    marginBottom: 2,
   },
   saleMeta: {
-    color: '#A69E98',
-    fontSize: 9.5,
-    marginTop: 2,
+    fontSize: 10,
   },
   saleAmount: {
-    color: '#2BAF81',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

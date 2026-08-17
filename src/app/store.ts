@@ -8,6 +8,8 @@ import { posReducer } from '../features/pos/store/posSlice';
 import { reportsReducer } from '../features/reports/store/reportsSlice';
 import { settingsReducer } from '../features/settings/store/settingsSlice';
 
+import { socketMiddleware } from './socketMiddleware';
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -19,7 +21,8 @@ export const store = configureStore({
     attendance: attendanceReducer,
     settings: settingsReducer,
   },
-  middleware: getDefaultMiddleware => getDefaultMiddleware(),
+  middleware: getDefaultMiddleware =>
+    getDefaultMiddleware().concat(socketMiddleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

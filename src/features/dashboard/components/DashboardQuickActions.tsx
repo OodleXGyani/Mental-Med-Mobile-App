@@ -36,7 +36,7 @@ export const DashboardQuickActions = ({ actions, onPressAction }: Props) => {
             <View
               style={[styles.actionIcon, { backgroundColor: action.color }]}
             >
-              <action.Icon size={16} color="#FFFFFF" strokeWidth={2.6} />
+              <action.Icon size={18} color="#FFFFFF" strokeWidth={2.4} />
             </View>
             <Text
               style={[styles.actionLabel, { color: theme.colors.mutedText }]}
@@ -52,32 +52,30 @@ export const DashboardQuickActions = ({ actions, onPressAction }: Props) => {
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    color: '#2D3035',
     fontSize: 15,
     fontWeight: '700',
-    marginTop: 12,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 12,
   },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 9,
+    marginBottom: 12,
   },
   actionItem: {
     alignItems: 'center',
     width: '22.5%',
   },
   actionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
   },
   actionLabel: {
-    color: '#5F6670',
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
   },
 });

@@ -20,6 +20,8 @@ import { orderActionFlow, statusMap } from '../types';
 import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { useAppTheme } from '../../../shared/theme';
 
+import { useCrudEventListener } from '../../../shared/hooks/useCrudEventListener';
+
 export const OrdersScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
@@ -45,6 +47,18 @@ export const OrdersScreen: React.FC = () => {
   }, []);
 
   useFocusEffect(
+    useCallback(() => {
+      void loadOrders();
+    }, [loadOrders]),
+  );
+
+  // Real-time auto-refresh when an order is created, modified or status changes in backend
+  useCrudEventListener(
+    [
+      'erp_pharmacy.api.order_flow.get_orders',
+      'erp_pharmacy.api.orders.get_orders_list',
+      'erp_pharmacy.api.sales.sales_invoice.get_sales_invoice_list',
+    ],
     useCallback(() => {
       void loadOrders();
     }, [loadOrders]),

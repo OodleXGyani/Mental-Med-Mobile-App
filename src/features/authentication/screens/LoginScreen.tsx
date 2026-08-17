@@ -27,19 +27,40 @@ type Props = NativeStackScreenProps<
 export const LoginScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  
+  // Login Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const { login, loading, error } = useAuth();
+  
+  // OTP Form States
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [phoneOtpFocused, setPhoneOtpFocused] = useState(false);
+  const [emailOtpFocused, setEmailOtpFocused] = useState(false);
+  
+  const { loginHandshake, verifyOtp, resetStep, authStep, handshakeData, loginEmail, loading, error } = useAuth();
 
   const handleLogin = async () => {
-    await login(email, password);
+    await loginHandshake(email, password);
+  };
+  
+  const handleVerifyOtp = async () => {
+    if (handshakeData && loginEmail) {
+      await verifyOtp(loginEmail, handshakeData.otp_token, phoneOtp, emailOtp);
+    }
   };
 
   const handleForgotPassword = () => {
     navigation.navigate(STACK_ROUTES.FORGOT_PASSWORD);
+  };
+  
+  const handleBackToLogin = () => {
+    resetStep();
+    setPhoneOtp('');
+    setEmailOtp('');
   };
 
   return (
@@ -71,10 +92,12 @@ export const LoginScreen = ({ navigation }: Props) => {
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Welcome Back
+            {authStep === 'AWAITING_OTP' ? 'Verify Identity' : 'Welcome Back'}
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
-            Sign in to your Meds15 Staff account
+            {authStep === 'AWAITING_OTP' 
+              ? 'Enter the code sent to your devices' 
+              : 'Sign in to your Meds15 Staff account'}
           </Text>
         </View>
 
@@ -88,98 +111,181 @@ export const LoginScreen = ({ navigation }: Props) => {
             },
           ]}
         >
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: theme.colors.mutedText }]}>
-              Email Address
-            </Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
-                  borderColor: emailFocused
-                    ? theme.colors.primary
-                    : theme.colors.border,
-                },
-              ]}
-            >
-              <AppIcon
-                name="Mail"
-                size={18}
-                color={emailFocused ? theme.colors.primary : theme.colors.mutedText}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="you@example.com"
-                placeholderTextColor={theme.colors.mutedText}
-                value={email}
-                onChangeText={setEmail}
-                editable={!loading}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-              />
-            </View>
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: theme.colors.mutedText }]}>
-                Password
-              </Text>
-              <Pressable onPress={handleForgotPassword} disabled={loading}>
-                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                  Forgot password?
+          {authStep === 'IDLE' ? (
+            <>
+              {/* Email Input */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+                  Email Address
                 </Text>
-              </Pressable>
-            </View>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
-                  borderColor: passwordFocused
-                    ? theme.colors.primary
-                    : theme.colors.border,
-                },
-              ]}
-            >
-              <AppIcon
-                name="Lock"
-                size={18}
-                color={passwordFocused ? theme.colors.primary : theme.colors.mutedText}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="Enter your password"
-                placeholderTextColor={theme.colors.mutedText}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                editable={!loading}
-                autoCapitalize="none"
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-                hitSlop={8}
-              >
-                <AppIcon
-                  name={showPassword ? 'Eye' : 'EyeOff'}
-                  size={18}
-                  color={theme.colors.mutedText}
-                />
-              </Pressable>
-            </View>
-          </View>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                      borderColor: emailFocused
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                    },
+                  ]}
+                >
+                  <AppIcon
+                    name="Mail"
+                    size={18}
+                    color={emailFocused ? theme.colors.primary : theme.colors.mutedText}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholder="you@example.com"
+                    placeholderTextColor={theme.colors.mutedText}
+                    value={email}
+                    onChangeText={setEmail}
+                    editable={!loading}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
+              </View>
+
+              {/* Password Input */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+                    Password
+                  </Text>
+                  <Pressable onPress={handleForgotPassword} disabled={loading}>
+                    <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
+                      Forgot password?
+                    </Text>
+                  </Pressable>
+                </View>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                      borderColor: passwordFocused
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                    },
+                  ]}
+                >
+                  <AppIcon
+                    name="Lock"
+                    size={18}
+                    color={passwordFocused ? theme.colors.primary : theme.colors.mutedText}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholder="Enter your password"
+                    placeholderTextColor={theme.colors.mutedText}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    editable={!loading}
+                    autoCapitalize="none"
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                    hitSlop={8}
+                  >
+                    <AppIcon
+                      name={showPassword ? 'Eye' : 'EyeOff'}
+                      size={18}
+                      color={theme.colors.mutedText}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* OTP Inputs */}
+              {handshakeData?.needs_verification?.includes('phone') && (
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+                    Phone Code ({handshakeData.phone_hint})
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      {
+                        backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                        borderColor: phoneOtpFocused
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <AppIcon
+                      name="Smartphone"
+                      size={18}
+                      color={phoneOtpFocused ? theme.colors.primary : theme.colors.mutedText}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: theme.colors.text, fontSize: 18, letterSpacing: 8 }]}
+                      placeholder="000000"
+                      placeholderTextColor={theme.colors.mutedText}
+                      value={phoneOtp}
+                      onChangeText={setPhoneOtp}
+                      editable={!loading}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      onFocus={() => setPhoneOtpFocused(true)}
+                      onBlur={() => setPhoneOtpFocused(false)}
+                    />
+                  </View>
+                </View>
+              )}
+              
+              {handshakeData?.needs_verification?.includes('email') && (
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: theme.colors.mutedText }]}>
+                    Email Code ({handshakeData.email_hint})
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      {
+                        backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
+                        borderColor: emailOtpFocused
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <AppIcon
+                      name="Mail"
+                      size={18}
+                      color={emailOtpFocused ? theme.colors.primary : theme.colors.mutedText}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: theme.colors.text, fontSize: 18, letterSpacing: 8 }]}
+                      placeholder="000000"
+                      placeholderTextColor={theme.colors.mutedText}
+                      value={emailOtp}
+                      onChangeText={setEmailOtp}
+                      editable={!loading}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      onFocus={() => setEmailOtpFocused(true)}
+                      onBlur={() => setEmailOtpFocused(false)}
+                    />
+                  </View>
+                </View>
+              )}
+            </>
+          )}
 
           {/* Error Message */}
           {error ? (
@@ -199,25 +305,40 @@ export const LoginScreen = ({ navigation }: Props) => {
             </View>
           ) : null}
 
-          {/* Sign In Button */}
+          {/* Action Button */}
           <Pressable
             style={[
               styles.signInButton,
               { backgroundColor: theme.colors.primary },
               loading && styles.signInButtonDisabled,
             ]}
-            onPress={handleLogin}
+            onPress={authStep === 'IDLE' ? handleLogin : handleVerifyOtp}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Text style={styles.signInButtonText}>Sign In</Text>
+                <Text style={styles.signInButtonText}>
+                  {authStep === 'IDLE' ? 'Sign In' : 'Verify & Continue'}
+                </Text>
                 <AppIcon name="ArrowRight" size={18} color="#FFFFFF" style={styles.buttonIcon} />
               </>
             )}
           </Pressable>
+          
+          {/* Back to Login Button */}
+          {authStep === 'AWAITING_OTP' && (
+            <Pressable
+              style={styles.backButton}
+              onPress={handleBackToLogin}
+              disabled={loading}
+            >
+              <Text style={[styles.backButtonText, { color: theme.colors.mutedText }]}>
+                Back to Login
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Footer */}
@@ -359,6 +480,15 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginLeft: 8,
+  },
+  backButton: {
+    marginTop: 16,
+    alignItems: 'center',
+    padding: 8,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   forgotPasswordText: {
     fontSize: 12,

@@ -1,15 +1,22 @@
 import { useCallback } from 'react';
 import { authStorage } from '../services/authService';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import { loginThunk, logout } from '../store/authSlice';
+import { loginHandshakeThunk, verifyOtpThunk, logout, resetAuthStep } from '../store/authSlice';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const auth = useAppSelector(state => state.auth);
 
-  const login = useCallback(
+  const loginHandshake = useCallback(
     (email: string, password: string) => {
-      return dispatch(loginThunk({ email, password }));
+      return dispatch(loginHandshakeThunk({ email, password }));
+    },
+    [dispatch],
+  );
+  
+  const verifyOtp = useCallback(
+    (email: string, otpToken: string, phoneOtp?: string, emailOtp?: string) => {
+      return dispatch(verifyOtpThunk({ email, otpToken, phoneOtp, emailOtp }));
     },
     [dispatch],
   );
@@ -18,10 +25,16 @@ export const useAuth = () => {
     await authStorage.clearSession();
     dispatch(logout());
   }, [dispatch]);
+  
+  const resetStep = useCallback(() => {
+    dispatch(resetAuthStep());
+  }, [dispatch]);
 
   return {
     ...auth,
-    login,
+    loginHandshake,
+    verifyOtp,
+    resetStep,
     signOut,
   };
 };

@@ -103,7 +103,7 @@ export const POSScreen = () => {
     updateBillTotal(Number(total.toFixed(2)));
   }, [total, updateBillTotal]);
 
-  // Scan effect
+  // Scan effect (Dummy scanner animation)
   useEffect(() => {
     if (!showScan) {
       return;
@@ -114,8 +114,10 @@ export const POSScreen = () => {
       setScanProgress(prev => {
         if (prev >= 95) {
           clearInterval(timer);
+          // Removed the dummy auto-adding of Omeprazole here!
+          // addOrIncrementScannedItem();
+          
           setShowScan(false);
-          addOrIncrementScannedItem();
           return 100;
         }
         return prev + 17;
