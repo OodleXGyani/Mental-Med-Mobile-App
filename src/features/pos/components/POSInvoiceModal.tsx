@@ -1,6 +1,20 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check, Download, Phone, Printer, Share2 } from 'lucide-react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Check,
+  CheckCircle2,
+  Download,
+  MessageCircle,
+  Printer,
+  Share2,
+  Store,
+  User,
+  CreditCard,
+  Calendar,
+  Layers,
+  X,
+} from 'lucide-react-native';
 import { CartItem, Customer, PaymentMethod } from '../types';
 import { formatAmount } from '../utils';
 import { useAppTheme } from '../../../shared/theme';
@@ -8,6 +22,7 @@ import { useAppTheme } from '../../../shared/theme';
 type Props = {
   visible: boolean;
   invoiceName: string | null;
+  paymentLink?: string | null;
   total: number;
   subtotal: number;
   gstAmount: number;
@@ -18,12 +33,14 @@ type Props = {
   onPressPrint: () => void;
   onPressWhatsApp: () => void;
   onPressShare: () => void;
+  onPressPaymentLink?: (link: string) => void;
   onPressDone: () => void;
 };
 
 export const POSInvoiceModal = ({
   visible,
   invoiceName,
+  paymentLink,
   total,
   subtotal,
   gstAmount,
@@ -34,11 +51,12 @@ export const POSInvoiceModal = ({
   onPressPrint,
   onPressWhatsApp,
   onPressShare,
+  onPressPaymentLink,
   onPressDone,
 }: Props) => {
   const theme = useAppTheme();
-  // Rendered right after creation, so "now" is close enough -- the backend
-  // doesn't return a creation timestamp on this response.
+  const insets = useSafeAreaInsets();
+
   const completedAt = useMemo(
     () =>
       visible
@@ -53,216 +71,364 @@ export const POSInvoiceModal = ({
     [visible],
   );
 
+  const bottomPadding = Math.max(insets.bottom, 20) + 12;
+
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
         <View
-          style={[styles.invoiceSheet, { backgroundColor: theme.colors.card }]}
+          style={[
+            styles.invoiceSheet,
+            {
+              backgroundColor: theme.colors.card,
+              paddingBottom: bottomPadding,
+            },
+          ]}
         >
-          <View
-            style={[styles.saleDoneCard, { borderColor: theme.colors.border }]}
-          >
-            <Text style={[styles.saleDoneTitle, { color: theme.colors.text }]}>
-              Sale completed!
-            </Text>
-            <Text
-              style={[styles.saleDoneMeta, { color: theme.colors.mutedText }]}
-            >
-              {`Invoice ${invoiceName || '—'} - ${formatAmount(total)}`}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.invoiceHeaderBox,
-              { backgroundColor: theme.colors.background },
-            ]}
-          >
-            <Text style={[styles.pharmacyName, { color: theme.colors.text }]}>
-              MedPlus Pharmacy
-            </Text>
-            <Text
-              style={[
-                styles.pharmacyAddress,
-                { color: theme.colors.mutedText },
-              ]}
-            >
-              Plot No. 45, Jubilee Hills, Hyderabad - 500033
-            </Text>
-            <Text
-              style={[
-                styles.pharmacyAddress,
-                { color: theme.colors.mutedText },
-              ]}
-            >
-              Ph: +91 98765 43210 | GSTIN: 36AABCU9603R1ZJ
-            </Text>
-          </View>
-
-          <Text
-            style={[styles.invoiceLine, { color: theme.colors.text }]}
-          >{`Customer: ${selectedCustomer?.name || 'Walk-in'}`}</Text>
-          <Text style={[styles.invoiceLine, { color: theme.colors.text }]}>
-            {`Date: ${completedAt}`}
-          </Text>
-          <Text
-            style={[styles.invoiceLine, { color: theme.colors.text }]}
-          >{`Payment: ${paymentMethod.toUpperCase()}`}</Text>
-
-          <View style={styles.invoiceItemsWrap}>
-            {cartItems.map(item => (
-              <View style={styles.invoiceItemRow} key={item.id}>
-                <View>
-                  <Text
-                    style={[
-                      styles.invoiceItemName,
-                      { color: theme.colors.text },
-                    ]}
-                  >
-                    {item.name}
+          {/* Sheet Header */}
+          <View style={styles.sheetHeader}>
+            <View style={styles.headerTitleGroup}>
+              <View style={styles.successIconBadge}>
+                <CheckCircle2 size={22} color="#059669" strokeWidth={2.5} />
+              </View>
+              <View>
+                <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+                  Sale Completed!
+                </Text>
+                <Text style={[styles.sheetSubtitle, { color: theme.colors.mutedText }]}>
+                  {`Invoice #${invoiceName || '—'} • `}
+                  <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
+                    {formatAmount(total)}
                   </Text>
-                  <Text
-                    style={[
-                      styles.invoiceItemMeta,
-                      { color: theme.colors.mutedText },
-                    ]}
-                  >{`Batch: ${item.batch}`}</Text>
-                </View>
-                <Text
-                  style={[
-                    styles.invoiceItemPrice,
-                    { color: theme.colors.text },
-                  ]}
-                >
-                  {formatAmount(item.price * item.qty)}
                 </Text>
               </View>
-            ))}
+            </View>
+            <Pressable onPress={onPressDone} hitSlop={8}>
+              <X size={20} color={theme.colors.mutedText} />
+            </Pressable>
           </View>
 
-          <View
-            style={[
-              styles.invoiceSummaryBorder,
-              { borderTopColor: theme.colors.border },
-            ]}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <View style={styles.summaryRow}>
-              <Text
-                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
-              >
-                Subtotal
-              </Text>
-              <Text
-                style={[
-                  styles.summaryValueNeutral,
-                  { color: theme.colors.text },
-                ]}
-              >
-                {formatAmount(subtotal)}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text
-                style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
-              >
-                GST
-              </Text>
-              <Text
-                style={[
-                  styles.summaryValueNeutral,
-                  { color: theme.colors.text },
-                ]}
-              >
-                {formatAmount(gstAmount)}
-              </Text>
-            </View>
+            {/* 1. Pharmacy Brand & Receipt Info Card */}
             <View
               style={[
-                styles.summaryRow,
-                styles.totalRow,
-                { borderTopColor: theme.colors.border },
+                styles.brandCard,
+                {
+                  backgroundColor: theme.dark ? '#0F172A' : '#F8FAFC',
+                  borderColor: theme.colors.border,
+                },
               ]}
             >
-              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
-                Total
+              <View style={styles.brandTitleRow}>
+                <Store size={18} color={theme.colors.primary} />
+                <Text style={[styles.pharmacyName, { color: theme.colors.text }]}>
+                  MedPlus Pharmacy
+                </Text>
+              </View>
+              <Text style={[styles.pharmacyAddress, { color: theme.colors.mutedText }]}>
+                Plot No. 45, Jubilee Hills, Hyderabad - 500033
               </Text>
-              <Text
-                style={[styles.totalValue, { color: theme.colors.primary }]}
-              >
-                {formatAmount(total)}
+              <Text style={[styles.pharmacyMeta, { color: theme.colors.mutedText }]}>
+                Ph: +91 98765 43210 | GSTIN: 36AABCU9603R1ZJ
               </Text>
+
+              {/* Tag Badges Grid */}
+              <View style={styles.receiptBadgesWrap}>
+                <View
+                  style={[
+                    styles.metaBadge,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <User size={12} color={theme.colors.primary} />
+                  <Text
+                    style={[styles.metaBadgeText, { color: theme.colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {selectedCustomer?.name || 'Walk-in Customer'}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.metaBadge,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <CreditCard size={12} color={theme.colors.primary} />
+                  <Text style={[styles.metaBadgeText, { color: theme.colors.text }]}>
+                    {paymentMethod.toUpperCase()}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.metaBadge,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Calendar size={12} color={theme.colors.mutedText} />
+                  <Text style={[styles.metaBadgeText, { color: theme.colors.mutedText }]}>
+                    {completedAt}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.invoiceActionRow}>
-            <Pressable
-              style={[
-                styles.actionBtnLight,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.card,
-                },
-              ]}
-              onPress={onPressDownload}
-            >
-              <Download size={14} color={theme.colors.mutedText} />
-              <Text
+            {/* Online Payment Link Card (when paymentLink exists) */}
+            {paymentLink ? (
+              <View
                 style={[
-                  styles.actionBtnLightText,
-                  { color: theme.colors.mutedText },
+                  styles.paymentLinkCard,
+                  {
+                    backgroundColor: `${theme.colors.primary}12`,
+                    borderColor: `${theme.colors.primary}40`,
+                  },
                 ]}
               >
-                Download
-              </Text>
-            </Pressable>
-            <Pressable
+                <View style={styles.paymentLinkHeader}>
+                  <CreditCard size={16} color={theme.colors.primary} />
+                  <Text style={[styles.paymentLinkTitle, { color: theme.colors.primary }]}>
+                    Razorpay Online Payment Link
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.paymentLinkUrl, { color: theme.colors.text }]}
+                  numberOfLines={1}
+                >
+                  {paymentLink}
+                </Text>
+                <Pressable
+                  style={[styles.openLinkBtn, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => onPressPaymentLink?.(paymentLink)}
+                >
+                  <Text style={styles.openLinkBtnText}>Open / Pay Now</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {/* 2. Purchased Items Breakdown Card */}
+            <View
               style={[
-                styles.actionBtnLight,
+                styles.sectionCard,
                 {
+                  backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
                   borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.card,
                 },
               ]}
-              onPress={onPressPrint}
             >
-              <Printer size={14} color={theme.colors.mutedText} />
-              <Text
+              <View style={styles.sectionHeaderRow}>
+                <Layers size={16} color={theme.colors.primary} />
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                  Purchased Items ({cartItems.length})
+                </Text>
+              </View>
+
+              {/* Table Header */}
+              <View
                 style={[
-                  styles.actionBtnLightText,
-                  { color: theme.colors.mutedText },
+                  styles.itemTableHeader,
+                  {
+                    backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
+                    borderBottomColor: theme.colors.border,
+                  },
                 ]}
               >
-                Print
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.invoiceActionRow}>
-            <Pressable style={styles.actionBtnGreen} onPress={onPressWhatsApp}>
-              <Phone size={14} color="#FFFFFF" />
-              <Text style={styles.actionBtnGreenText}>WhatsApp</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.actionBtnTeal,
-                { backgroundColor: theme.colors.primary },
-              ]}
-              onPress={onPressShare}
-            >
-              <Share2 size={14} color="#FFFFFF" />
-              <Text style={styles.actionBtnGreenText}>Share</Text>
-            </Pressable>
-          </View>
+                <Text style={[styles.thText, styles.thMedicine, { color: theme.colors.mutedText }]}>
+                  Medicine
+                </Text>
+                <Text style={[styles.thText, styles.thQty, { color: theme.colors.mutedText }]}>
+                  Qty
+                </Text>
+                <Text style={[styles.thText, styles.thRate, { color: theme.colors.mutedText }]}>
+                  Rate
+                </Text>
+                <Text style={[styles.thText, styles.thAmount, { color: theme.colors.mutedText }]}>
+                  Amount
+                </Text>
+              </View>
 
-          <Pressable
-            style={[
-              styles.closeInvoiceBtn,
-              { backgroundColor: theme.colors.primary },
-            ]}
-            onPress={onPressDone}
-          >
-            <Check size={14} color="#FFFFFF" />
-            <Text style={styles.closeInvoiceBtnText}>Done</Text>
-          </Pressable>
+              {/* Item Rows */}
+              {cartItems.map((item, idx) => {
+                const itemRate = item.rate ?? item.price ?? 0;
+                const itemLineTotal = itemRate * item.qty;
+                const isLast = idx === cartItems.length - 1;
+
+                return (
+                  <View
+                    key={`inv-item-${item.id}-${idx}`}
+                    style={[
+                      styles.itemTableRow,
+                      !isLast && {
+                        borderBottomColor: theme.colors.border,
+                        borderBottomWidth: 1,
+                      },
+                    ]}
+                  >
+                    <View style={styles.thMedicine}>
+                      <Text
+                        style={[styles.itemName, { color: theme.colors.text }]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.itemSubtext, { color: theme.colors.mutedText }]}>
+                        {item.item_code || item.id}
+                        {item.batch || item.batch_no
+                          ? ` • Batch: ${item.batch || item.batch_no}`
+                          : ''}
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.itemValue, styles.thQty, { color: theme.colors.text }]}>
+                      {item.qty}
+                    </Text>
+
+                    <Text style={[styles.itemValue, styles.thRate, { color: theme.colors.text }]}>
+                      {formatAmount(itemRate)}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.itemValue,
+                        styles.thAmount,
+                        { color: theme.colors.text, fontWeight: '700' },
+                      ]}
+                    >
+                      {formatAmount(itemLineTotal)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* 3. Summary & Totals Breakdown Card */}
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <View style={styles.calcRow}>
+                <Text style={[styles.calcLabel, { color: theme.colors.mutedText }]}>
+                  Subtotal
+                </Text>
+                <Text style={[styles.calcValue, { color: theme.colors.text }]}>
+                  {formatAmount(subtotal)}
+                </Text>
+              </View>
+
+              <View style={styles.calcRow}>
+                <Text style={[styles.calcLabel, { color: theme.colors.mutedText }]}>
+                  GST Tax
+                </Text>
+                <Text style={[styles.calcValue, { color: theme.colors.text }]}>
+                  {formatAmount(gstAmount)}
+                </Text>
+              </View>
+
+              {/* Highlighted Rounded Total Banner */}
+              <View
+                style={[
+                  styles.roundedTotalBox,
+                  {
+                    backgroundColor: `${theme.colors.primary}14`,
+                    borderColor: `${theme.colors.primary}40`,
+                  },
+                ]}
+              >
+                <Text style={[styles.roundedTotalLabel, { color: theme.colors.primary }]}>
+                  TOTAL PAID
+                </Text>
+                <Text style={[styles.roundedTotalValue, { color: theme.colors.primary }]}>
+                  {formatAmount(total)}
+                </Text>
+              </View>
+            </View>
+
+            {/* 4. Action Buttons Grid */}
+            <View style={styles.actionGrid}>
+              <Pressable
+                style={[
+                  styles.actionGridBtn,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.card,
+                  },
+                ]}
+                onPress={onPressDownload}
+              >
+                <Download size={16} color={theme.colors.text} />
+                <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
+                  Download
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.actionGridBtn,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.card,
+                  },
+                ]}
+                onPress={onPressPrint}
+              >
+                <Printer size={16} color={theme.colors.text} />
+                <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
+                  Print
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.actionGridBtn, styles.actionWhatsAppBtn]}
+                onPress={onPressWhatsApp}
+              >
+                <MessageCircle size={16} color="#FFFFFF" />
+                <Text style={styles.actionBtnWhiteText}>WhatsApp</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.actionGridBtn,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.card,
+                  },
+                ]}
+                onPress={onPressShare}
+              >
+                <Share2 size={16} color={theme.colors.text} />
+                <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
+                  Share
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* 5. Primary Done / Start New Sale Button */}
+            <Pressable
+              style={[styles.doneBtn, { backgroundColor: theme.colors.primary }]}
+              onPress={onPressDone}
+            >
+              <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={styles.doneBtnText}>Start New Sale</Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -272,182 +438,256 @@ export const POSInvoiceModal = ({
 const styles = StyleSheet.create({
   modalBackdropBottom: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   invoiceSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    padding: 12,
-    maxHeight: '84%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    maxHeight: '92%',
   },
-  saleDoneCard: {
-    borderWidth: 1,
-    borderColor: '#E2E0DC',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
+  scrollContent: {
+    paddingBottom: 12,
+    gap: 12,
   },
-  saleDoneTitle: {
-    color: '#39302B',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  saleDoneMeta: {
-    marginTop: 2,
-    color: '#7C6E65',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  invoiceHeaderBox: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 9,
-    padding: 10,
-    marginBottom: 10,
-  },
-  pharmacyName: {
-    color: '#3E3631',
-    fontSize: 13,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  pharmacyAddress: {
-    color: '#8A7E76',
-    fontSize: 9,
-    textAlign: 'center',
-    marginTop: 1,
-  },
-  invoiceLine: {
-    color: '#4B4038',
-    fontSize: 11.5,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  invoiceItemsWrap: {
-    marginTop: 8,
-    marginBottom: 8,
-    gap: 5,
-  },
-  invoiceItemRow: {
+  sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  invoiceItemName: {
-    color: '#423731',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  invoiceItemMeta: {
-    color: '#9F9288',
-    fontSize: 9.5,
-    marginTop: 1,
-  },
-  invoiceItemPrice: {
-    color: '#423731',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  invoiceSummaryBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#ECE6E1',
-    paddingTop: 8,
-    marginBottom: 8,
-  },
-  summaryRow: {
+  headerTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    gap: 10,
   },
-  summaryLabel: {
-    color: '#8E7A6F',
-    fontWeight: '600',
-    fontSize: 12,
+  successIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  summaryValueNeutral: {
-    color: '#5B4E47',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  totalRow: {
-    borderTopColor: '#ECE7E2',
-    borderTopWidth: 1,
-    paddingTop: 6,
-    marginTop: 2,
-  },
-  totalLabel: {
-    color: '#3F3430',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  totalValue: {
-    color: '#1CA39A',
+  sheetTitle: {
     fontWeight: '800',
     fontSize: 18,
   },
-  invoiceActionRow: {
+  sheetSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  brandCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 4,
+  },
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  pharmacyName: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  pharmacyAddress: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  pharmacyMeta: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  receiptBadgesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  metaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  metaBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  paymentLinkCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+  },
+  paymentLinkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  paymentLinkTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  paymentLinkUrl: {
+    fontSize: 12,
+    fontFamily: 'Courier',
+  },
+  openLinkBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  openLinkBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  sectionCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  itemTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderBottomWidth: 1,
+  },
+  thText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  thMedicine: {
+    flex: 2.4,
+  },
+  thQty: {
+    flex: 0.7,
+    textAlign: 'center',
+  },
+  thRate: {
+    flex: 1.1,
+    textAlign: 'right',
+  },
+  thAmount: {
+    flex: 1.2,
+    textAlign: 'right',
+  },
+  itemTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  itemName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  itemSubtext: {
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  itemValue: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  calcRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  calcLabel: {
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  calcValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  roundedTotalBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  roundedTotalLabel: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  roundedTotalValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  actionGrid: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 8,
   },
-  actionBtnLight: {
+  actionGridBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#DDD6D1',
-    borderRadius: 8,
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
   },
-  actionBtnLightText: {
-    color: '#6C6059',
-    fontWeight: '700',
+  actionWhatsAppBtn: {
+    backgroundColor: '#25D366',
+    borderColor: '#25D366',
+  },
+  actionGridBtnText: {
     fontSize: 12,
+    fontWeight: '700',
   },
-  actionBtnGreen: {
-    flex: 1,
-    borderRadius: 8,
-    backgroundColor: '#22A34A',
+  actionBtnWhiteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  doneBtn: {
     flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 9,
-  },
-  actionBtnTeal: {
-    flex: 1,
-    borderRadius: 8,
-    backgroundColor: '#2CA798',
-    flexDirection: 'row',
-    gap: 6,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 9,
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginTop: 4,
   },
-  actionBtnGreenText: {
+  doneBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 12,
-  },
-  closeInvoiceBtn: {
-    marginTop: 2,
-    borderRadius: 8,
-    backgroundColor: '#2CA798',
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  closeInvoiceBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
+    fontSize: 14.5,
   },
 });

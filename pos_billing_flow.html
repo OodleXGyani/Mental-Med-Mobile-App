@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POS Billing Flow & API Architecture | Meds</title>
+  <title>POS Billing Flow & Architecture | 100% Web Parity</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -112,6 +112,7 @@
       line-height: 1.2;
       background: linear-gradient(135deg, #FFFFFF 30%, #94A3B8 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 12px;
     }
@@ -336,7 +337,7 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       color: #F8FAFC;
       font-size: 13px;
       overflow-y: auto;
@@ -392,18 +393,19 @@
 
     .mock-pill-group {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .mock-pill {
       flex: 1;
       text-align: center;
-      padding: 8px;
+      padding: 7px;
       background: #1E293B;
       border: 1px solid #334155;
       border-radius: 8px;
       font-weight: 600;
       color: #94A3B8;
+      font-size: 11px;
     }
 
     .mock-pill.active {
@@ -416,7 +418,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       font-size: 12px;
-      margin-top: 6px;
+      margin-top: 4px;
     }
     .mock-alert-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; color: #FCD34D; }
     .mock-alert-blue { background: rgba(59, 130, 246, 0.15); border: 1px solid #3B82F6; color: #93C5FD; }
@@ -517,10 +519,10 @@
   <div class="container">
     <!-- Header -->
     <header>
-      <div class="badge-pill">POS Architecture & Lifecycle</div>
-      <h1>Point of Sale (POS) Billing Architecture</h1>
+      <div class="badge-pill">100% Web POS Parity Architecture</div>
+      <h1>Pharmacy POS Billing Specification & Flow</h1>
       <p class="header-desc">
-        Complete system specification, interactive UI screen simulator, multi-gate validation logic, and exact API contracts for MedPlus Pharmacy Mobile & Web POS.
+        Complete system specification, interactive UI simulator, multi-gate validation engine, and full 19 API endpoints for MedPlus Pharmacy Mobile & Web POS.
       </p>
     </header>
 
@@ -528,7 +530,7 @@
     <nav class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('flowchart')">📊 End-to-End Flowchart</button>
       <button class="tab-btn" onclick="switchTab('simulator')">📱 Interactive UI Simulator</button>
-      <button class="tab-btn" onclick="switchTab('api-matrix')">🔌 API Matrix & Mapping</button>
+      <button class="tab-btn" onclick="switchTab('api-matrix')">🔌 API Matrix (19 Endpoints)</button>
       <button class="tab-btn" onclick="switchTab('prompt-copy')">📋 Web App Prompt</button>
     </nav>
 
@@ -536,36 +538,50 @@
     <div id="tab-flowchart" class="tab-pane active">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🔄 Complete POS Billing Flow</div>
-          <span style="color: var(--text-muted); font-size: 13px;">Rendered via Mermaid Engine</span>
+          <div class="card-title">🔄 Complete POS Billing Flowchart</div>
+          <span style="color: var(--text-muted); font-size: 13px;">Mermaid Engine Render</span>
         </div>
         <div class="mermaid-box">
           <pre class="mermaid">
 flowchart TD
-    Start([POS Screen Opened]) --> LoadDir["1. Load Customer Directory<br/><code>erp_pharmacy...get_customer_directory</code>"]
-    LoadDir --> CustChoice{"Customer Selected?"}
+    Start([Open POS Billing Screen]) --> Step1["1. Step 1: Select Customer<br/>(Locked until customer or Walk-in selected)"]
+    Step1 --> CustChoice{"Customer Channel"}
     
-    CustChoice -->|Existing Customer| AssignCart["2. Get/Assign Active Cart<br/><code>...cart.get_or_assign_cart</code>"]
-    CustChoice -->|Walk-in| WalkinCart["2. Create Anonymous Cart"]
+    CustChoice -->|Search Customer| SearchCust["Customer Typeahead Search<br/><code>search_link (Customer)</code>"]
+    CustChoice -->|Quick Walk-in| WalkInCust["Counter Walk-in Sale<br/><code>id: Walk-in</code>"]
+    CustChoice -->|New Customer| AddCustModal["Register Customer Modal<br/><code>create_customer</code>"]
     
-    AssignCart --> AddItemEntry[3. Add Items to Cart]
-    WalkinCart --> AddItemEntry
+    SearchCust --> LoadLoyalty["2. Load Loyalty Points & Assign Cart<br/><code>get_customer_loyalty_info</code><br/><code>get_or_assign_cart</code>"]
+    WalkInCust --> UnlockSearch["Unlock Medicine Search & Scanning"]
+    AddCustModal --> LoadLoyalty
+    LoadLoyalty --> UnlockSearch
     
-    subgraph AdditionMethods ["Item Selection Channels"]
-      AddItemEntry -->|Search| MedList["Search Catalogue<br/><code>...inventory.get_inventory_items</code>"]
-      AddItemEntry -->|Scan| BarcodeScan["Barcode Camera Scanner"]
-      AddItemEntry -->|Reorder| PastOrders["Customer Past Orders<br/><code>...customer.get_customer_invoices</code>"]
+    UnlockSearch --> AddItemEntry["3. Discover & Select Medicine"]
+    
+    subgraph AdditionMethods ["Medicine Selection Channels"]
+      AddItemEntry -->|Search Medicine| MedList["Medicine Inventory<br/><code>get_medicine_inventory</code>"]
+      AddItemEntry -->|Barcode Scan| BarcodeScan["Scan Barcode (F3)<br/><code>scan_barcode</code>"]
+      AddItemEntry -->|Reorder| PastOrders["Past Orders History<br/><code>get_customer_invoices</code>"]
     end
     
-    MedList --> LocalCartSync["4. Update Local Cart & Steppers"]
-    BarcodeScan --> LocalCartSync
-    PastOrders --> LocalCartSync
+    MedList --> OpenModal["4. OPEN ITEM DETAILS MODAL FIRST<br/>(Pre-Cart Warehouse & Batch Selection)"]
+    BarcodeScan --> OpenModal
+    PastOrders --> OpenModal
     
-    LocalCartSync --> AutoSave["5. Auto-Save Cart (1s Debounce)<br/><code>...cart.save_cart</code>"]
+    subgraph ItemDetailsModal ["Mandatory Item Details Modal"]
+      OpenModal --> FetchWh["Fetch Live Stock & Batches<br/><code>get_item_warehouses</code><br/><code>get_item_batches</code><br/><code>get_item_details</code>"]
+      FetchWh --> PickBatch["Cashier Chooses: Warehouse + Batch + Qty"]
+      PickBatch --> ConfirmAdd["Click 'Add to Cart • ₹ Rate'"]
+    end
     
-    AutoSave --> Proceed{"Cashier Clicks Proceed to Payment"}
+    ConfirmAdd --> LocalCartSync["5. Add Validated Item to Cart"]
+    LocalCartSync --> AutoSave["6. Debounced Cart Sync (500ms)<br/><code>save_cart</code>"]
+    AutoSave --> AutoDisc["Auto Discount Engine (400ms)<br/><code>get_applicable_discounts</code>"]
     
-    Proceed --> CheckoutPreview["6. Checkout Preview & Validation<br/><code>...cart.checkout_preview</code><br/>+ <code>...pharmacy.get_manager_users</code>"]
+    AutoDisc --> Proceed{"Cashier Clicks Proceed to Payment"}
+    
+    Proceed --> ForceSave["7. Force Immediate Cart Save<br/><code>save_cart</code>"]
+    ForceSave --> CheckoutPreview["8. Checkout Preview & Compliance Gates<br/><code>checkout_preview</code><br/>+ <code>get_manager_users</code>"]
     
     subgraph PreCheckoutGates ["Compliance & Approval Gates"]
       CheckoutPreview --> DiscGate{"Discount > Role Limit?"}
@@ -583,16 +599,18 @@ flowchart TD
       ReqMargin --> AllApproved
     end
     
-    AllApproved --> SelectPay["7. Select Payment Mode: Cash / UPI / Card"]
-    SelectPay --> SubmitInvoice["8. Complete Sale<br/><code>...cart.create_pos_invoice</code>"]
+    AllApproved --> SelectPay["8. Select Payment Mode<br/>[Cash / UPI / Card / Online]"]
+    SelectPay --> SubmitInvoice["9. Complete Sale<br/><code>create_pos_invoice</code>"]
     
-    SubmitInvoice --> InvoiceSuccess["9. Sales Invoice Created & Payment Entry Logged"]
-    InvoiceSuccess --> InvoiceModalView["10. Show Invoice Receipt Modal"]
+    SubmitInvoice --> InvoiceSuccess["10. Sales Invoice Created & Payment Entry Logged"]
+    InvoiceSuccess --> InvoiceModalView["11. Show Invoice Receipt Modal"]
     
-    subgraph PostSaleOperations ["Receipt & Reset"]
-      InvoiceModalView --> PrintReceipt["🖨️ Open Print URL (PDF/Thermal)"]
-      InvoiceModalView --> ShareInvoice["💬 WhatsApp / Native Share"]
-      InvoiceModalView --> ResetPOS["Click Done -> Reset POS State for Next Customer"]
+    subgraph PostSaleOperations ["Receipt & Online Settlement"]
+      InvoiceModalView --> OnlineCheck{"Online Razorpay Mode?"}
+      OnlineCheck -->|Yes| PollRazorpay["Poll status (every 5s)<br/><code>verify_payment_link_status</code>"]
+      PollRazorpay -->|Status: Paid| PrintReceipt
+      OnlineCheck -->|No (Cash/In-Person)| PrintReceipt["🖨️ Open Print URL / PDF<br/><code>frappe...download_pdf</code>"]
+      PrintReceipt --> ResetPOS["Click Done -> Reset POS State"]
     end
     
     ResetPOS --> Start
@@ -606,7 +624,7 @@ flowchart TD
       <div class="card">
         <div class="card-header">
           <div class="card-title">📱 Screen-by-Screen Interactive Simulator</div>
-          <span style="color: var(--text-muted); font-size: 13px;">Click on any step to inspect the UI layout</span>
+          <span style="color: var(--text-muted); font-size: 13px;">Click any step to inspect the UI layout</span>
         </div>
 
         <div class="simulator-layout">
@@ -616,28 +634,28 @@ flowchart TD
               <div class="step-num">1</div>
               <div class="step-info">
                 <h4>Main POS Screen</h4>
-                <p>Cart, search bar, stepper & total</p>
+                <p>Cart, loyalty points, stepper & total</p>
               </div>
             </div>
             <div class="screen-step-card" onclick="renderMockScreen(2)">
               <div class="step-num">2</div>
               <div class="step-info">
-                <h4>Customer Picker Modal</h4>
-                <p>Search & select returning patient</p>
+                <h4>Item Details Modal</h4>
+                <p>Warehouse, batch picker & live stock</p>
               </div>
             </div>
             <div class="screen-step-card" onclick="renderMockScreen(3)">
               <div class="step-num">3</div>
               <div class="step-info">
-                <h4>Medicine Search Screen</h4>
-                <p>Stock badges, batch & pricing</p>
+                <h4>Customer & Loyalty Picker</h4>
+                <p>Search & loyalty points conversion</p>
               </div>
             </div>
             <div class="screen-step-card" onclick="renderMockScreen(4)">
               <div class="step-num">4</div>
               <div class="step-info">
-                <h4>Past Orders Re-Order</h4>
-                <p>1-tap re-order from previous bills</p>
+                <h4>Barcode Scanner (F3)</h4>
+                <p>Real barcode resolution to stock</p>
               </div>
             </div>
             <div class="screen-step-card" onclick="renderMockScreen(5)">
@@ -651,7 +669,7 @@ flowchart TD
               <div class="step-num">6</div>
               <div class="step-info">
                 <h4>Sale Receipt & Print</h4>
-                <p>Thermal format, WhatsApp & done</p>
+                <p>Thermal format, WhatsApp & PDF</p>
               </div>
             </div>
           </div>
@@ -673,7 +691,7 @@ flowchart TD
     <div id="tab-api-matrix" class="tab-pane">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🔌 POS API Reference & Integration Mapping</div>
+          <div class="card-title">🔌 Full 19 POS APIs Reference & Integration Mapping</div>
           <span style="color: var(--text-muted); font-size: 13px;">Exact Frappe/ERPNext endpoints</span>
         </div>
 
@@ -691,73 +709,136 @@ flowchart TD
             <tbody>
               <tr>
                 <td><span class="method-tag method-get">GET</span></td>
-                <td><span class="endpoint-code">...customer.customer.get_customer_directory</span></td>
-                <td><code>POSScreen</code> on focus & <code>POSCustomerPickerModal</code></td>
-                <td><em>None (Optional search query)</em></td>
-                <td>Array of customer objects <code>{ customer_code, customer_name, contact }</code></td>
+                <td><span class="endpoint-code">/method/frappe.desk.search.search_link</span></td>
+                <td>Customer & Eph Salt typeahead</td>
+                <td><code>?doctype=Customer&txt=query</code></td>
+                <td>Array of matched records <code>[{ value, description }]</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.cart.get_or_assign_cart</span></td>
-                <td>When customer is selected in <code>POSCustomerPickerModal</code></td>
+                <td><span class="endpoint-code">...cart.get_customer_loyalty_info</span></td>
+                <td>When customer is selected</td>
+                <td><code>{ customer: string }</code></td>
+                <td><code>{ loyalty_points, conversion_factor, redemption_value }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.get_or_assign_cart</span></td>
+                <td>Customer selected / restore draft</td>
                 <td><code>{ customer: string, cart_name?: string }</code></td>
                 <td><code>{ cart_name: "EPH-...", items: [], total_amount }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-get">GET</span></td>
-                <td><span class="endpoint-code">...inventory.get_inventory_items</span></td>
-                <td><code>MedicineListScreen</code> on mount</td>
-                <td><em>None</em></td>
+                <td><span class="endpoint-code">...medicine.get_medicine_inventory</span></td>
+                <td><code>MedicineListScreen</code> catalogue</td>
+                <td><code>?search=query&salt=salt_name</code></td>
                 <td><code>{ data: [{ medicine_id, name, stock_quantity, batch_no, rate, gst }] }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-get">GET</span></td>
-                <td><span class="endpoint-code">...customer.customer.get_customer_invoices</span></td>
-                <td><code>POSPastOrdersModal</code> for customer</td>
-                <td><code>?customer_name=ID&page=1&page_size=50</code></td>
-                <td>Array of past customer sales invoices with line items</td>
+                <td><span class="endpoint-code">...stock.utils.scan_barcode</span></td>
+                <td><code>POSScanModal</code> (F3)</td>
+                <td><code>?barcode=string</code></td>
+                <td><code>{ item_code, batch_no, item_name, barcode }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...cart.get_item_warehouses</span></td>
+                <td><code>POSItemDetailsModal</code> on open</td>
+                <td><code>?item_code=string</code></td>
+                <td><code>[{ warehouse: "Stores - ABC", actual_qty: 45 }]</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...cart.get_item_batches</span></td>
+                <td><code>POSItemDetailsModal</code> on warehouse pick</td>
+                <td><code>?item_code=string&warehouse=string</code></td>
+                <td><code>[{ batch_no: "AUG992", expiry_date: "12/26", actual_qty: 20 }]</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.cart.save_cart</span></td>
-                <td><code>POSScreen</code> debounced auto-sync (1s)</td>
-                <td><code>{ customer: string, items: [{ item_code, qty, rate }] }</code></td>
+                <td><span class="endpoint-code">...cart.get_item_details</span></td>
+                <td><code>POSItemDetailsModal</code> live sync</td>
+                <td><code>{ item_code, warehouse, batch_no? }</code></td>
+                <td><code>{ rate, actual_qty, expiry_date, has_batch_no }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.save_cart</span></td>
+                <td>Debounced sync (500ms) & forced save before preview</td>
+                <td><code>{ customer, cart_name, items: [{ item_code, qty, rate, warehouse, batch_no }] }</code></td>
                 <td><code>{ cart_name, total_amount, taxes }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.cart.checkout_preview</span></td>
+                <td><span class="endpoint-code">...approval.get_applicable_discounts</span></td>
+                <td>Auto discount preview engine</td>
+                <td><code>{ customer, cart_name, items }</code></td>
+                <td>Applicable rule discounts list</td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.checkout_preview</span></td>
                 <td><code>POSPaymentModal</code> on mount</td>
+                <td><code>{ cart_name, discount_value, discount_type, redeem_loyalty, loyalty_points }</code></td>
+                <td><code>{ net_total, taxes, grand_total, prescription_check, margin_check, discount_approval_needed }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...approval.check_discount_limit</span></td>
+                <td>Extra manual discount verification</td>
                 <td><code>{ cart_name, discount_value, discount_type }</code></td>
-                <td><code>{ net_total, taxes, grand_total, discount_approval_needed, prescription_check, margin_check }</code></td>
+                <td><code>{ approval_required: boolean, role_limit: number }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-get">GET</span></td>
                 <td><span class="endpoint-code">...pharmacy.get_manager_users</span></td>
-                <td><code>POSPaymentModal</code> on mount</td>
+                <td>Manager dropdown for PIN approval</td>
                 <td><code>?search=string</code></td>
-                <td>List of eligible managers with PIN override privileges</td>
+                <td>List of eligible managers with PIN privileges</td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.approval.request_approval</span></td>
-                <td>When cashier taps "Request Override" in <code>POSPaymentModal</code></td>
+                <td><span class="endpoint-code">...approval.request_approval</span></td>
+                <td>Override requested in <code>POSPaymentModal</code></td>
                 <td><code>{ approval_type, cart_name, discount_requested?, item_code?, override_reason? }</code></td>
                 <td><code>{ approval_log: "MGR-APP-0001" }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.approval.submit_approval</span></td>
-                <td>When manager selects user & enters 4-digit PIN</td>
+                <td><span class="endpoint-code">...approval.submit_approval</span></td>
+                <td>Manager enters 4-digit PIN</td>
                 <td><code>{ approval_log, manager_user, pin }</code></td>
                 <td><code>{ success: true, message: "Approved" }</code></td>
               </tr>
               <tr>
                 <td><span class="method-tag method-post">POST</span></td>
-                <td><span class="endpoint-code">...cart.cart.create_pos_invoice</span></td>
-                <td>"Complete Sale" button in <code>POSPaymentModal</code></td>
-                <td><code>{ cart_name, payment_mode, payments, discount_approval_log, rx_override_log, margin_override_log }</code></td>
+                <td><span class="endpoint-code">...cart.create_pos_invoice</span></td>
+                <td>"Complete Sale" button</td>
+                <td><code>{ cart_name, payment_mode, payments, discount_approval_log, rx_override_log, margin_override_log, redeem_loyalty, loyalty_points }</code></td>
                 <td><code>{ invoice: "ACC-SINV-...", status: "Paid", grand_total, print_url }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...razorpay.api.verify_payment_link_status</span></td>
+                <td>Online mode polling (5s)</td>
+                <td><code>{ invoice: string }</code></td>
+                <td><code>{ status: "Paid" | "Pending" }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...print_format.download_pdf</span></td>
+                <td>PDF receipt download</td>
+                <td><code>{ doctype: "Sales Invoice", name: invoice }</code></td>
+                <td>PDF Binary stream</td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...customer.get_customer_invoices</span></td>
+                <td><code>POSPastOrdersModal</code></td>
+                <td><code>?customer_name=ID&page=1&page_size=50</code></td>
+                <td>Customer order history for 1-tap re-order</td>
               </tr>
             </tbody>
           </table>
@@ -774,40 +855,38 @@ flowchart TD
         </div>
         <div class="code-block" id="prompt-text">
 ### 🎯 Objective
-Implement and verify complete parity for the Point of Sale (POS) Billing workflow across the ERP backend, Web App POS, and Mobile POS client.
+Verify and maintain 100% architectural parity for the Point of Sale (POS) Billing workflow across ERPNext backend, Web POS, and Mobile POS clients.
 
 ---
 
-### 🔄 POS Billing Workflow Summary
-1. **Customer & Cart Initialization**:
-   - Fetch customer directory (`erp_pharmacy.api.user_page.customer.customer.get_customer_directory`).
-   - On selecting customer, assign or retrieve ephemeral cart via `erp_pharmacy.api.user_page.cart.cart.get_or_assign_cart`.
-
-2. **Item Selection & Sync**:
-   - Add items via Medicine Search (`get_inventory_items`), Barcode Scanner, or Past Orders (`get_customer_invoices`).
-   - Auto-sync local cart lines (`item_code`, `qty`, `rate`) with ERP using 1-second debounce on `save_cart`.
-
-3. **Checkout Validation & Multi-Gate Approvals**:
-   - On checkout, execute `checkout_preview` to get server totals + validation flags:
-     a. **Discount Gate**: If discount % > user role limit, generate approval via `request_approval` and approve with manager PIN via `submit_approval`.
-     b. **Prescription (Rx) Gate**: If schedule drug has no prescription, require override reason + manager PIN.
-     c. **Margin Gate**: Enforce margin rules (Block / Admin PIN Override / Warn).
-
-4. **Payment & Invoice Submission**:
-   - Choose payment mode (`Cash`, `UPI`, `Card`).
-   - Submit `create_pos_invoice` including cart name, payment breakdown, and all approved manager log IDs (`discount_approval_log`, `rx_override_log`, `margin_override_log`).
-   - Receive submitted Sales Invoice ID and `print_url`.
-
-5. **Post-Sale / Receipt**:
-   - Render receipt modal with auto-print, PDF download, and WhatsApp share.
-   - Reset POS state for the next customer.
+### 🔄 End-to-End POS Lifecycle:
+1. **Customer & Loyalty Initialization**:
+   - Customer Search (`frappe.desk.search.search_link`).
+   - Load loyalty balance (`get_customer_loyalty_info`) + assign ephemeral cart (`get_or_assign_cart`).
+2. **Item Search & Batch Management**:
+   - Query inventory (`get_medicine_inventory`), Salt filter (`search_link`), Barcode (`scan_barcode`).
+   - Item Details Modal: fetch warehouses (`get_item_warehouses`), batches (`get_item_batches`), live rate/stock (`get_item_details`).
+   - Enforce batch assignment for all batch-tracked medicines before checkout.
+3. **Cart Sync & Auto-Discounts**:
+   - Debounced (500ms) sync (`save_cart`) with `warehouse`, `batch_no`, line discounts.
+   - Auto-discount engine preview (`get_applicable_discounts`).
+   - Forced immediate `save_cart` on checkout button click.
+4. **Checkout Preview & Multi-Gate PIN Approvals**:
+   - Execute `checkout_preview` + `get_manager_users`.
+   - **Discount Gate**: Validate against role limit (`check_discount_limit`) -> `request_approval` + Manager PIN via `submit_approval`.
+   - **Prescription Gate**: Missing Schedule H/H1/X Rx requires reason + Manager PIN.
+   - **Margin Gate**: Enforce margin (Block / Admin PIN Override / Warn).
+5. **Payment Modes & Settlement**:
+   - `Cash` / `UPI` / `Card` / `Online` (Razorpay link with 5s status polling via `verify_payment_link_status`).
+   - Submit final `create_pos_invoice` with all approval log IDs.
+6. **Receipting**:
+   - Thermal/A4 print view & direct PDF download (`download_pdf`).
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Initialize Mermaid
     mermaid.initialize({
       startOnLoad: true,
       theme: 'dark',
@@ -818,7 +897,6 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
       }
     });
 
-    // Tab Switching
     function switchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
@@ -830,7 +908,6 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
       if (targetPane) targetPane.classList.add('active');
     }
 
-    // Copy Prompt Function
     function copyPrompt() {
       const text = document.getElementById('prompt-text').innerText;
       navigator.clipboard.writeText(text).then(() => {
@@ -840,7 +917,6 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
       });
     }
 
-    // Mock Screens Content
     const mockScreens = {
       1: `
         <div class="mock-header">
@@ -848,139 +924,122 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
           <span class="mock-badge">2 Items</span>
         </div>
         <div class="mock-search">
-          <span>🔍 Search medicines...</span>
-          <span>📷</span>
+          <span>🔍 Search medicines by brand/salt...</span>
+          <span>📷 F3</span>
         </div>
         <div class="mock-card" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <div style="font-weight:600;">Rahul Sharma</div>
-            <div style="font-size:11px; color:#94A3B8;">+91 98765 43210</div>
+            <div style="font-weight:700;">Rahul Sharma</div>
+            <div style="font-size:11px; color:#F59E0B; font-weight:700; margin-top:2px;">⭐ 150 pts (₹ 15.00)</div>
           </div>
-          <span style="color:#60A5FA; font-size:12px; font-weight:600;">Change</span>
+          <span style="color:#60A5FA; font-size:12px; font-weight:600;">Past Orders</span>
         </div>
-        <div style="font-weight:600; font-size:12px; color:#94A3B8; margin-top:4px;">CART ITEMS</div>
-        <div class="mock-card">
+        <div style="font-weight:600; font-size:12px; color:#94A3B8; margin-top:4px;">CART ITEMS (Tap to edit batch/warehouse)</div>
+        <div class="mock-card" onclick="renderMockScreen(2)" style="cursor:pointer; border-color:#3B82F6;">
           <div style="display:flex; justify-content:space-between;">
-            <span style="font-weight:600;">Augmentin 625 Duo</span>
+            <span style="font-weight:700;">Augmentin 625 Duo</span>
             <span style="font-weight:700;">₹ 201.71</span>
           </div>
-          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">Batch: AUG992 | Exp: 12/26</div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <div style="display:flex; gap:6px; margin: 6px 0;">
+            <span style="background:rgba(37,99,235,0.2); color:#60A5FA; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600;">Batch: AUG992</span>
+            <span style="background:rgba(255,255,255,0.06); color:#94A3B8; font-size:10px; padding:2px 6px; border-radius:4px;">Stores - Main</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
             <span style="font-size:11px; color:#10B981;">GST 12%</span>
             <div style="display:flex; align-items:center; gap:8px; background:#0F172A; padding:4px 8px; border-radius:6px;">
               <span>-</span> <b>1</b> <span>+</span>
             </div>
           </div>
         </div>
-        <div class="mock-card">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-weight:600;">Pan D Capsule</span>
-            <span style="font-weight:700;">₹ 199.00</span>
-          </div>
-          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">Batch: PAND10 | Exp: 08/27</div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <span style="font-size:11px; color:#10B981;">GST 12%</span>
-            <div style="display:flex; align-items:center; gap:8px; background:#0F172A; padding:4px 8px; border-radius:6px;">
-              <span>-</span> <b>2</b> <span>+</span>
-            </div>
-          </div>
-        </div>
         <div class="mock-card" style="background:#172033; margin-top:auto;">
           <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
             <span style="color:#94A3B8;">Subtotal</span>
-            <span>₹ 599.71</span>
+            <span>₹ 201.71</span>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
             <span style="color:#94A3B8;">GST Tax</span>
-            <span>₹ 71.96</span>
+            <span>₹ 24.20</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; margin-top:6px; padding-top:6px; border-top:1px solid #334155;">
             <span>Grand Total</span>
-            <span style="color:#60A5FA;">₹ 671.67</span>
+            <span style="color:#60A5FA;">₹ 225.91</span>
           </div>
         </div>
-        <div class="mock-btn" onclick="renderMockScreen(5)">Proceed to Payment (₹ 671.67)</div>
+        <div class="mock-btn" onclick="renderMockScreen(5)">Proceed to Payment (₹ 225.91)</div>
       `,
       2: `
         <div class="mock-header">
+          <span>Item Details</span>
+          <span style="font-size:12px; color:#94A3B8;" onclick="renderMockScreen(1)">Done</span>
+        </div>
+        <div style="font-weight:700; font-size:14px;">Augmentin 625 Duo</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; background:#172033; padding:10px; border-radius:10px; text-align:center;">
+          <div><span style="font-size:10px; color:#94A3B8;">Rate</span><br/><b>₹ 201.71</b></div>
+          <div><span style="font-size:10px; color:#94A3B8;">Stock</span><br/><b style="color:#10B981;">45 units</b></div>
+          <div><span style="font-size:10px; color:#94A3B8;">Exp</span><br/><b>12/2026</b></div>
+        </div>
+        <div style="font-weight:700; font-size:12px; margin-top:6px;">Select Warehouse:</div>
+        <div class="mock-card" style="border-color:#2563EB; background:rgba(37,99,235,0.12); display:flex; justify-content:space-between;">
+          <span>Stores - Main</span>
+          <span style="color:#10B981; font-weight:600;">✓ Qty: 45</span>
+        </div>
+        <div class="mock-card" style="display:flex; justify-content:space-between;">
+          <span>Pharmacy Counter 2</span>
+          <span style="color:#94A3B8;">Qty: 10</span>
+        </div>
+        <div style="font-weight:700; font-size:12px; margin-top:6px;">Select Batch Number:</div>
+        <div class="mock-card" style="border-color:#2563EB; background:rgba(37,99,235,0.12); display:flex; justify-content:space-between;">
+          <div><b>AUG992</b><br/><span style="font-size:10px; color:#94A3B8;">Exp: 12/2026</span></div>
+          <span style="color:#10B981; font-weight:600;">✓ Qty: 30</span>
+        </div>
+        <div class="mock-btn" style="margin-top:auto;" onclick="renderMockScreen(1)">Apply Changes</div>
+      `,
+      3: `
+        <div class="mock-header">
           <span>Select Customer</span>
-          <span style="font-size:12px; color:#94A3B8;">Cancel</span>
+          <span style="font-size:12px; color:#94A3B8;" onclick="renderMockScreen(1)">Cancel</span>
         </div>
         <div class="mock-search">
           <span>Search name or phone...</span>
         </div>
-        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
-          <div style="font-weight:600;">Rahul Sharma</div>
-          <div style="font-size:11px; color:#94A3B8;">+91 98765 43210</div>
-          <div style="font-size:11px; color:#60A5FA; margin-top:4px;">Last visit: 3 days ago</div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer; border-color:#3B82F6;">
+          <div style="display:flex; justify-content:space-between;">
+            <div style="font-weight:700;">Rahul Sharma</div>
+            <span style="background:rgba(245,158,11,0.2); color:#F59E0B; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">⭐ 150 pts</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">+91 98765 43210</div>
         </div>
         <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
-          <div style="font-weight:600;">Priya Patel</div>
+          <div style="font-weight:700;">Priya Patel</div>
           <div style="font-size:11px; color:#94A3B8;">+91 94231 88765</div>
-        </div>
-        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
-          <div style="font-weight:600;">Walk-in Customer</div>
-          <div style="font-size:11px; color:#94A3B8;">No customer record created</div>
-        </div>
-      `,
-      3: `
-        <div class="mock-header">
-          <span>Select Medicine</span>
-          <span style="font-size:12px; color:#94A3B8;">Back</span>
-        </div>
-        <div class="mock-search">
-          <span>Search brand, generic, or code...</span>
-        </div>
-        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-weight:600;">Augmentin 625 Duo</span>
-            <span style="font-weight:700;">₹ 201.71</span>
-          </div>
-          <div style="font-size:11px; color:#94A3B8;">Amoxycillin + Clavulanic Acid</div>
-          <div style="display:flex; justify-content:space-between; margin-top:6px;">
-            <span style="font-size:11px; color:#10B981;">In Stock: 45</span>
-            <span style="font-size:11px; color:#60A5FA;">+ Add to Cart</span>
-          </div>
-        </div>
-        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-weight:600;">Dolo 650 Tablet</span>
-            <span style="font-weight:700;">₹ 32.00</span>
-          </div>
-          <div style="font-size:11px; color:#94A3B8;">Paracetamol 650mg</div>
-          <div style="display:flex; justify-content:space-between; margin-top:6px;">
-            <span style="font-size:11px; color:#10B981;">In Stock: 120</span>
-            <span style="font-size:11px; color:#60A5FA;">+ Add to Cart</span>
-          </div>
         </div>
       `,
       4: `
         <div class="mock-header">
-          <span>Past Orders (Rahul Sharma)</span>
-          <span style="font-size:12px; color:#94A3B8;">Close</span>
+          <span>Barcode Scanner (F3)</span>
+          <span style="font-size:12px; color:#94A3B8;" onclick="renderMockScreen(1)">Close</span>
         </div>
-        <div class="mock-card">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-weight:600;">Invoice #ACC-SINV-0089</span>
-            <span style="color:#10B981; font-weight:600;">₹ 400.71</span>
-          </div>
-          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">21 Aug 2026 • 2 Items</div>
-          <div style="font-size:11px; color:#E2E8F0;">• Augmentin 625 Duo (1)<br/>• Pan D (1)</div>
-          <div class="mock-btn" style="padding:6px; font-size:12px; margin-top:8px;" onclick="renderMockScreen(1)">
-            + Reorder All Items
-          </div>
+        <div style="height:120px; border:2px dashed #2563EB; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;">
+          <span style="font-size:24px;">📷</span>
+          <span style="font-size:11px; color:#94A3B8;">Scanning active via scan_barcode API</span>
+        </div>
+        <div style="font-size:12px; color:#94A3B8; margin-top:12px;">Or Enter SKU / Barcode Manually:</div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" value="8901234567890" style="flex:1; background:#1E293B; border:1px solid #334155; color:white; padding:8px; border-radius:8px; font-size:12px;" />
+          <button class="mock-btn" style="padding:0 12px;" onclick="renderMockScreen(1)">Add</button>
         </div>
       `,
       5: `
         <div class="mock-header">
-          <span>Payment - ₹ 671.67</span>
-          <span style="font-size:12px; color:#94A3B8;">✕</span>
+          <span>Payment - ₹ 225.91</span>
+          <span style="font-size:12px; color:#94A3B8;" onclick="renderMockScreen(1)">✕</span>
         </div>
-        <div style="font-size:12px; color:#94A3B8;">Payment Method</div>
+        <div style="font-size:11px; color:#94A3B8;">Payment Mode</div>
         <div class="mock-pill-group">
           <div class="mock-pill active">Cash</div>
           <div class="mock-pill">UPI</div>
           <div class="mock-pill">Card</div>
+          <div class="mock-pill">Online</div>
         </div>
         <div class="mock-alert mock-alert-amber">
           <b>⚠️ Discount Gate</b><br/>
@@ -994,11 +1053,11 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
           <div style="font-size:11px; color:#94A3B8; margin-bottom:4px;">Manager Approval PIN:</div>
           <div style="display:flex; gap:6px;">
             <input type="password" value="1234" style="background:#0F172A; border:1px solid #334155; color:white; padding:6px; border-radius:6px; flex:1;" />
-            <button style="background:#10B981; color:white; border:none; border-radius:6px; padding:0 12px; font-weight:600;">Verify</button>
+            <button style="background:#10B981; color:white; border:none; border-radius:6px; padding:0 12px; font-weight:600;">Approve</button>
           </div>
         </div>
         <div class="mock-btn" style="background:#10B981; margin-top:auto;" onclick="renderMockScreen(6)">
-          Complete Sale (₹ 671.67)
+          Complete Sale (₹ 225.91)
         </div>
       `,
       6: `
@@ -1016,7 +1075,7 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
           </div>
           <div style="display:flex; justify-content:space-between; margin-top:4px;">
             <span>Mode: CASH</span>
-            <span>Total: ₹ 671.67</span>
+            <span>Total: ₹ 225.91</span>
           </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
@@ -1039,7 +1098,6 @@ Implement and verify complete parity for the Point of Sale (POS) Billing workflo
       document.getElementById('phone-screen-content').innerHTML = mockScreens[step] || '';
     }
 
-    // Initial Screen Load
     renderMockScreen(1);
   </script>
 </body>

@@ -12,7 +12,7 @@ import { X, Plus } from 'lucide-react-native';
 import { customerService } from '../../settings/services/customerService';
 import { Customer, CartItem } from '../types';
 import { useAppTheme } from '../../../shared/theme';
-import type { CustomerInvoice } from '../../orders/types';
+import type { CustomerInvoice } from '../../settings/types';
 
 type Props = {
   visible: boolean;
@@ -69,12 +69,11 @@ export const POSPastOrdersModal = ({
 
     // Convert invoice items to CartItem format
     const cartItems: CartItem[] = (invoice.items || [])
-      .filter(item => typeof item !== 'string') // Filter out string items
+      .filter(item => typeof item !== 'string')
       .map((item, idx) => {
-        // item is an InvoiceItem object
         const invoiceItem = item as any;
         return {
-          id: `${invoice.name || invoice.invoice_id || 'invoice'}-${idx}`,
+          id: `${invoice.invoice_id || 'invoice'}-${idx}`,
           name: invoiceItem.item_name || invoiceItem.item_code || 'Unknown',
           batch: invoiceItem.batch || '',
           exp: invoiceItem.expiry_date || '',
@@ -101,7 +100,7 @@ export const POSPastOrdersModal = ({
       typeof orderItem === 'string' ? { item_name: orderItem } : orderItem;
 
     const cartItem: CartItem = {
-      id: `${invoice.name || invoice.invoice_id || 'invoice'}-${
+      id: `${invoice.invoice_id || 'invoice'}-${
         invoiceItem.item_code || invoiceItem.item_name || 'item'
       }`,
       name:
@@ -118,7 +117,6 @@ export const POSPastOrdersModal = ({
     };
 
     onAddItemsToCart([cartItem]);
-    // Close modal to return to POS card with selected customer
     onClose();
   };
 
@@ -131,8 +129,8 @@ export const POSPastOrdersModal = ({
 
   const renderInvoiceItem = ({ item }: { item: CustomerInvoice }) => {
     const itemCount = (item.items || []).length;
-    const total = item.amount || item.grand_total || 0;
-    const invoiceId = item.name || item.invoice_id || 'Invoice';
+    const total = item.amount || 0;
+    const invoiceId = item.invoice_id || 'Invoice';
     const statusColor = item.status === 'Overdue' ? '#E74C3C' : '#27AE60';
 
     return (
@@ -150,96 +148,117 @@ export const POSPastOrdersModal = ({
             <Text style={[styles.pastOrderId, { color: theme.colors.text }]}>
               {invoiceId}
             </Text>
-            <View style={styles.dateStatusRow}>
-              <Text
-                style={[
-                  styles.pastOrderDate,
-                  { color: theme.colors.mutedText },
-                ]}
-              >
-                {item.posting_date}
-              </Text>
-              <Text style={[styles.statusBadge, { color: statusColor }]}>
-                {item.status}
+            <Text
+              style={[styles.pastOrderMeta, { color: theme.colors.mutedText }]}
+            >
+              {`${item.posting_date || ''} • ${itemCount} ${
+                itemCount === 1 ? 'item' : 'items'
+              }`}
+            </Text>
+          </View>
+          <View style={styles.pastOrderRight}>
+            <Text
+              style={[styles.pastOrderAmount, { color: theme.colors.text }]}
+            >
+              {formatAmount(total)}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: `${statusColor}20` },
+              ]}
+            >
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {item.status || 'Paid'}
               </Text>
             </View>
           </View>
-          {/* Removed invoice-level add button; per-item add buttons remain */}
         </View>
 
-        <Text style={[styles.itemCountText, { color: theme.colors.mutedText }]}>
-          {itemCount} item{itemCount !== 1 ? 's' : ''}
-        </Text>
-
-        <View style={styles.itemsList}>
-          {(item.items || []).slice(0, 2).map((orderItem, idx) => (
-            <View
-              key={`${invoiceId}-item-${idx}`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Text
-                style={[
-                  styles.pastOrderItem,
-                  { color: theme.colors.mutedText, flex: 1 },
-                ]}
-                numberOfLines={1}
-              >
-                • {getItemDisplayName(orderItem)}
-              </Text>
-              <Pressable
-                style={[
-                  styles.addButton,
-                  { marginLeft: 8, backgroundColor: theme.colors.primary },
-                ]}
-                onPress={() => handleAddSingleItem(item, orderItem)}
-              >
-                <Plus size={12} color="#FFFFFF" strokeWidth={2} />
-              </Pressable>
-            </View>
-          ))}
-
-          {itemCount > 2 && (
-            <Text
-              style={[styles.moreItemsText, { color: theme.colors.mutedText }]}
-            >
-              +{itemCount - 2} more
+        {/* List of items */}
+        {item.items && item.items.length > 0 && (
+          <View style={styles.itemsContainer}>
+            <Text style={[styles.itemsTitle, { color: theme.colors.mutedText }]}>
+              Items:
             </Text>
-          )}
-        </View>
+            {item.items.map((orderItem, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <Text
+                  style={[styles.itemBullet, { color: theme.colors.mutedText }]}
+                >
+                  •
+                </Text>
+                <Text
+                  style={[styles.itemText, { color: theme.colors.text }]}
+                  numberOfLines={1}
+                >
+                  {getItemDisplayName(orderItem)}
+                </Text>
+                <Pressable
+                  style={styles.addSingleItemBtn}
+                  onPress={() => handleAddSingleItem(item, orderItem)}
+                >
+                  <Plus size={12} color={theme.colors.primary} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
 
-        <Text style={[styles.pastOrderAmount, { color: theme.colors.text }]}>
-          {formatAmount(total)}
-        </Text>
+        {/* Add all items button */}
+        {onAddItemsToCart && item.items && item.items.length > 0 && (
+          <Pressable
+            style={[
+              styles.addAllBtn,
+              {
+                borderColor: theme.colors.primary,
+                backgroundColor: `${theme.colors.primary}10`,
+              },
+            ]}
+            onPress={() => handleAddItemsFromInvoice(item)}
+          >
+            <Plus size={14} color={theme.colors.primary} />
+            <Text style={[styles.addAllText, { color: theme.colors.primary }]}>
+              Add All Items to Cart
+            </Text>
+          </Pressable>
+        )}
       </View>
     );
   };
 
   return (
     <Modal transparent visible={visible} animationType="slide">
-      <View style={styles.modalBackdropBottom}>
+      <View style={styles.modalBackdrop}>
         <View
-          style={[styles.bottomSheet, { backgroundColor: theme.colors.card }]}
+          style={[styles.modalSheet, { backgroundColor: theme.colors.card }]}
         >
+          {/* Header */}
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
-              {`${selectedCustomer?.name || 'Customer'} - Past Orders`}
-            </Text>
-            <Pressable onPress={onClose}>
+            <View>
+              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+                Past Orders
+              </Text>
+              {selectedCustomer && (
+                <Text
+                  style={[
+                    styles.sheetSubtitle,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >
+                  {selectedCustomer.name}
+                </Text>
+              )}
+            </View>
+            <Pressable onPress={onClose} hitSlop={8}>
               <X size={16} color={theme.colors.mutedText} />
             </Pressable>
           </View>
 
+          {/* Content */}
           {loading ? (
             <View style={styles.centerContainer}>
-              <ActivityIndicator
-                size="large"
-                color={theme.colors.primary}
-                style={{ marginBottom: 8 }}
-              />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text
                 style={[styles.loadingText, { color: theme.colors.mutedText }]}
               >
@@ -251,6 +270,31 @@ export const POSPastOrdersModal = ({
               <Text style={[styles.errorText, { color: theme.colors.text }]}>
                 {error}
               </Text>
+              <Pressable
+                style={[
+                  styles.retryButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+                onPress={() => {
+                  setError(null);
+                  setLoading(true);
+                  if (selectedCustomer) {
+                    customerService
+                      .fetchCustomerInvoices(selectedCustomer.id, 1, 50)
+                      .then(data => setInvoices(data))
+                      .catch(err =>
+                        setError(
+                          err instanceof Error
+                            ? err.message
+                            : 'Failed to load past orders',
+                        ),
+                      )
+                      .finally(() => setLoading(false));
+                  }
+                }}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </Pressable>
             </View>
           ) : invoices.length === 0 ? (
             <View style={styles.centerContainer}>
@@ -265,7 +309,7 @@ export const POSPastOrdersModal = ({
               data={invoices}
               renderItem={renderInvoiceItem}
               keyExtractor={(item, index) =>
-                `${item.name || 'invoice'}-${index}`
+                `${item.invoice_id || 'invoice'}-${index}`
               }
               scrollEnabled={true}
               nestedScrollEnabled={true}
@@ -279,116 +323,143 @@ export const POSPastOrdersModal = ({
 };
 
 const styles = StyleSheet.create({
-  modalBackdropBottom: {
+  modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
-  bottomSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    padding: 14,
-    maxHeight: '74%',
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   sheetTitle: {
-    color: '#403631',
-    fontWeight: '800',
     fontSize: 16,
-    flex: 1,
+    fontWeight: '700',
+  },
+  sheetSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
   },
   pastOrderCard: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5DFDA',
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 8,
+    padding: 12,
   },
   pastOrderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   pastOrderId: {
-    color: '#564A43',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
-  pastOrderDate: {
-    color: '#B59F93',
-    fontSize: 10,
+  pastOrderMeta: {
+    fontSize: 11,
     marginTop: 2,
   },
-  dateStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
+  pastOrderRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  pastOrderAmount: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   statusBadge: {
-    fontSize: 9,
-    fontWeight: '600',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    overflow: 'hidden',
   },
-  addButton: {
-    paddingHorizontal: 10,
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  itemsContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  itemsTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 2,
+    gap: 6,
+  },
+  itemBullet: {
+    fontSize: 10,
+  },
+  itemText: {
+    fontSize: 11,
+    flex: 1,
+  },
+  addSingleItemBtn: {
+    padding: 4,
+  },
+  addAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  addAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  centerContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 12,
+  },
+  emptyText: {
+    fontSize: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
-  itemCountText: {
-    fontSize: 10,
-    marginBottom: 4,
-  },
-  itemsList: {
-    marginVertical: 4,
-  },
-  pastOrderItem: {
-    color: '#5E5148',
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  moreItemsText: {
-    color: '#B59F93',
-    fontSize: 10,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  pastOrderAmount: {
-    color: '#4A3E37',
-    fontWeight: '700',
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
     fontSize: 12,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  errorText: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 13,
-  },
-  listContent: {
-    paddingVertical: 4,
   },
 });

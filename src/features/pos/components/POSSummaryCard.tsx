@@ -1,14 +1,21 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Star, Tag, Percent } from 'lucide-react-native';
 import { formatAmount } from '../utils';
 import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   subtotal: number;
   gstAmount: number;
-  discountPercent: string;
-  onDiscountChange: (value: string) => void;
+  discountType: 'Percentage' | 'Amount';
+  onDiscountTypeChange: (type: 'Percentage' | 'Amount') => void;
+  discountValue: string;
+  onDiscountValueChange: (value: string) => void;
   total: number;
+  loyaltyPoints?: number;
+  loyaltyRedemptionValue?: number;
+  redeemLoyalty?: boolean;
+  onToggleRedeemLoyalty?: (value: boolean) => void;
   canProceed: boolean;
   onPressProceed: () => void;
 };
@@ -16,9 +23,15 @@ type Props = {
 export const POSSummaryCard = ({
   subtotal,
   gstAmount,
-  discountPercent,
-  onDiscountChange,
+  discountType,
+  onDiscountTypeChange,
+  discountValue,
+  onDiscountValueChange,
   total,
+  loyaltyPoints = 0,
+  loyaltyRedemptionValue = 0,
+  redeemLoyalty = false,
+  onToggleRedeemLoyalty,
   canProceed,
   onPressProceed,
 }: Props) => {
@@ -44,9 +57,10 @@ export const POSSummaryCard = ({
           {formatAmount(subtotal)}
         </Text>
       </View>
+
       <View style={styles.summaryRow}>
         <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
-          GST
+          GST Tax
         </Text>
         <Text
           style={[styles.summaryValueNeutral, { color: theme.colors.text }]}
@@ -54,31 +68,142 @@ export const POSSummaryCard = ({
           {formatAmount(gstAmount)}
         </Text>
       </View>
-      <View style={styles.summaryRow}>
-        <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
-          Bill Discount
-        </Text>
-        <View style={styles.discountInputWrap}>
-          <TextInput
-            value={discountPercent}
-            onChangeText={onDiscountChange}
-            keyboardType="number-pad"
-            style={[
-              styles.discountInput,
-              {
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-                backgroundColor: theme.colors.background,
-              },
-            ]}
-          />
-          <Text
-            style={[styles.discountSuffix, { color: theme.colors.mutedText }]}
-          >
-            %
+
+      {/* Bill Discount Section (Matching Web POS: Discount Type + Discount Value) */}
+      <View style={[styles.discountContainer, { borderColor: theme.colors.border }]}>
+        <View style={styles.discountHeaderRow}>
+          <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
+            Bill Discount
           </Text>
+          {/* Segmented Type Toggle */}
+          <View
+            style={[
+              styles.discountTypeTabs,
+              { backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9' },
+            ]}
+          >
+            <Pressable
+              style={[
+                styles.typeTab,
+                discountType === 'Percentage' && [
+                  styles.typeTabActive,
+                  { backgroundColor: theme.colors.card },
+                ],
+              ]}
+              onPress={() => onDiscountTypeChange('Percentage')}
+            >
+              <Percent
+                size={11}
+                color={
+                  discountType === 'Percentage'
+                    ? theme.colors.primary
+                    : theme.colors.mutedText
+                }
+              />
+              <Text
+                style={[
+                  styles.typeTabText,
+                  {
+                    color:
+                      discountType === 'Percentage'
+                        ? theme.colors.primary
+                        : theme.colors.mutedText,
+                    fontWeight: discountType === 'Percentage' ? '700' : '500',
+                  },
+                ]}
+              >
+                Percent (%)
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.typeTab,
+                discountType === 'Amount' && [
+                  styles.typeTabActive,
+                  { backgroundColor: theme.colors.card },
+                ],
+              ]}
+              onPress={() => onDiscountTypeChange('Amount')}
+            >
+              <Tag
+                size={11}
+                color={
+                  discountType === 'Amount'
+                    ? theme.colors.primary
+                    : theme.colors.mutedText
+                }
+              />
+              <Text
+                style={[
+                  styles.typeTabText,
+                  {
+                    color:
+                      discountType === 'Amount'
+                        ? theme.colors.primary
+                        : theme.colors.mutedText,
+                    fontWeight: discountType === 'Amount' ? '700' : '500',
+                  },
+                ]}
+              >
+                Amount (₹)
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.discountInputRow}>
+          <Text style={[styles.discountInputPrefix, { color: theme.colors.mutedText }]}>
+            {discountType === 'Percentage' ? 'Discount %' : 'Discount ₹'}
+          </Text>
+          <View style={styles.discountInputWrap}>
+            <TextInput
+              value={discountValue}
+              onChangeText={onDiscountValueChange}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={theme.colors.mutedText}
+              style={[
+                styles.discountInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                  backgroundColor: theme.colors.background,
+                },
+              ]}
+            />
+            <Text
+              style={[styles.discountSuffix, { color: theme.colors.mutedText }]}
+            >
+              {discountType === 'Percentage' ? '%' : '₹'}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* Loyalty Points Redemption Toggle */}
+      {loyaltyPoints > 0 && loyaltyRedemptionValue > 0 ? (
+        <View style={[styles.loyaltyRow, { borderColor: theme.colors.border }]}>
+          <View style={styles.loyaltyLeft}>
+            <Star size={14} color="#F59E0B" fill="#F59E0B" />
+            <View>
+              <Text style={[styles.loyaltyTitle, { color: theme.colors.text }]}>
+                Redeem {loyaltyPoints} Points
+              </Text>
+              <Text style={[styles.loyaltySub, { color: theme.colors.mutedText }]}>
+                Save {formatAmount(loyaltyRedemptionValue)}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={redeemLoyalty}
+            onValueChange={onToggleRedeemLoyalty}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+      ) : null}
+
       <View
         style={[
           styles.summaryRow,
@@ -87,22 +212,25 @@ export const POSSummaryCard = ({
         ]}
       >
         <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
-          Total
+          Grand Total
         </Text>
         <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
           {formatAmount(total)}
         </Text>
       </View>
+
       <Pressable
         style={[
-          styles.proceedBtn,
+          styles.proceedButton,
           { backgroundColor: theme.colors.primary },
-          !canProceed && styles.proceedBtnDisabled,
+          !canProceed && styles.proceedButtonDisabled,
         ]}
         onPress={onPressProceed}
         disabled={!canProceed}
       >
-        <Text style={styles.proceedText}>Proceed to Payment</Text>
+        <Text style={styles.proceedButtonText}>
+          Proceed to Payment ({formatAmount(total)})
+        </Text>
       </Pressable>
     </View>
   );
@@ -110,81 +238,138 @@ export const POSSummaryCard = ({
 
 const styles = StyleSheet.create({
   summaryCard: {
-    marginTop: 10,
     borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 8,
   },
   summaryRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   summaryLabel: {
-    color: '#8E7A6F',
+    fontSize: 13,
     fontWeight: '600',
-    fontSize: 12,
   },
   summaryValueNeutral: {
-    color: '#5B4E47',
+    fontSize: 13,
     fontWeight: '700',
+  },
+  discountContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginVertical: 6,
+    gap: 8,
+  },
+  discountHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  discountTypeTabs: {
+    flexDirection: 'row',
+    padding: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  typeTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  typeTabActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  typeTabText: {
+    fontSize: 11,
+  },
+  discountInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  discountInputPrefix: {
     fontSize: 12,
   },
   discountInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   discountInput: {
-    width: 46,
-    height: 24,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DED8D2',
-    textAlign: 'center',
-    color: '#61554D',
-    fontWeight: '600',
-    fontSize: 12,
-    paddingVertical: 2,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    width: 80,
+    textAlign: 'right',
+    fontSize: 13,
+    fontWeight: '700',
   },
   discountSuffix: {
-    color: '#8E7A6F',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  loyaltyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  loyaltyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loyaltyTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  loyaltySub: {
+    fontSize: 11,
+    marginTop: 1,
   },
   totalRow: {
-    borderTopColor: '#ECE7E2',
     borderTopWidth: 1,
-    paddingTop: 6,
-    marginTop: 2,
+    paddingTop: 10,
+    marginTop: 4,
+    marginBottom: 12,
   },
   totalLabel: {
-    color: '#3F3430',
+    fontSize: 15,
     fontWeight: '800',
-    fontSize: 16,
   },
   totalValue: {
-    color: '#1CA39A',
+    fontSize: 17,
     fontWeight: '800',
-    fontSize: 18,
   },
-  proceedBtn: {
-    marginTop: 6,
-    borderRadius: 8,
-    backgroundColor: '#2BA497',
+  proceedButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
   },
-  proceedBtnDisabled: {
-    backgroundColor: '#AFC9C4',
+  proceedButtonDisabled: {
+    opacity: 0.6,
   },
-  proceedText: {
+  proceedButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
   },
 });

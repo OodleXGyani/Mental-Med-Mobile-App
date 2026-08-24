@@ -332,8 +332,8 @@ export const OrderHistoryScreen = () => {
         {items.length > 0 ? (
           items.map(order => (
             <Pressable
-              key={order.invoice_id}
-              onPress={() => openInvoiceDetails(order.invoice_id)}
+              key={order.invoice_id || order.name}
+              onPress={() => openInvoiceDetails(order.invoice_id || order.name || '')}
               style={[
                 styles.orderCard,
                 {
@@ -345,7 +345,7 @@ export const OrderHistoryScreen = () => {
               <View style={styles.orderHeader}>
                 <View style={styles.orderMeta}>
                   <Text style={[styles.orderId, { color: theme.colors.text }]}>
-                    {order.invoice_id}
+                    {order.invoice_id || order.name}
                   </Text>
                   <View
                     style={[
@@ -361,7 +361,7 @@ export const OrderHistoryScreen = () => {
                 <Text
                   style={[styles.orderAmount, { color: theme.colors.primary }]}
                 >
-                  {formatAmount(order.amount)}
+                  {formatAmount(order.amount ?? 0)}
                 </Text>
               </View>
 

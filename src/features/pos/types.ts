@@ -8,6 +8,15 @@ export type CartItem = {
   qty: number;
   item_code?: string;
   rate?: number;
+  mrp?: number;
+  uom?: string;
+  warehouse?: string;
+  batch_no?: string;
+  discount_type?: string;
+  discount_value?: number;
+  has_batch_no?: boolean;
+  prescription_required?: boolean;
+  conversion_factor?: number;
 };
 
 export type Medicine = {
@@ -17,23 +26,43 @@ export type Medicine = {
   batch?: string;
   expiry_date?: string;
   rate?: number;
+  mrp?: number;
+  uom?: string;
   gst?: number;
   warehouse?: string;
+  has_batch_no?: boolean;
+  prescription_required?: boolean;
+  conversion_factor?: number;
 };
 
 export type Customer = {
   id: string;
   name: string;
   phone: string;
+  loyalty_points?: number;
+  loyalty_redemption_value?: number;
 };
 
-export type PaymentMethod = 'Cash' | 'UPI' | 'Card';
+export type PaymentMethod = 'Cash' | 'UPI' | 'Card' | 'Online';
+
+// Customer Loyalty Types
+export type CustomerLoyaltyInfo = {
+  loyalty_points: number;
+  conversion_factor: number;
+  redemption_value: number;
+  loyalty_program: string | null;
+};
 
 // Cart API Types
 export type CartItemInput = {
   item_code: string;
-  qty: number;
+  qty?: number;
+  quantity?: number;
   rate: number;
+  warehouse?: string;
+  batch_no?: string;
+  discount_type?: string;
+  discount_value?: number;
 };
 
 export type CartResponse = {
@@ -54,10 +83,14 @@ export type CartItemAPI = {
   rate: number;
   amount: number;
   warehouse: string;
+  batch_no?: string;
+  discount_type?: string;
+  discount_value?: number;
 };
 
 export type SaveCartPayload = {
   customer: string;
+  cart_name?: string;
   items: CartItemInput[];
 };
 
@@ -75,6 +108,39 @@ export type GetOrAssignCartPayload = {
   cart_name?: string;
 };
 
+// Item Details (Warehouse & Batch) Types
+export type WarehouseOption = {
+  warehouse: string;
+  actual_qty: number;
+};
+
+export type BatchOption = {
+  batch_no: string;
+  expiry_date: string;
+  actual_qty: number;
+};
+
+export type ItemDetailsResponse = {
+  rate: number;
+  mrp?: number;
+  actual_qty: number;
+  batch_qty?: number;
+  expiry_date?: string;
+  has_batch_no?: boolean;
+  has_serial_no?: boolean;
+  item_name?: string;
+  uom?: string;
+  prescription_required?: boolean;
+  conversion_factor?: number;
+};
+
+export type ScanBarcodeResponse = {
+  item_code: string;
+  batch_no?: string;
+  barcode?: string;
+  item_name?: string;
+};
+
 // Checkout (create_pos_invoice) types
 export type PaymentEntryInput = {
   mode: string;
@@ -82,15 +148,21 @@ export type PaymentEntryInput = {
 };
 
 export type CreatePosInvoicePayload = {
-  cart_name: string;
+  customer?: string;
+  cart_name?: string;
   payment_mode: 'Cash' | 'Online';
   payments?: PaymentEntryInput[];
+  items?: any[];
   discount_value?: number;
   discount_type?: 'Percentage' | 'Amount';
   prescription?: string;
   discount_approval_log?: string;
   rx_override_log?: string;
   margin_override_log?: string;
+  redeem_loyalty?: number;
+  loyalty_points?: number;
+  redeem_loyalty_points?: boolean;
+  loyalty_points_to_redeem?: number;
 };
 
 export type CreatePosInvoiceResponse = {
@@ -107,12 +179,13 @@ export type CreatePosInvoiceResponse = {
   loyalty_points_earned: number;
 };
 
-// Checkout preview (server-computed totals + the same three approval gates
-// create_pos_invoice enforces -- mirrors the web POS's CheckoutPreviewModal)
+// Checkout preview
 export type CheckoutPreviewPayload = {
   cart_name: string;
   discount_value?: number;
   discount_type?: 'Percentage' | 'Amount';
+  redeem_loyalty?: number;
+  loyalty_points?: number;
 };
 
 export type PrescriptionCheck = {
@@ -151,6 +224,26 @@ export type CheckoutPreviewResponse = {
   margin_check: MarginCheck;
 };
 
+// Discount Limits & Applicable Discounts
+export type ApplicableDiscountsPayload = {
+  customer: string;
+  cart_name?: string;
+  items: CartItemInput[];
+};
+
+export type CheckDiscountLimitPayload = {
+  cart_name: string;
+  discount_value: number;
+  discount_type?: 'Percentage' | 'Amount';
+};
+
+export type CheckDiscountLimitResponse = {
+  approval_required: boolean;
+  role_limit: number | null;
+  discount_allowed: boolean;
+};
+
+// Manager Approval Types
 export type ManagerUser = {
   label: string;
   value: string;
@@ -163,6 +256,7 @@ export type RequestApprovalPayload = {
   cart_name: string;
   item_code?: string;
   discount_requested?: number;
+  discount_type?: 'Percentage' | 'Amount';
   role_limit?: number;
   override_reason?: string;
   remarks?: string;
@@ -185,6 +279,12 @@ export type SubmitApprovalResponse = {
   approval_log?: string;
   approved_by?: string;
   approval_type?: ApprovalType;
+};
+
+// Payment Verification
+export type VerifyPaymentStatusResponse = {
+  status: 'Pending' | 'Paid' | 'Failed' | string;
+  message?: string;
 };
 
 // API Response wrapper types

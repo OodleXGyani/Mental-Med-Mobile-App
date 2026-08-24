@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -24,7 +23,7 @@ type Props = NativeStackScreenProps<
 >;
 
 const formatPrice = (price: number | undefined) => {
-  if (price === undefined || price === null) return '₹ 0';
+  if (price === undefined || price === null) return '₹ 0.00';
   return `₹ ${price.toFixed(2)}`;
 };
 
@@ -60,7 +59,11 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
 
   // Filter medicines based on search
   useEffect(() => {
-    const query = searchText.toLowerCase();
+    const query = searchText.toLowerCase().trim();
+    if (!query) {
+      setFilteredMedicines(medicines);
+      return;
+    }
     const filtered = medicines.filter(
       medicine =>
         medicine.item_name?.toLowerCase().includes(query) ||
@@ -71,7 +74,6 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
 
   const handleSelectMedicine = useCallback(
     (medicine: Medicine) => {
-      // Pass medicine to parent and go back
       if (route.params?.onMedicineSelected) {
         route.params.onMedicineSelected(medicine);
       }
@@ -81,69 +83,104 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
   );
 
   const renderMedicineItem = useCallback(
-    ({ item }: { item: Medicine }) => (
-      <Pressable
-        style={[
-          styles.medicineCard,
-          {
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border,
-          },
-        ]}
-        onPress={() => handleSelectMedicine(item)}
-      >
-        <View style={styles.medicineCardContent}>
-          <Text style={[styles.medicineName, { color: theme.colors.text }]}>
-            {item.item_name}
-          </Text>
-          <View style={styles.medicineDetails}>
-            <Text
-              style={[
-                styles.medicineDetailText,
-                { color: theme.colors.mutedText },
-              ]}
-            >
-              {item.item_code}
-            </Text>
-            {item.batch && (
-              <Text
-                style={[
-                  styles.medicineDetailText,
-                  { color: theme.colors.mutedText },
-                ]}
-              >
-                • Batch: {item.batch}
-              </Text>
-            )}
-            {item.expiry_date && (
-              <Text
-                style={[
-                  styles.medicineDetailText,
-                  { color: theme.colors.mutedText },
-                ]}
-              >
-                • Exp: {item.expiry_date}
-              </Text>
-            )}
-          </View>
-        </View>
+    ({ item }: { item: Medicine }) => {
+      const stock = item.quantity ?? 0;
+      const isOutOfStock = stock <= 0;
 
-        <View style={styles.medicineCardRight}>
-          <Text style={[styles.medicinePrice, { color: theme.colors.text }]}>
-            {formatPrice(item.rate)}
-          </Text>
-          <Pressable
-            style={[
-              styles.addButton,
-              { backgroundColor: theme.colors.primary },
-            ]}
-            onPress={() => handleSelectMedicine(item)}
-          >
-            <Plus size={16} color="#FFFFFF" strokeWidth={2} />
-          </Pressable>
-        </View>
-      </Pressable>
-    ),
+      return (
+        <Pressable
+          style={[
+            styles.medicineCard,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          onPress={() => handleSelectMedicine(item)}
+        >
+          <View style={styles.medicineCardContent}>
+            <Text style={[styles.medicineName, { color: theme.colors.text }]}>
+              {item.item_name}
+            </Text>
+            <View style={styles.medicineDetails}>
+              <Text
+                style={[
+                  styles.medicineDetailText,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                Code: {item.item_code}
+              </Text>
+              {item.batch ? (
+                <Text
+                  style={[
+                    styles.medicineDetailText,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >
+                  • Batch: {item.batch}
+                </Text>
+              ) : null}
+              {item.expiry_date ? (
+                <Text
+                  style={[
+                    styles.medicineDetailText,
+                    { color: theme.colors.mutedText },
+                  ]}
+                >
+                  • Exp: {item.expiry_date}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={styles.stockBadgeRow}>
+              <View
+                style={[
+                  styles.stockBadge,
+                  {
+                    backgroundColor: isOutOfStock
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : 'rgba(16, 185, 129, 0.15)',
+                    borderColor: isOutOfStock
+                      ? 'rgba(239, 68, 68, 0.3)'
+                      : 'rgba(16, 185, 129, 0.3)',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stockBadgeText,
+                    { color: isOutOfStock ? '#EF4444' : '#10B981' },
+                  ]}
+                >
+                  {isOutOfStock ? 'Out of stock' : `In Stock: ${stock}`}
+                </Text>
+              </View>
+              {item.gst ? (
+                <Text style={[styles.gstText, { color: theme.colors.mutedText }]}>
+                  GST {item.gst}%
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.medicineCardRight}>
+            <Text style={[styles.medicinePrice, { color: theme.colors.text }]}>
+              {formatPrice(item.rate)}
+            </Text>
+            <Pressable
+              style={[
+                styles.addButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() => handleSelectMedicine(item)}
+            >
+              <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
+            </Pressable>
+          </View>
+        </Pressable>
+      );
+    },
     [theme, handleSelectMedicine],
   );
 
@@ -156,7 +193,7 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
         ]}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
             <ChevronLeft size={24} color={theme.colors.text} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
@@ -207,7 +244,7 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
       ]}
     >
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <ChevronLeft size={24} color={theme.colors.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
@@ -218,9 +255,9 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
 
       <View style={styles.searchContainer}>
         <Search
-          size={14}
+          size={16}
           color={theme.colors.mutedText}
-          strokeWidth={2.5}
+          strokeWidth={2}
           style={styles.searchIcon}
         />
         <TextInput
@@ -232,10 +269,11 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
               borderColor: theme.colors.border,
             },
           ]}
-          placeholder="Search by name or code..."
+          placeholder="Search medicines by brand or code..."
           placeholderTextColor={theme.colors.mutedText}
           value={searchText}
           onChangeText={setSearchText}
+          autoFocus={true}
         />
       </View>
 
@@ -247,13 +285,13 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
             style={{ marginBottom: 12 }}
           />
           <Text style={[styles.loadingText, { color: theme.colors.mutedText }]}>
-            Loading medicines...
+            Loading medicines catalogue...
           </Text>
         </View>
       ) : filteredMedicines.length === 0 ? (
         <View style={styles.centerContainer}>
           <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
-            {searchText ? 'No medicines found' : 'No medicines available'}
+            No medicines match your search
           </Text>
         </View>
       ) : (
@@ -261,10 +299,10 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
           data={filteredMedicines}
           renderItem={renderMedicineItem}
           keyExtractor={(item, index) =>
-            `${item.item_code || 'medicine'}-${index}`
+            `${item.item_code}-${item.batch || ''}-${item.warehouse || ''}-${index}`
           }
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </View>
@@ -281,44 +319,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E3DE',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    position: 'relative',
+    justifyContent: 'center',
   },
   searchIcon: {
-    marginRight: 8,
+    position: 'absolute',
+    left: 28,
+    zIndex: 1,
   },
   searchInput: {
-    flex: 1,
-    paddingVertical: 10,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingLeft: 38,
+    paddingRight: 16,
     fontSize: 14,
-    borderRadius: 8,
-    borderWidth: 0,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 24,
+    gap: 8,
   },
   medicineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   medicineCardContent: {
     flex: 1,
@@ -326,64 +364,82 @@ const styles = StyleSheet.create({
   },
   medicineName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 4,
   },
   medicineDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
   },
   medicineDetailText: {
-    fontSize: 12,
-    marginRight: 8,
+    fontSize: 11,
+  },
+  stockBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stockBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  stockBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  gstText: {
+    fontSize: 10.5,
   },
   medicineCardRight: {
     alignItems: 'flex-end',
-    gap: 6,
+    gap: 8,
   },
   medicinePrice: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   addButton: {
-    borderRadius: 8,
-    padding: 8,
-    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   loadingText: {
     fontSize: 14,
-    fontWeight: '500',
   },
   emptyText: {
     fontSize: 14,
-    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
   },
   errorText: {
     fontSize: 14,
-    marginBottom: 16,
     textAlign: 'center',
   },
   retryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   retryButtonText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
 });

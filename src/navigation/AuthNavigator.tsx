@@ -18,22 +18,17 @@ export const AuthNavigator = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
-        cardStyle: { backgroundColor: theme.colors.background },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen
         name={STACK_ROUTES.LOGIN}
         component={LoginScreen}
-        options={{
-          animationEnabled: true,
-        }}
       />
       <Stack.Screen
         name={STACK_ROUTES.FORGOT_PASSWORD}
         component={ForgotPasswordScreen}
         options={{
-          animationEnabled: true,
           gestureEnabled: true,
         }}
       />

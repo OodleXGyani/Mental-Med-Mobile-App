@@ -1,11 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, ScrollView, Share, StyleSheet } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { ChevronRight, UserPlus, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePOS } from '../hooks/usePOS';
-import { TAB_ROUTES, STACK_ROUTES } from '../../../shared/constants/routes';
-import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
-import { customers, scannedMedicine } from '../constants';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { STACK_ROUTES, TAB_ROUTES } from '../../../shared/constants/routes';
+import { CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse } from '../types';
+import { posService } from '../services/posService';
+import { customerService } from '../../settings/services/customerService';
+import { useAppTheme } from '../../../shared/theme';
 import { POSHeader } from '../components/POSHeader';
 import { POSSearchRow } from '../components/POSSearchRow';
 import { POSCustomerSection } from '../components/POSCustomerSection';
@@ -14,51 +26,48 @@ import { POSSummaryCard } from '../components/POSSummaryCard';
 import { POSScanModal } from '../components/POSScanModal';
 import { POSPaymentModal, CompletedSaleContext } from '../components/POSPaymentModal';
 import { POSInvoiceModal } from '../components/POSInvoiceModal';
+import { POSOnlinePaymentModal } from '../components/POSOnlinePaymentModal';
 import { POSCustomerPickerModal } from '../components/POSCustomerPickerModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
-import {
-  CartItem,
-  Customer,
-  PaymentMethod,
-  Medicine,
-  CartItemAPI,
-  CreatePosInvoiceResponse,
-} from '../types';
-import { formatAmount } from '../utils';
-import { posService } from '../services/posService';
-import { customerService } from '../../settings/services/customerService';
-import { useAppTheme } from '../../../shared/theme';
-import { API_BASE_URL } from '../../../shared/constants/apiConfig';
-import { useAppSelector } from '../../../app/hooks';
+import { POSItemDetailsModal } from '../components/POSItemDetailsModal';
+import { POSStackParamList } from '../../../navigation/types';
+
+const SCREEN_BOTTOM_PADDING = 30;
 
 export const POSScreen = () => {
-  const { updateBillTotal } = usePOS();
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const autoPrintEnabled = useAppSelector(
-    state => state.settings.autoPrintEnabled,
-  );
+  const navigation =
+    useNavigation<NativeStackNavigationProp<POSStackParamList>>();
+  const route = useRoute<RouteProp<POSStackParamList, typeof STACK_ROUTES.POS_HOME>>();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerList, setCustomerList] = useState<Customer[]>([]);
 
   const [showScan, setShowScan] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const [showPayment, setShowPayment] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showOnlinePayment, setShowOnlinePayment] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [customerModalTab, setCustomerModalTab] = useState<'search' | 'add'>('search');
   const [showPastOrders, setShowPastOrders] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
-  const [discountPercent, setDiscountPercent] = useState('0');
+  // Item Details Modal (Warehouse / Batch picker)
+  const [itemForDetails, setItemForDetails] = useState<CartItem | null>(null);
+  const [isDetailsNewItem, setIsDetailsNewItem] = useState(false);
+  const [showItemDetails, setShowItemDetails] = useState(false);
 
-  // The Eph POS Cart backing this bill -- required by create_pos_invoice.
-  // Populated from whatever get_or_assign_cart/save_cart last returned.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [discountType, setDiscountType] = useState<'Percentage' | 'Amount'>('Percentage');
+  const [discountValue, setDiscountValue] = useState('0');
+
+  // Customer Loyalty State
+  const [loyaltyInfo, setLoyaltyInfo] = useState<CustomerLoyaltyInfo | null>(null);
+  const [redeemLoyalty, setRedeemLoyalty] = useState(false);
+
+  // The Eph POS Cart backing this bill
   const [cartName, setCartName] = useState<string | null>(null);
   const [isCompletingSale, setIsCompletingSale] = useState(false);
   const [completedInvoice, setCompletedInvoice] =
@@ -67,7 +76,6 @@ export const POSScreen = () => {
   const loadCustomers = useCallback(async () => {
     try {
       const data = await customerService.fetchCustomers();
-      // Map customer service response to Customer type
       setCustomerList(
         data.map(c => ({
           id: c.customer_code || '',
@@ -80,10 +88,9 @@ export const POSScreen = () => {
     }
   }, []);
 
-  // Load customers when screen is focused
   useFocusEffect(
     useCallback(() => {
-      void loadCustomers();
+      loadCustomers().catch(err => console.error(err));
     }, [loadCustomers]),
   );
 
@@ -98,51 +105,48 @@ export const POSScreen = () => {
   const gstAmount = useMemo(
     () =>
       cartItems.reduce(
-        (sum, item) => sum + (item.price * item.qty * item.gst) / 100,
+        (sum, item) => sum + (item.price * item.qty * (item.gst || 0)) / 100,
         0,
       ),
     [cartItems],
   );
-  const discountValue = useMemo(() => {
-    const pct = Number(discountPercent) || 0;
-    return (subtotal * pct) / 100;
-  }, [discountPercent, subtotal]);
+  const discountDeduction = useMemo(() => {
+    const val = Number(discountValue) || 0;
+    if (discountType === 'Percentage') {
+      return (subtotal * val) / 100;
+    }
+    return val;
+  }, [discountType, discountValue, subtotal]);
+
+  const loyaltyDeduction = useMemo(() => {
+    if (!redeemLoyalty || !loyaltyInfo) return 0;
+    return loyaltyInfo.redemption_value || 0;
+  }, [redeemLoyalty, loyaltyInfo]);
+
   const total = useMemo(
-    () => Math.max(subtotal + gstAmount - discountValue, 0),
-    [subtotal, gstAmount, discountValue],
+    () => Math.max(subtotal + gstAmount - discountDeduction - loyaltyDeduction, 0),
+    [subtotal, gstAmount, discountDeduction, loyaltyDeduction],
   );
 
+  const filteredCustomers = useMemo(() => {
+    const query = customerSearch.trim().toLowerCase();
+    if (!query) return customerList;
+    return customerList.filter(
+      c =>
+        c.name.toLowerCase().includes(query) ||
+        (c.phone && c.phone.includes(query)),
+    );
+  }, [customerList, customerSearch]);
+
+  const hasMissingBatches = useMemo(() => {
+    return cartItems.some(
+      item => item.has_batch_no && !(item.batch_no || item.batch),
+    );
+  }, [cartItems]);
+
+  // Debounced auto-save cart to Frappe/ERPNext backend (500ms debounce)
   useEffect(() => {
-    updateBillTotal(Number(total.toFixed(2)));
-  }, [total, updateBillTotal]);
-
-  // Scan effect (Dummy scanner animation)
-  useEffect(() => {
-    if (!showScan) {
-      return;
-    }
-
-    setScanProgress(10);
-    const timer = setInterval(() => {
-      setScanProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(timer);
-          // Removed the dummy auto-adding of Omeprazole here!
-          // addOrIncrementScannedItem();
-          
-          setShowScan(false);
-          return 100;
-        }
-        return prev + 17;
-      });
-    }, 280);
-
-    return () => clearInterval(timer);
-  }, [showScan]);
-
-  // Save cart whenever items change
-  useEffect(() => {
-    if (cartItems.length === 0 || !selectedCustomer) {
+    if (!selectedCustomer || cartItems.length === 0) {
       return;
     }
 
@@ -151,78 +155,176 @@ export const POSScreen = () => {
         const itemsToSave = cartItems.map(item => ({
           item_code: item.item_code || item.id,
           qty: item.qty,
+          quantity: item.qty,
           rate: item.price,
+          warehouse: item.warehouse || undefined,
+          batch_no: item.batch_no || item.batch || undefined,
+          discount_type: item.discount_type || undefined,
+          discount_value: item.discount_value || undefined,
         }));
 
-        const saved = await posService.saveCart({
+        const response = await posService.saveCart({
           customer: selectedCustomer.id,
+          cart_name: cartName || undefined,
           items: itemsToSave,
         });
-        setCartName(saved.cart_name);
-      } catch (error) {
-        console.error('Failed to save cart:', error);
+
+        if (response?.cart_name && !cartName) {
+          setCartName(response.cart_name);
+        }
+      } catch (err) {
+        console.warn('Debounced save_cart notice:', err);
       }
     };
 
-    // Debounce the save operation
     const timer = setTimeout(() => {
-      void saveCurrentCart();
-    }, 1000);
+      saveCurrentCart().catch(() => {});
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, [cartItems, selectedCustomer]);
+  }, [cartItems, selectedCustomer, cartName]);
 
-  const addOrIncrementScannedItem = () => {
-    setCartItems(prev => {
-      const idx = prev.findIndex(item => item.id === scannedMedicine.id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
-        return updated;
-      }
-      return [...prev, scannedMedicine];
+  // Mandatory Customer Selection Gates
+  const handleOpenMedicineSearch = () => {
+    if (!selectedCustomer) {
+      setCustomerModalTab('search');
+      setShowCustomerPicker(true);
+      return;
+    }
+
+    navigation.navigate(STACK_ROUTES.POS_MEDICINE_LIST, {
+      onMedicineSelected: handleSelectMedicineForDetails,
     });
   };
 
-  const addMedicineToCart = useCallback((medicine: Medicine) => {
-    setCartItems(prev => {
-      // Check if medicine already exists in cart
-      const existingIdx = prev.findIndex(
-        item => item.item_code === medicine.item_code,
+  const handleOpenScan = () => {
+    if (!selectedCustomer) {
+      setCustomerModalTab('search');
+      setShowCustomerPicker(true);
+      return;
+    }
+
+    setShowScan(true);
+  };
+
+  // Pre-Cart Item Details Trigger: Opens Warehouse & Batch Modal FIRST
+  const handleSelectMedicineForDetails = useCallback(
+    (medicine: Medicine | CartItem) => {
+      const itemCode =
+        'item_code' in medicine && medicine.item_code
+          ? medicine.item_code
+          : 'id' in medicine
+          ? (medicine as CartItem).id
+          : '';
+      const itemName =
+        'item_name' in medicine && medicine.item_name
+          ? medicine.item_name
+          : 'name' in medicine
+          ? (medicine as CartItem).name
+          : '';
+
+      const existingItem = cartItems.find(
+        i => i.id === itemCode || i.item_code === itemCode,
       );
 
-      if (existingIdx >= 0) {
-        // Increment quantity if exists
-        const updated = [...prev];
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          qty: updated[existingIdx].qty + 1,
-        };
-        return updated;
-      }
+      if (existingItem) {
+        setIsDetailsNewItem(false);
+        setItemForDetails(existingItem);
+      } else {
+        setIsDetailsNewItem(true);
+        const batch = 'batch' in medicine ? medicine.batch || '' : '';
+        const exp =
+          'expiry_date' in medicine
+            ? medicine.expiry_date || ''
+            : 'exp' in medicine
+            ? (medicine as CartItem).exp || ''
+            : '';
+        const rate =
+          'rate' in medicine
+            ? medicine.rate || 0
+            : 'price' in medicine
+            ? (medicine as CartItem).price || 0
+            : 0;
+        const gst = 'gst' in medicine ? medicine.gst || 0 : 0;
+        const warehouse = 'warehouse' in medicine ? medicine.warehouse || '' : '';
+        const has_batch_no =
+          'has_batch_no' in medicine
+            ? (medicine as Medicine).has_batch_no ?? true
+            : (medicine as CartItem).has_batch_no ?? true;
 
-      // Add new medicine
-      return [
-        ...prev,
-        {
-          id: medicine.item_code,
-          name: medicine.item_name || '',
-          batch: medicine.batch || '',
-          exp: medicine.expiry_date || '',
-          gst: medicine.gst || 0,
-          price: medicine.rate || 0,
+        setItemForDetails({
+          id: itemCode,
+          name: itemName,
+          batch,
+          batch_no: batch,
+          exp,
+          gst,
+          price: rate,
           qty: 1,
-          item_code: medicine.item_code,
-          rate: medicine.rate,
-        },
-      ];
+          item_code: itemCode,
+          rate,
+          warehouse,
+          has_batch_no,
+        });
+      }
+      setShowItemDetails(true);
+    },
+    [cartItems],
+  );
+
+  // Listen for selected medicine returned from MedicineListScreen
+  useEffect(() => {
+    if (route.params?.selectedMedicine) {
+      handleSelectMedicineForDetails(route.params.selectedMedicine);
+      navigation.setParams({ selectedMedicine: undefined });
+    }
+  }, [route.params?.selectedMedicine, handleSelectMedicineForDetails, navigation]);
+
+  // In-Cart Edit Item Details
+  const handleOpenItemDetails = (item: CartItem) => {
+    setIsDetailsNewItem(false);
+    setItemForDetails(item);
+    setShowItemDetails(true);
+  };
+
+  // Commit item after warehouse and batch have been confirmed in Modal
+  const handleSaveItemDetails = (configuredItem: CartItem) => {
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(
+        i =>
+          (i.id === configuredItem.id ||
+            i.item_code === configuredItem.item_code) &&
+          (i.batch_no === configuredItem.batch_no ||
+            i.batch === configuredItem.batch),
+      );
+
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        if (isDetailsNewItem) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            qty: updated[existingIndex].qty + configuredItem.qty,
+            price: configuredItem.price,
+            rate: configuredItem.rate,
+            warehouse: configuredItem.warehouse,
+            exp: configuredItem.exp,
+          };
+        } else {
+          updated[existingIndex] = configuredItem;
+        }
+        return updated;
+      } else {
+        return [...prev, configuredItem];
+      }
     });
-  }, []);
+
+    setShowItemDetails(false);
+    setItemForDetails(null);
+  };
 
   const addItemsFromPastOrder = useCallback((items: CartItem[]) => {
     setCartItems(prev => {
       const updated = [...prev];
-
       for (const newItem of items) {
         const existingIdx = updated.findIndex(
           item =>
@@ -230,17 +332,14 @@ export const POSScreen = () => {
         );
 
         if (existingIdx >= 0) {
-          // Increment quantity
           updated[existingIdx] = {
             ...updated[existingIdx],
             qty: updated[existingIdx].qty + newItem.qty,
           };
         } else {
-          // Add new item
           updated.push(newItem);
         }
       }
-
       return updated;
     });
   }, []);
@@ -264,120 +363,168 @@ export const POSScreen = () => {
   };
 
   const handleSelectCustomer = useCallback(async (customer: Customer) => {
-    setSelectedCustomer(customer);
     setShowCustomerPicker(false);
 
-    // Fetch or assign cart for the selected customer
-    try {
-      const cartResponse = await posService.getOrAssignCart({
-        customer: customer.id,
-        cart_name: '',
-      });
-      setCartName(cartResponse.cart_name);
-
-      // Merge existing items with API cart items
-      if (cartResponse.items && cartResponse.items.length > 0) {
-        const apiItems = cartResponse.items.map((item: CartItemAPI) => ({
-          id: item.item_code,
-          name: item.item_name,
-          batch: item.batch || '',
-          exp: '',
-          gst: 0,
-          price: item.rate,
-          qty: Math.max(1, Math.floor(item.quantity)),
-          item_code: item.item_code,
-          rate: item.rate,
-        }));
-
-        // Merge with existing cart items
-        setCartItems(prev => {
-          const merged = [...prev];
-          for (const apiItem of apiItems) {
-            const existingIdx = merged.findIndex(
-              item =>
-                item.item_code === apiItem.item_code || item.id === apiItem.id,
-            );
-
-            if (existingIdx >= 0) {
-              // Update quantity
-              merged[existingIdx] = {
-                ...merged[existingIdx],
-                qty: merged[existingIdx].qty + apiItem.qty,
-              };
-            } else {
-              // Add new item
-              merged.push(apiItem);
-            }
-          }
-          return merged;
-        });
+    // 1. Fetch Loyalty Info
+    let customerWithLoyalty = { ...customer };
+    if (customer.id !== 'Walk-in') {
+      try {
+        const loyalty = await posService.getCustomerLoyaltyInfo(customer.id);
+        setLoyaltyInfo(loyalty);
+        customerWithLoyalty.loyalty_points = loyalty.loyalty_points;
+        customerWithLoyalty.loyalty_redemption_value = loyalty.redemption_value;
+      } catch (err) {
+        console.warn('Customer loyalty info not available:', err);
+        setLoyaltyInfo(null);
       }
-    } catch (error) {
-      console.error('Failed to get or assign cart:', error);
-      // Continue without cart data if API fails
+    } else {
+      setLoyaltyInfo(null);
+    }
+    setSelectedCustomer(customerWithLoyalty);
+
+    // 2. Fetch or assign cart for customer
+    if (customer.id !== 'Walk-in') {
+      try {
+        const cartResponse = await posService.getOrAssignCart({
+          customer: customer.id,
+        });
+        if (cartResponse?.cart_name) {
+          setCartName(cartResponse.cart_name);
+        }
+
+        if (cartResponse?.items && cartResponse.items.length > 0) {
+          const apiItems = cartResponse.items.map((item: CartItemAPI) => ({
+            id: item.item_code,
+            name: item.item_name,
+            batch: item.batch_no || '',
+            batch_no: item.batch_no || '',
+            exp: '',
+            gst: 0,
+            price: item.rate,
+            qty: Math.max(1, Math.floor(item.quantity)),
+            item_code: item.item_code,
+            rate: item.rate,
+            warehouse: item.warehouse || '',
+          }));
+
+          setCartItems(prev => {
+            const merged = [...prev];
+            for (const apiItem of apiItems) {
+              const existingIdx = merged.findIndex(
+                item =>
+                  item.item_code === apiItem.item_code ||
+                  item.id === apiItem.id,
+              );
+
+              if (existingIdx >= 0) {
+                merged[existingIdx] = {
+                  ...merged[existingIdx],
+                  qty: merged[existingIdx].qty + apiItem.qty,
+                };
+              } else {
+                merged.push(apiItem);
+              }
+            }
+            return merged;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get or assign cart:', error);
+      }
     }
   }, []);
 
-  const filteredCustomers = useMemo(
-    () =>
-      customerList.filter(
-        c =>
-          c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-          c.phone.includes(customerSearch.trim()),
-      ),
-    [customerSearch, customerList],
-  );
-
-  const onCompleteSale = async (context: CompletedSaleContext) => {
-    if (!cartName) {
+  const handleProceedToPayment = async () => {
+    if (hasMissingBatches) {
       Alert.alert(
-        'No cart',
-        'Select a customer and add items before completing the sale.',
+        'Batch Selection Required',
+        'One or more medicines in your cart require a batch number. Tap the item to select a batch before proceeding.',
       );
       return;
     }
-    if (isCompletingSale) {
-      return;
+
+    // Force immediate cart save to ERP backend before opening preview
+    if (selectedCustomer && selectedCustomer.id !== 'Walk-in' && cartItems.length > 0) {
+      try {
+        const itemsToSave = cartItems.map(item => ({
+          item_code: item.item_code || item.id,
+          qty: item.qty,
+          quantity: item.qty,
+          rate: item.price,
+          warehouse: item.warehouse || undefined,
+          batch_no: item.batch_no || item.batch || undefined,
+          discount_type: item.discount_type || undefined,
+          discount_value: item.discount_value || undefined,
+        }));
+        const saved = await posService.saveCart({
+          customer: selectedCustomer.id,
+          cart_name: cartName || undefined,
+          items: itemsToSave,
+        });
+        if (saved?.cart_name) {
+          setCartName(saved.cart_name);
+        }
+      } catch (err) {
+        console.warn('Forced save cart before preview error:', err);
+      }
     }
 
+    setShowPayment(true);
+  };
+
+  const onCompleteSale = async (context: CompletedSaleContext) => {
+    if (!selectedCustomer) return;
     setIsCompletingSale(true);
+
     try {
-      // All three payment methods here are collected in person at time of
-      // sale (not a deferred Razorpay link), so payment_mode is always
-      // "Cash" server-side -- that's the immediate-payment code path.
-      // `mode` is passed through verbatim as the Mode of Payment record
-      // name; if this tenant doesn't have a matching one configured yet,
-      // the backend already raises a clear "No default account set for
-      // Mode of Payment 'X'" error instead of silently misrecording it
-      // under a guessed-at existing mode. Discount/prescription/margin
-      // approval logs come from POSPaymentModal's own checkout-preview
-      // gates -- create_pos_invoice re-validates all three regardless.
-      const result = await posService.createPosInvoice({
-        cart_name: cartName,
-        payment_mode: 'Cash',
-        payments: [{ mode: paymentMethod, amount: context.grandTotal }],
-        discount_value: Number(discountPercent) || 0,
-        discount_type: 'Percentage',
+      const itemsPayload = cartItems.map(item => ({
+        item_code: item.item_code || item.id,
+        qty: item.qty,
+        rate: item.price || item.rate || 0,
+        warehouse: item.warehouse || undefined,
+        batch_no: item.batch_no || item.batch || undefined,
+        discount_type: item.discount_type || undefined,
+        discount_value: item.discount_value || undefined,
+      }));
+
+      const isOnline = paymentMethod === 'Online';
+      const paymentsPayload = isOnline
+        ? []
+        : [{ mode: paymentMethod, amount: context.grandTotal || total }];
+
+      const invoiceResult = await posService.createPosInvoice({
+        customer: selectedCustomer.id,
+        payment_mode: isOnline ? 'Online' : 'Cash',
+        payments: paymentsPayload,
+        cart_name: cartName || undefined,
+        items: itemsPayload,
         discount_approval_log: context.discountApprovalLog || undefined,
         rx_override_log: context.rxOverrideLog || undefined,
         margin_override_log: context.marginOverrideLog || undefined,
         prescription: context.prescription || undefined,
+        redeem_loyalty_points: redeemLoyalty,
+        loyalty_points_to_redeem: redeemLoyalty
+          ? loyaltyInfo?.loyalty_points
+          : undefined,
       });
 
-      setCompletedInvoice(result);
       setShowPayment(false);
-      setShowInvoice(true);
-      if (autoPrintEnabled) {
-        // Pass `result` directly rather than relying on the `completedInvoice`
-        // state var just set above -- React state updates aren't synchronous,
-        // so reading it back immediately here would still see the stale value.
-        void openInvoicePrintView(result);
+      setCompletedInvoice(invoiceResult);
+      if (isOnline && invoiceResult.payment_link) {
+        setShowOnlinePayment(true);
+      } else {
+        setShowInvoice(true);
       }
-    } catch (error) {
-      Alert.alert(
-        'Payment failed',
-        error instanceof Error ? error.message : 'Unable to complete the sale.',
-      );
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err || 'Failed to create invoice.');
+      if (msg.toLowerCase().includes('authentication failed') || msg.toLowerCase().includes('razorpay')) {
+        Alert.alert(
+          'Online Payment Gateway Error',
+          'The backend Razorpay API credentials on ERPNext failed authentication. Please use "Cash" mode or configure valid Razorpay API keys in backend settings.',
+        );
+      } else {
+        Alert.alert('Invoice Error', msg);
+      }
     } finally {
       setIsCompletingSale(false);
     }
@@ -385,41 +532,115 @@ export const POSScreen = () => {
 
   const onCloseInvoice = () => {
     setShowInvoice(false);
-    setCartItems([]);
-    setDiscountPercent('0');
-    setCartName(null);
     setCompletedInvoice(null);
+    setCartItems([]);
+    setSelectedCustomer(null);
+    setLoyaltyInfo(null);
+    setRedeemLoyalty(false);
+    setCartName(null);
+    setDiscountValue('0');
+    setDiscountType('Percentage');
   };
 
-  const shareInvoice = async (channel?: 'whatsapp') => {
-    const invoiceLabel = completedInvoice?.invoice || 'this invoice';
-    const message = `Invoice ${invoiceLabel} for ${
-      selectedCustomer?.name || 'Walk-in'
-    } | Total ${formatAmount(completedInvoice?.grand_total ?? total)}`;
-    if (channel === 'whatsapp') {
-      Alert.alert('WhatsApp', `Prepared message:\n${message}`);
-      return;
-    }
+  const generateReceiptText = (
+    invoice: CreatePosInvoiceResponse | null = completedInvoice,
+  ) => {
+    const invoiceId = invoice?.invoice ?? `INV-${Date.now().toString().slice(-6)}`;
+    const customerName = selectedCustomer?.name || 'Walk-in Customer';
+    const customerPhone = selectedCustomer?.phone || '';
+    const dateStr = new Date().toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const line = '--------------------------------';
+    const itemLines = cartItems
+      .map(
+        i =>
+          `${i.name}\n  Qty: ${i.qty} x ₹${(i.rate ?? i.price ?? 0).toFixed(2)} = ₹${(
+            (i.rate ?? i.price ?? 0) * i.qty
+          ).toFixed(2)}${i.batch || i.batch_no ? ` (Batch: ${i.batch || i.batch_no})` : ''}`,
+      )
+      .join('\n');
 
+    return [
+      '================================',
+      '       MEDPLUS PHARMACY         ',
+      '   Plot 45, Jubilee Hills, Hyd  ',
+      '    GSTIN: 36AABCU9603R1ZJ      ',
+      '================================',
+      `Invoice : ${invoiceId}`,
+      `Date    : ${dateStr}`,
+      `Customer: ${customerName}${customerPhone ? ` (${customerPhone})` : ''}`,
+      `Payment : ${paymentMethod.toUpperCase()}`,
+      line,
+      'ITEMS:',
+      itemLines,
+      line,
+      `Subtotal: ₹${subtotal.toFixed(2)}`,
+      `GST Tax : ₹${gstAmount.toFixed(2)}`,
+      `TOTAL   : ₹${(invoice?.grand_total ?? total).toFixed(2)}`,
+      '================================',
+      '   Thank you for your visit!    ',
+      '================================',
+    ].join('\n');
+  };
+
+  const downloadInvoice = async (invoice: CreatePosInvoiceResponse | null = completedInvoice) => {
+    const receiptText = generateReceiptText(invoice);
     try {
-      await Share.share({ message });
+      await Share.share({
+        title: `Invoice - ${invoice?.invoice ?? 'Receipt'}`,
+        message: receiptText,
+      });
     } catch {
-      Alert.alert('Share', 'Unable to share invoice right now.');
+      Alert.alert('Download', 'Unable to export receipt right now.');
     }
   };
 
   const openInvoicePrintView = async (
     invoice: CreatePosInvoiceResponse | null = completedInvoice,
   ) => {
-    if (!invoice?.print_url) {
-      Alert.alert('Not available', 'Invoice print view is not available yet.');
-      return;
-    }
-    const url = `${API_BASE_URL.replace(/\/$/, '')}${invoice.print_url}`;
+    const receiptText = generateReceiptText(invoice);
     try {
-      await Linking.openURL(url);
+      await Share.share({
+        title: `Print Receipt - ${invoice?.invoice ?? 'Receipt'}`,
+        message: receiptText,
+      });
     } catch {
-      Alert.alert('Unable to open', 'Could not open the invoice print view.');
+      Alert.alert('Print', 'Unable to initiate print.');
+    }
+  };
+
+  const shareInvoice = async (target?: 'whatsapp') => {
+    const invoice = completedInvoice;
+    const receiptText = generateReceiptText(invoice);
+
+    if (target === 'whatsapp') {
+      const cleanPhone = (selectedCustomer?.phone || '').replace(/[^0-9]/g, '');
+      const waUrl = cleanPhone
+        ? `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(receiptText)}`
+        : `whatsapp://send?text=${encodeURIComponent(receiptText)}`;
+      try {
+        const canOpen = await Linking.canOpenURL(waUrl);
+        if (canOpen) {
+          await Linking.openURL(waUrl);
+          return;
+        }
+      } catch {
+        /* fallback to system share */
+      }
+    }
+
+    try {
+      await Share.share({
+        title: `Invoice - ${invoice?.invoice ?? 'Receipt'}`,
+        message: receiptText,
+      });
+    } catch {
+      Alert.alert('Share', 'Unable to share invoice right now.');
     }
   };
 
@@ -441,49 +662,168 @@ export const POSScreen = () => {
           navigation.getParent()?.navigate(TAB_ROUTES.ORDERS)
         }
       />
-      <POSSearchRow
-        onPressMedicineSearch={() =>
-          navigation.navigate(STACK_ROUTES.POS_MEDICINE_LIST, {
-            onMedicineSelected: addMedicineToCart,
-          })
-        }
-        onPressScan={() => setShowScan(true)}
-      />
-      <POSCustomerSection
-        selectedCustomer={selectedCustomer}
-        onPressAddCustomer={() => setShowCustomerPicker(true)}
-        onPressViewOrders={() => setShowPastOrders(true)}
-        onPressRemoveCustomer={() => setSelectedCustomer(null)}
-      />
-      <POSCartSection
-        cartItems={cartItems}
-        onUpdateQty={updateQty}
-        onRemoveItem={removeItem}
-      />
-      {cartItems.length > 0 ? (
-        <POSSummaryCard
-          subtotal={subtotal}
-          gstAmount={gstAmount}
-          discountPercent={discountPercent}
-          onDiscountChange={setDiscountPercent}
-          total={total}
-          canProceed={true}
-          onPressProceed={() => setShowPayment(true)}
-        />
-      ) : null}
+
+      {/* When Customer is Selected: Show Customer Card, Search & Scan, and Cart */}
+      {selectedCustomer ? (
+        <>
+          <POSCustomerSection
+            selectedCustomer={selectedCustomer}
+            onPressAddCustomer={() => {
+              setCustomerModalTab('search');
+              setShowCustomerPicker(true);
+            }}
+            onPressViewOrders={() => setShowPastOrders(true)}
+            onPressRemoveCustomer={() => {
+              setSelectedCustomer(null);
+              setLoyaltyInfo(null);
+              setRedeemLoyalty(false);
+              setCartItems([]);
+              setCartName(null);
+            }}
+          />
+
+          <POSSearchRow
+            onPressMedicineSearch={handleOpenMedicineSearch}
+            onPressScan={handleOpenScan}
+          />
+
+          <POSCartSection
+            cartItems={cartItems}
+            onUpdateQty={updateQty}
+            onRemoveItem={removeItem}
+            onPressItem={handleOpenItemDetails}
+          />
+
+          {cartItems.length > 0 ? (
+            <POSSummaryCard
+              subtotal={subtotal}
+              gstAmount={gstAmount}
+              discountType={discountType}
+              onDiscountTypeChange={setDiscountType}
+              discountValue={discountValue}
+              onDiscountValueChange={setDiscountValue}
+              total={total}
+              loyaltyPoints={loyaltyInfo?.loyalty_points}
+              loyaltyRedemptionValue={loyaltyInfo?.redemption_value}
+              redeemLoyalty={redeemLoyalty}
+              onToggleRedeemLoyalty={setRedeemLoyalty}
+              canProceed={!hasMissingBatches}
+              onPressProceed={handleProceedToPayment}
+            />
+          ) : null}
+        </>
+      ) : (
+        /* When No Customer Selected: Sleek, non-redundant customer selection portal */
+        <View style={styles.startSaleContainer}>
+          <View style={styles.portalHeaderWrap}>
+            <Text style={[styles.portalHeading, { color: theme.colors.text }]}>
+              Start New Sale
+            </Text>
+            <Text style={[styles.portalSubheading, { color: theme.colors.mutedText }]}>
+              Select an existing customer or register a new customer to start billing
+            </Text>
+          </View>
+
+          {/* Option 1: Existing Customer */}
+          <Pressable
+            style={[
+              styles.portalOptionCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => {
+              setCustomerModalTab('search');
+              setShowCustomerPicker(true);
+            }}
+          >
+            <View
+              style={[
+                styles.portalOptionIconWrap,
+                { backgroundColor: `${theme.colors.primary}18` },
+              ]}
+            >
+              <Users size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.portalOptionTextWrap}>
+              <Text
+                style={[styles.portalOptionTitle, { color: theme.colors.text }]}
+              >
+                Select Existing Customer
+              </Text>
+              <Text
+                style={[
+                  styles.portalOptionDesc,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                Search by name or phone to load loyalty points
+              </Text>
+            </View>
+            <ChevronRight size={18} color={theme.colors.mutedText} />
+          </Pressable>
+
+          {/* Option 2: Add New Customer */}
+          <Pressable
+            style={[
+              styles.portalOptionCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => {
+              setCustomerModalTab('add');
+              setShowCustomerPicker(true);
+            }}
+          >
+            <View
+              style={[
+                styles.portalOptionIconWrap,
+                {
+                  backgroundColor: `${theme.colors.primary}18`,
+                },
+              ]}
+            >
+              <UserPlus size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.portalOptionTextWrap}>
+              <Text
+                style={[styles.portalOptionTitle, { color: theme.colors.text }]}
+              >
+                Add New Customer
+              </Text>
+              <Text
+                style={[
+                  styles.portalOptionDesc,
+                  { color: theme.colors.mutedText },
+                ]}
+              >
+                Create a new profile with name, phone, email & address
+              </Text>
+            </View>
+            <ChevronRight size={18} color={theme.colors.mutedText} />
+          </Pressable>
+        </View>
+      )}
 
       <POSScanModal
         visible={showScan}
-        progress={scanProgress}
+        onMedicineScanned={handleSelectMedicineForDetails}
         onClose={() => setShowScan(false)}
       />
       <POSPaymentModal
         visible={showPayment}
         cartName={cartName}
         selectedCustomer={selectedCustomer}
+        cartItems={cartItems}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
-        discountPercent={discountPercent}
+        discountType={discountType}
+        discountValue={discountValue}
+        redeemLoyalty={redeemLoyalty}
+        loyaltyPoints={redeemLoyalty ? loyaltyInfo?.loyalty_points : undefined}
         isSubmitting={isCompletingSale}
         onClose={() => setShowPayment(false)}
         onCompleteSale={onCompleteSale}
@@ -491,20 +831,39 @@ export const POSScreen = () => {
       <POSInvoiceModal
         visible={showInvoice}
         invoiceName={completedInvoice?.invoice ?? null}
+        paymentLink={completedInvoice?.payment_link ?? null}
         total={completedInvoice?.grand_total ?? total}
         subtotal={subtotal}
         gstAmount={gstAmount}
         selectedCustomer={selectedCustomer}
         paymentMethod={paymentMethod}
         cartItems={cartItems}
-        onPressDownload={() => openInvoicePrintView()}
+        onPressDownload={() => downloadInvoice()}
         onPressPrint={() => openInvoicePrintView()}
         onPressWhatsApp={() => shareInvoice('whatsapp')}
         onPressShare={() => shareInvoice()}
+        onPressPaymentLink={() => setShowOnlinePayment(true)}
         onPressDone={onCloseInvoice}
+      />
+      <POSOnlinePaymentModal
+        visible={showOnlinePayment}
+        paymentUrl={completedInvoice?.payment_link ?? null}
+        invoiceId={completedInvoice?.invoice ?? null}
+        amount={completedInvoice?.grand_total ?? total}
+        customerName={selectedCustomer?.name}
+        customerPhone={selectedCustomer?.phone}
+        onPaymentSuccess={() => {
+          setShowOnlinePayment(false);
+          setShowInvoice(true);
+        }}
+        onClose={() => {
+          setShowOnlinePayment(false);
+          setShowInvoice(true);
+        }}
       />
       <POSCustomerPickerModal
         visible={showCustomerPicker}
+        initialTab={customerModalTab}
         searchValue={customerSearch}
         onSearchChange={setCustomerSearch}
         customers={filteredCustomers}
@@ -521,6 +880,16 @@ export const POSScreen = () => {
         onAddItemsToCart={addItemsFromPastOrder}
         onClose={() => setShowPastOrders(false)}
       />
+      <POSItemDetailsModal
+        visible={showItemDetails}
+        item={itemForDetails}
+        isNewItem={isDetailsNewItem}
+        onClose={() => {
+          setShowItemDetails(false);
+          setItemForDetails(null);
+        }}
+        onSave={handleSaveItemDetails}
+      />
     </ScrollView>
   );
 };
@@ -531,5 +900,64 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+  },
+  startSaleContainer: {
+    paddingTop: 16,
+    gap: 12,
+  },
+  portalHeaderWrap: {
+    marginBottom: 8,
+  },
+  portalHeading: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  portalSubheading: {
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  portalOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 14,
+  },
+  portalOptionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portalOptionTextWrap: {
+    flex: 1,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  portalOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  fastBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  fastBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  portalOptionDesc: {
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 16,
   },
 });

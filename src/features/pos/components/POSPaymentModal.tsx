@@ -3,13 +3,27 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { AlertTriangle, Check, FileWarning, Info, KeyRound, ShieldX, X } from 'lucide-react-native';
-import { Customer, PaymentMethod, CheckoutPreviewResponse } from '../types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  AlertTriangle,
+  Calculator,
+  Check,
+  FileWarning,
+  Info,
+  KeyRound,
+  Layers,
+  Receipt,
+  ShieldX,
+  User,
+  X,
+} from 'lucide-react-native';
+import { Customer, PaymentMethod, CheckoutPreviewResponse, CartItem } from '../types';
 import { formatAmount } from '../utils';
 import { useAppTheme } from '../../../shared/theme';
 import { posService } from '../services/posService';
@@ -39,9 +53,14 @@ type Props = {
   visible: boolean;
   cartName: string | null;
   selectedCustomer: Customer | null;
+  cartItems?: CartItem[];
   paymentMethod: PaymentMethod;
   setPaymentMethod: (method: PaymentMethod) => void;
-  discountPercent: string;
+  discountType?: 'Percentage' | 'Amount';
+  discountValue?: string;
+  discountPercent?: string;
+  redeemLoyalty?: boolean;
+  loyaltyPoints?: number;
   isSubmitting?: boolean;
   onClose: () => void;
   onCompleteSale: (context: CompletedSaleContext) => void;
@@ -51,14 +70,20 @@ export const POSPaymentModal = ({
   visible,
   cartName,
   selectedCustomer,
+  cartItems = [],
   paymentMethod,
   setPaymentMethod,
+  discountType = 'Percentage',
+  discountValue,
   discountPercent,
+  redeemLoyalty = false,
+  loyaltyPoints,
   isSubmitting = false,
   onClose,
   onCompleteSale,
 }: Props) => {
   const theme = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -66,6 +91,9 @@ export const POSPaymentModal = ({
 
   const [managerOptions, setManagerOptions] = useState<DropdownOption[]>([]);
   const [isLoadingManagers, setIsLoadingManagers] = useState(false);
+
+  // Cash Amount Input State (defaults to rounded total)
+  const [cashTendered, setCashTendered] = useState('');
 
   // Discount approval
   const [discountApprovalLog, setDiscountApprovalLog] = useState('');
@@ -100,6 +128,7 @@ export const POSPaymentModal = ({
 
     setPreview(null);
     setPreviewError(null);
+    setCashTendered('');
     setDiscountApprovalLog('');
     setDiscountManagerUser('');
     setDiscountManagerPin('');
@@ -114,16 +143,24 @@ export const POSPaymentModal = ({
     setMarginManagerPin('');
     setMarginRemarks('Approved by manager');
 
+    const valToUse = Number(discountValue ?? discountPercent) || 0;
+
     let cancelled = false;
     setIsLoadingPreview(true);
     posService
       .checkoutPreview({
         cart_name: cartName,
-        discount_value: Number(discountPercent) || 0,
-        discount_type: 'Percentage',
+        discount_value: valToUse,
+        discount_type: discountType,
+        redeem_loyalty: redeemLoyalty ? 1 : 0,
+        loyalty_points: redeemLoyalty ? loyaltyPoints || 0 : 0,
       })
       .then(result => {
-        if (!cancelled) setPreview(result);
+        if (!cancelled) {
+          setPreview(result);
+          const finalTotal = result?.rounded_total ?? result?.grand_total ?? 0;
+          setCashTendered(finalTotal > 0 ? String(finalTotal) : '');
+        }
       })
       .catch(err => {
         if (!cancelled) {
@@ -151,12 +188,12 @@ export const POSPaymentModal = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, cartName]);
+  }, [visible, cartName, discountType, discountValue, discountPercent, redeemLoyalty, loyaltyPoints]);
 
   const prescriptionCheck = preview?.prescription_check;
   const prescriptionRequired = !!prescriptionCheck?.prescription_required;
   const prescriptionOnFile = !!prescriptionCheck?.prescription_found;
-  const prescriptionSatisfied = prescriptionOnFile || !!rxOverrideLog;
+  const prescriptionSatisfied = !prescriptionRequired || prescriptionOnFile || !!rxOverrideLog;
 
   const marginCheck = preview?.margin_check;
   const marginViolations = marginCheck?.violations || [];
@@ -182,12 +219,14 @@ export const POSPaymentModal = ({
     if (!cartName) return;
     setIsRequestingDiscountOverride(true);
     try {
+      const valToUse = Number(discountValue ?? discountPercent) || 0;
       const result = await posService.requestApproval({
         approval_type: 'Discount Override',
         cart_name: cartName,
-        discount_requested: Number(discountPercent) || 0,
+        discount_requested: valToUse,
+        discount_type: discountType,
         role_limit: preview?.role_limit ?? 0,
-        remarks: 'Discount above role limit',
+        remarks: `Discount ${discountType} above role limit`,
       });
       setDiscountApprovalLog(result.approval_log);
     } catch (err) {
@@ -211,8 +250,6 @@ export const POSPaymentModal = ({
         return;
       }
       setDiscountManagerPin('');
-      // discountApprovalLog is already the approved log name -- discountSatisfied
-      // just needs it to be non-empty, which it already is.
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : 'Failed to submit approval');
     } finally {
@@ -315,28 +352,44 @@ export const POSPaymentModal = ({
 
   const total = preview?.rounded_total ?? preview?.grand_total ?? 0;
   const netTotal = preview?.net_total ?? 0;
+  const discountAmount = preview?.discount_amount ?? 0;
   const taxes = preview?.taxes ?? 0;
+  const grandTotal = preview?.grand_total ?? 0;
+  const roundedTotal = preview?.rounded_total ?? grandTotal;
+  const cashAmountNum = Number(cashTendered) || 0;
+  const changeToReturn = cashAmountNum > roundedTotal ? cashAmountNum - roundedTotal : 0;
+  const bottomPadding = Math.max(insets.bottom, 20) + 12;
 
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdropBottom}>
         <View
-          style={[styles.bottomSheet, { backgroundColor: theme.colors.card }]}
+          style={[
+            styles.bottomSheet,
+            {
+              backgroundColor: theme.colors.card,
+              paddingBottom: bottomPadding,
+            },
+          ]}
         >
+          {/* Header - Matching Web POS Checkout Preview */}
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
-              {isLoadingPreview ? 'Payment' : `Payment - ${formatAmount(total)}`}
-            </Text>
-            <Pressable onPress={onClose}>
-              <X size={16} color={theme.colors.mutedText} />
+            <View style={styles.headerTitleGroup}>
+              <Receipt size={20} color={theme.colors.primary} />
+              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>
+                Checkout Preview
+              </Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <X size={20} color={theme.colors.mutedText} />
             </Pressable>
           </View>
 
           {isLoadingPreview ? (
             <View style={styles.previewLoading}>
-              <ActivityIndicator color={theme.colors.primary} />
+              <ActivityIndicator color={theme.colors.primary} size="large" />
               <Text style={[styles.previewLoadingText, { color: theme.colors.mutedText }]}>
-                Calculating totals...
+                Calculating totals & checking compliance...
               </Text>
             </View>
           ) : previewError && !preview ? (
@@ -344,61 +397,326 @@ export const POSPaymentModal = ({
               <Text style={styles.errorText}>{previewError}</Text>
             </View>
           ) : (
-            <>
-              <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
-                Customer
-              </Text>
-              <View style={styles.paymentCustomerRow}>
-                <TextInput
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+              {/* Customer Tag */}
+              {selectedCustomer && (
+                <View
                   style={[
-                    styles.paymentInput,
+                    styles.customerTag,
                     {
+                      backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
                       borderColor: theme.colors.border,
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
                     },
                   ]}
-                  placeholder="Name"
-                  value={selectedCustomer?.name || ''}
-                  placeholderTextColor={theme.colors.mutedText}
-                  editable={false}
-                />
-              </View>
+                >
+                  <User size={14} color={theme.colors.primary} />
+                  <Text style={[styles.customerTagText, { color: theme.colors.text }]}>
+                    Customer: <Text style={{ fontWeight: '700' }}>{selectedCustomer.name}</Text>
+                    {selectedCustomer.phone ? ` (${selectedCustomer.phone})` : ''}
+                  </Text>
+                </View>
+              )}
 
-              <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
-                Payment Method
-              </Text>
-              <View style={styles.methodRow}>
-                {(['Cash', 'UPI', 'Card'] as const).map(method => (
-                  <Pressable
-                    key={method}
-                    style={[
-                      styles.methodPill,
-                      { borderColor: theme.colors.border },
-                      paymentMethod === method && {
-                        backgroundColor: theme.colors.primary,
-                        borderColor: theme.colors.primary,
-                      },
-                    ]}
-                    onPress={() => setPaymentMethod(method)}
-                  >
-                    <Text
+              {/* 1. Invoice Cart Items (Matching Web POS left column) */}
+              <View
+                style={[
+                  styles.sectionCard,
+                  {
+                    backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.sectionHeaderRow}>
+                  <Layers size={16} color={theme.colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                    Invoice Cart Items ({cartItems.length})
+                  </Text>
+                </View>
+
+                {/* Table Header */}
+                <View
+                  style={[
+                    styles.itemTableHeader,
+                    {
+                      backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
+                      borderBottomColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.thText, styles.thMedicine, { color: theme.colors.mutedText }]}>
+                    Medicine
+                  </Text>
+                  <Text style={[styles.thText, styles.thQty, { color: theme.colors.mutedText }]}>
+                    Qty
+                  </Text>
+                  <Text style={[styles.thText, styles.thRate, { color: theme.colors.mutedText }]}>
+                    Rate
+                  </Text>
+                  <Text style={[styles.thText, styles.thDisc, { color: theme.colors.mutedText }]}>
+                    Disc
+                  </Text>
+                  <Text style={[styles.thText, styles.thAmount, { color: theme.colors.mutedText }]}>
+                    Amount
+                  </Text>
+                </View>
+
+                {/* Item Rows */}
+                {cartItems.map((cartItem, idx) => {
+                  const itemRate = cartItem.rate ?? cartItem.price ?? 0;
+                  const itemLineTotal = itemRate * cartItem.qty;
+                  const hasItemDiscount = Boolean(cartItem.discount_value && cartItem.discount_value > 0);
+                  const isLast = idx === cartItems.length - 1;
+
+                  return (
+                    <View
+                      key={`preview-item-${cartItem.id}-${idx}`}
                       style={[
-                        styles.methodText,
-                        { color: theme.colors.mutedText },
-                        paymentMethod === method && styles.methodTextActive,
+                        styles.itemTableRow,
+                        !isLast && { borderBottomColor: theme.colors.border, borderBottomWidth: 1 },
                       ]}
                     >
-                      {method}
+                      <View style={styles.thMedicine}>
+                        <Text
+                          style={[styles.itemName, { color: theme.colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {cartItem.name}
+                        </Text>
+                        <Text style={[styles.itemSubtext, { color: theme.colors.mutedText }]}>
+                          {cartItem.item_code || cartItem.id}
+                          {cartItem.batch || cartItem.batch_no
+                            ? ` • Batch: ${cartItem.batch || cartItem.batch_no}`
+                            : ''}
+                        </Text>
+                      </View>
+
+                      <Text style={[styles.itemValue, styles.thQty, { color: theme.colors.text }]}>
+                        {cartItem.qty}
+                      </Text>
+
+                      <Text style={[styles.itemValue, styles.thRate, { color: theme.colors.text }]}>
+                        {formatAmount(itemRate)}
+                      </Text>
+
+                      <View style={[styles.thDisc, { alignItems: 'center' }]}>
+                        {hasItemDiscount ? (
+                          <View style={styles.discBadge}>
+                            <Text style={styles.discBadgeText}>
+                              {cartItem.discount_type === 'Percentage'
+                                ? `-${cartItem.discount_value}%`
+                                : `-${formatAmount(cartItem.discount_value || 0)}`}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={[styles.itemValue, { color: theme.colors.mutedText }]}>—</Text>
+                        )}
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.itemValue,
+                          styles.thAmount,
+                          { color: theme.colors.text, fontWeight: '700' },
+                        ]}
+                      >
+                        {formatAmount(itemLineTotal)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* 2. Summary & Calculations (Matching Web POS right column) */}
+              <View
+                style={[
+                  styles.sectionCard,
+                  {
+                    backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.sectionHeaderRow}>
+                  <Calculator size={16} color={theme.colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                    Summary & Calculations
+                  </Text>
+                </View>
+
+                {/* Payment Mode Selector - EXACT 2 OPTIONS: Cash & Online */}
+                <View style={styles.paymentModeBlock}>
+                  <Text style={[styles.fieldLabel, { color: theme.colors.mutedText }]}>
+                    Payment Mode
+                  </Text>
+                  <View style={styles.methodRow}>
+                    {(['Cash', 'Online'] as const).map(method => (
+                      <Pressable
+                        key={method}
+                        style={[
+                          styles.methodPill,
+                          {
+                            borderColor:
+                              paymentMethod === method
+                                ? theme.colors.primary
+                                : theme.colors.border,
+                            backgroundColor:
+                              paymentMethod === method
+                                ? theme.colors.primary
+                                : theme.colors.card,
+                          },
+                        ]}
+                        onPress={() => setPaymentMethod(method)}
+                      >
+                        <Text
+                          style={[
+                            styles.methodText,
+                            {
+                              color:
+                                paymentMethod === method
+                                  ? '#FFFFFF'
+                                  : theme.colors.text,
+                            },
+                          ]}
+                        >
+                          {method}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Cash Amount Field when Cash is Selected */}
+                  {paymentMethod === 'Cash' ? (
+                    <View style={styles.cashAmountBlock}>
+                      <Text style={[styles.fieldSubLabel, { color: theme.colors.mutedText }]}>
+                        Cash Amount
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.paymentInput,
+                          {
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                            backgroundColor: theme.colors.background,
+                          },
+                        ]}
+                        placeholder="Defaults to rounded total"
+                        value={cashTendered}
+                        onChangeText={setCashTendered}
+                        keyboardType="numeric"
+                        placeholderTextColor={theme.colors.mutedText}
+                      />
+                      <Text style={[styles.helperNote, { color: theme.colors.mutedText }]}>
+                        Defaults to rounded total
+                      </Text>
+
+                      {/* Return to Customer (Change calculation) */}
+                      {changeToReturn > 0 && (
+                        <View
+                          style={[
+                            styles.changeReturnRow,
+                            {
+                              backgroundColor: `${theme.colors.primary}10`,
+                              borderColor: `${theme.colors.primary}30`,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.changeReturnLabel, { color: theme.colors.text }]}>
+                            Return to customer
+                          </Text>
+                          <Text style={[styles.changeReturnValue, { color: '#059669' }]}>
+                            {formatAmount(changeToReturn)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.onlineInfoBox,
+                        {
+                          backgroundColor: `${theme.colors.primary}12`,
+                          borderColor: `${theme.colors.primary}30`,
+                        },
+                      ]}
+                    >
+                      <Info size={14} color={theme.colors.primary} />
+                      <Text style={[styles.onlineInfoText, { color: theme.colors.primary }]}>
+                        Generates a Razorpay payment link. Completed upon online settlement.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Calculation Breakdown Lines */}
+                <View style={[styles.calcBreakdown, { borderTopColor: theme.colors.border }]}>
+                  <View style={styles.calcRow}>
+                    <Text style={[styles.calcLabel, { color: theme.colors.mutedText }]}>
+                      Net Total
                     </Text>
-                  </Pressable>
-                ))}
+                    <Text style={[styles.calcValue, { color: theme.colors.text }]}>
+                      {formatAmount(netTotal)}
+                    </Text>
+                  </View>
+
+                  {discountAmount > 0 && (
+                    <View style={styles.calcRow}>
+                      <Text style={[styles.calcLabel, { color: '#D97706' }]}>
+                        Cart Discount ({discountType})
+                      </Text>
+                      <Text style={[styles.calcValue, { color: '#D97706', fontWeight: '700' }]}>
+                        -{formatAmount(discountAmount)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.calcRow}>
+                    <Text style={[styles.calcLabel, { color: theme.colors.mutedText }]}>
+                      Taxes
+                    </Text>
+                    <Text style={[styles.calcValue, { color: theme.colors.text }]}>
+                      {formatAmount(taxes)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.calcRow}>
+                    <Text style={[styles.calcLabel, { color: theme.colors.text, fontWeight: '700' }]}>
+                      Grand Total
+                    </Text>
+                    <Text style={[styles.calcValue, { color: theme.colors.text, fontWeight: '700' }]}>
+                      {formatAmount(grandTotal)}
+                    </Text>
+                  </View>
+
+                  {/* Highlighted Rounded Total Box (Matching Web POS) */}
+                  <View
+                    style={[
+                      styles.roundedTotalBox,
+                      {
+                        backgroundColor: `${theme.colors.primary}14`,
+                        borderColor: `${theme.colors.primary}40`,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.roundedTotalLabel, { color: theme.colors.primary }]}>
+                      ROUNDED TOTAL
+                    </Text>
+                    <Text style={[styles.roundedTotalValue, { color: theme.colors.primary }]}>
+                      {formatAmount(roundedTotal)}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               {previewError && (
                 <Text style={[styles.errorText, styles.inlineError]}>{previewError}</Text>
               )}
 
+              {/* Compliance & Approval Gates */}
               {discountApprovalNeeded && (
                 <View style={[styles.gatePanel, styles.gatePanelAmber]}>
                   <View style={styles.gateHeaderRow}>
@@ -641,65 +959,37 @@ export const POSPaymentModal = ({
                 </View>
               )}
 
-              <View
-                style={[styles.breakdownBox, { borderColor: theme.colors.border }]}
-              >
-                <View style={styles.summaryRow}>
-                  <Text
-                    style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
-                  >
-                    Subtotal
-                  </Text>
-                  <Text
-                    style={[styles.summaryValueNeutral, { color: theme.colors.text }]}
-                  >
-                    {formatAmount(netTotal)}
-                  </Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text
-                    style={[styles.summaryLabel, { color: theme.colors.mutedText }]}
-                  >
-                    Tax
-                  </Text>
-                  <Text
-                    style={[styles.summaryValueNeutral, { color: theme.colors.text }]}
-                  >
-                    {formatAmount(taxes)}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.summaryRow,
-                    styles.totalRow,
-                    { borderTopColor: theme.colors.border },
-                  ]}
+              {/* Action Buttons: Cancel & Edit + Complete Checkout (Matching Web POS) */}
+              <View style={styles.footerActions}>
+                <Pressable
+                  style={[styles.cancelBtn, { borderColor: theme.colors.border }]}
+                  onPress={onClose}
                 >
-                  <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
-                    Total
+                  <Text style={[styles.cancelBtnText, { color: theme.colors.text }]}>
+                    Cancel & Edit
                   </Text>
-                  <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
-                    {formatAmount(total)}
-                  </Text>
-                </View>
-              </View>
+                </Pressable>
 
-              <Pressable
-                style={[
-                  styles.completeBtn,
-                  { backgroundColor: theme.colors.primary },
-                  (!canComplete || isSubmitting) && styles.completeBtnDisabled,
-                ]}
-                onPress={handleComplete}
-                disabled={!canComplete}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.completeBtnText}>Complete Sale</Text>
-                )}
-              </Pressable>
-            </>
+                <Pressable
+                  style={[
+                    styles.completeBtn,
+                    { backgroundColor: theme.colors.primary },
+                    (!canComplete || isSubmitting) && styles.completeBtnDisabled,
+                  ]}
+                  onPress={handleComplete}
+                  disabled={!canComplete || isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <View style={styles.btnRow}>
+                      <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
+                      <Text style={styles.completeBtnText}>Complete Checkout</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            </ScrollView>
           )}
         </View>
       </View>
@@ -772,34 +1062,42 @@ const ManagerApprovalFields = ({
 const styles = StyleSheet.create({
   modalBackdropBottom: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    padding: 14,
-    maxHeight: '86%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    maxHeight: '92%',
+  },
+  scrollContent: {
+    paddingBottom: 12,
+    gap: 12,
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  sheetTitle: {
-    color: '#403631',
-    fontWeight: '800',
-    fontSize: 20,
-  },
-  previewLoading: {
-    paddingVertical: 30,
+  headerTitleGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  sheetTitle: {
+    fontWeight: '800',
+    fontSize: 19,
+  },
+  previewLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 10,
+  },
   previewLoadingText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   errorText: {
@@ -808,55 +1106,214 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inlineError: {
-    marginBottom: 10,
+    marginVertical: 6,
+  },
+  customerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  customerTagText: {
+    fontSize: 13,
+  },
+  sectionCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  itemTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderBottomWidth: 1,
+  },
+  thText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  thMedicine: {
+    flex: 2.2,
+  },
+  thQty: {
+    flex: 0.7,
+    textAlign: 'center',
+  },
+  thRate: {
+    flex: 1,
+    textAlign: 'right',
+  },
+  thDisc: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  thAmount: {
+    flex: 1.2,
+    textAlign: 'right',
+  },
+  itemTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  itemName: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  itemSubtext: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  itemValue: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  discBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  discBadgeText: {
+    color: '#D97706',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  paymentModeBlock: {
+    gap: 8,
   },
   fieldLabel: {
-    color: '#5B4E47',
     fontWeight: '700',
     fontSize: 12,
-    marginBottom: 6,
   },
-  paymentCustomerRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  paymentInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E3DDD7',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    color: '#4A3E37',
-    fontSize: 12,
+  fieldSubLabel: {
+    fontWeight: '600',
+    fontSize: 11.5,
+    marginBottom: 4,
   },
   methodRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
   },
   methodPill: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#E0DAD4',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
   },
   methodText: {
-    color: '#6D5F57',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
-  methodTextActive: {
-    color: '#FFFFFF',
+  cashAmountBlock: {
+    marginTop: 4,
+  },
+  paymentInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  helperNote: {
+    fontSize: 11,
+    marginTop: 3,
+    fontStyle: 'italic',
+  },
+  changeReturnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  changeReturnLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  changeReturnValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  onlineInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 4,
+  },
+  onlineInfoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  calcBreakdown: {
+    borderTopWidth: 1,
+    paddingTop: 8,
+    gap: 6,
+  },
+  calcRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  calcLabel: {
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  calcValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  roundedTotalBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  roundedTotalLabel: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  roundedTotalValue: {
+    fontSize: 18,
+    fontWeight: '800',
   },
   gatePanel: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 6,
   },
   gatePanelAmber: {
     backgroundColor: '#FFFBEB',
@@ -933,51 +1390,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  breakdownBox: {
-    borderWidth: 1,
-    borderColor: '#ECE6E1',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
-  },
-  summaryRow: {
+  footerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    gap: 10,
+    marginTop: 4,
   },
-  summaryLabel: {
-    color: '#8E7A6F',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  summaryValueNeutral: {
-    color: '#5B4E47',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  totalRow: {
-    borderTopColor: '#ECE7E2',
-    borderTopWidth: 1,
-    paddingTop: 6,
-    marginTop: 2,
-  },
-  totalLabel: {
-    color: '#3F3430',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  totalValue: {
-    color: '#1CA39A',
-    fontWeight: '800',
-    fontSize: 18,
-  },
-  completeBtn: {
-    backgroundColor: '#2CA798',
-    borderRadius: 8,
+  cancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 11,
+    paddingVertical: 14,
+  },
+  cancelBtnText: {
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  completeBtn: {
+    flex: 1.5,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   completeBtnDisabled: {
     opacity: 0.6,
@@ -985,6 +1425,6 @@ const styles = StyleSheet.create({
   completeBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 14,
   },
 });

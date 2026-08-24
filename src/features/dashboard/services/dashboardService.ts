@@ -155,7 +155,14 @@ export const dashboardService = {
       search: '',
     });
 
-    return response.data;
+    return (response.data || []).map(item => ({
+      invoice_id: item.invoice_id || item.name || '',
+      posting_date: item.posting_date || '',
+      amount: item.amount || item.grand_total || 0,
+      status: item.status || '',
+      company: item.company || '',
+      items: (item.items || []).map(i => (typeof i === 'string' ? i : (i as any).item_name || '')),
+    }));
   },
 
   fetchNotifications: async (limit = 20): Promise<NotificationLog[]> => {

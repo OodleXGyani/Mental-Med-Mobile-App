@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { User, X } from 'lucide-react-native';
+import { Star, User, X } from 'lucide-react-native';
 import { Customer } from '../types';
 import { useAppTheme } from '../../../shared/theme';
 
@@ -19,125 +19,164 @@ export const POSCustomerSection = ({
 }: Props) => {
   const theme = useAppTheme();
 
-  return (
-    <>
-      <Pressable
-        style={[
-          styles.customerRow,
-          {
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border,
-          },
-        ]}
-        onPress={onPressAddCustomer}
-      >
-        <User size={13} color={theme.colors.mutedText} />
-        <Text style={[styles.customerText, { color: theme.colors.mutedText }]}>
-          Add Customer
-        </Text>
-      </Pressable>
+  if (!selectedCustomer) {
+    return null;
+  }
 
-      {selectedCustomer ? (
+  return (
+    <View
+      style={[
+        styles.selectedCustomerCard,
+        {
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={styles.selectedCustomerLeft}>
         <View
           style={[
-            styles.selectedCustomerCard,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-            },
+            styles.userIconWrap,
+            { backgroundColor: `${theme.colors.primary}18` },
           ]}
         >
-          <View style={styles.selectedCustomerLeft}>
-            <User size={13} color={theme.colors.primary} />
-            <View>
-              <Text
-                style={[
-                  styles.selectedCustomerName,
-                  { color: theme.colors.text },
-                ]}
-              >
-                {selectedCustomer.name}
-              </Text>
-              <Text
-                style={[
-                  styles.selectedCustomerPhone,
-                  { color: theme.colors.mutedText },
-                ]}
-              >
-                {selectedCustomer.phone}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.selectedCustomerActions}>
-            <Pressable onPress={onPressViewOrders}>
-              <Text
-                style={[styles.viewOrdersText, { color: theme.colors.success }]}
-              >
-                View Orders
-              </Text>
-            </Pressable>
-            <Pressable onPress={onPressRemoveCustomer}>
-              <X size={14} color={theme.colors.mutedText} />
-            </Pressable>
-          </View>
+          <User size={16} color={theme.colors.primary} />
         </View>
-      ) : null}
-    </>
+        <View style={styles.customerInfo}>
+          <View style={styles.customerNameRow}>
+            <Text
+              style={[styles.selectedCustomerName, { color: theme.colors.text }]}
+              numberOfLines={1}
+            >
+              {selectedCustomer.name}
+            </Text>
+            {selectedCustomer.loyalty_points !== undefined &&
+            selectedCustomer.loyalty_points > 0 ? (
+              <View style={styles.loyaltyPill}>
+                <Star size={10} color="#D97706" fill="#D97706" />
+                <Text style={styles.loyaltyText}>
+                  {selectedCustomer.loyalty_points} pts (₹
+                  {(selectedCustomer.loyalty_redemption_value || 0).toFixed(2)})
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Text
+            style={[
+              styles.selectedCustomerPhone,
+              { color: theme.colors.mutedText },
+            ]}
+          >
+            {selectedCustomer.phone && selectedCustomer.phone !== 'N/A'
+              ? `Phone: ${selectedCustomer.phone}`
+              : 'Counter Walk-in Sale'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.selectedCustomerActions}>
+        <Pressable
+          onPress={onPressAddCustomer}
+          style={[styles.actionBtn, { borderColor: theme.colors.border }]}
+        >
+          <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>
+            Change
+          </Text>
+        </Pressable>
+        {selectedCustomer.id !== 'Walk-in' && (
+          <Pressable
+            onPress={onPressViewOrders}
+            style={[
+              styles.actionBtn,
+              {
+                borderColor: theme.colors.primary,
+                backgroundColor: `${theme.colors.primary}12`,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.actionBtnText, { color: theme.colors.primary }]}
+            >
+              History
+            </Text>
+          </Pressable>
+        )}
+        <Pressable onPress={onPressRemoveCustomer} hitSlop={8}>
+          <X size={16} color={theme.colors.mutedText} />
+        </Pressable>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  customerRow: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E3DE',
-    borderWidth: 1,
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 11,
-  },
-  customerText: {
-    color: '#7A6860',
-    fontWeight: '600',
-    fontSize: 12,
-  },
   selectedCustomerCard: {
-    marginTop: 8,
-    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E1DD',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: 14,
+    padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   selectedCustomerLeft: {
     flexDirection: 'row',
-    gap: 6,
     alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  userIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customerInfo: {
+    flex: 1,
+  },
+  customerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   selectedCustomerName: {
-    color: '#4A3E37',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
   },
   selectedCustomerPhone: {
-    color: '#A79286',
-    fontSize: 9,
-    marginTop: 1,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  loyaltyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  loyaltyText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#D97706',
   },
   selectedCustomerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  viewOrdersText: {
-    color: '#2BAF81',
+  actionBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  actionBtnText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
