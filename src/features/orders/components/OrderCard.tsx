@@ -9,7 +9,8 @@ export type OrderStatus =
   | 'processing'
   | 'ready'
   | 'dispatched'
-  | 'delivered';
+  | 'delivered'
+  | 'rejected';
 
 export type Order = {
   id: string;
@@ -44,6 +45,8 @@ const statusPill = (status: OrderStatus) => {
         bg: '#E7F6F0',
         color: '#1E8066',
       };
+    case 'rejected':
+      return { text: 'rejected', bg: '#FCE8E6', color: '#B3261E' };
     default:
       return { text: status, bg: '#EEE', color: '#333' };
   }

@@ -30,6 +30,10 @@ export type CustomerDetails = {
   customer_id: string;
   customer_name: string;
   customer_type: string;
+  // get_customer_details returns "Active" if not customer.disabled else
+  // "Inactive" -- this was never declared here, so the UI always showed
+  // a hardcoded "Active" badge regardless of the real value.
+  status: 'Active' | 'Inactive';
   credit_limit: number | null;
   contact_person: string | null;
   phone: string | null;

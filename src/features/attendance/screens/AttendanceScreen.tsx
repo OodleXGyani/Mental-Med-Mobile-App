@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  PermissionsAndroid,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,13 +24,12 @@ import { useAppTheme } from '../../../shared/theme';
 import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
+import { requestCurrentCoordinates } from '../../../shared/utils/location';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
   typeof STACK_ROUTES.ATTENDANCE_HOME
 >;
-
-const DEFAULT_EMPLOYEE_ID = 'HR-EMP-00001';
 
 interface LeaveForm {
   leaveType: string;
@@ -191,7 +189,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [employeeName, setEmployeeName] = useState('Employee');
-  const [employeeId, setEmployeeId] = useState(DEFAULT_EMPLOYEE_ID);
+  const [employeeId, setEmployeeId] = useState('');
   const [company, setCompany] = useState('');
   const [checkinStatus, setCheckinStatus] = useState<'IN' | 'OUT'>('OUT');
   const [attendanceSummary, setAttendanceSummary] = useState({
@@ -235,20 +233,33 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     try {
       const profile = await profileService.fetchUserProfile();
       setEmployeeName(profile.full_name || profile.employee_name);
-      setEmployeeId(profile.employee || DEFAULT_EMPLOYEE_ID);
       setCompany(profile.company || '');
       setCheckinStatus(profile.checkin_status ?? 'OUT');
+
+      // No hardcoded fallback here on purpose -- silently substituting
+      // some other employee's real ID would write check-ins/leave/summary
+      // data against the wrong HR record. Surface it as an error instead.
+      if (!profile.employee) {
+        setEmployeeId('');
+        setAttendanceSummary({ present: 0, halfDay: 0, leave: 0 });
+        setAttendanceCalendar([]);
+        setErrorMessage(
+          'No employee record is linked to your account. Contact your admin to link one before using Attendance.',
+        );
+        return;
+      }
+      setEmployeeId(profile.employee);
 
       const [summary, calendar] = await Promise.all([
         attendanceService.fetchAttendanceSummary(
           monthRange.fromDate,
           monthRange.toDate,
-          profile.employee || DEFAULT_EMPLOYEE_ID,
+          profile.employee,
         ),
         attendanceService.fetchAttendanceByDate(
           monthRange.fromDate,
           monthRange.toDate,
-          profile.employee || DEFAULT_EMPLOYEE_ID,
+          profile.employee,
         ),
       ]);
 
@@ -280,7 +291,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     setLeaveForm(current => ({ ...current, leaveType: '' }));
 
     try {
-      const nextLeaveTypes = await attendanceService.fetchLeaveTypeDropdown();
+      const nextLeaveTypes = await attendanceService.fetchLeaveTypeDropdown(employeeId);
       setLeaveTypes(nextLeaveTypes);
     } catch (error) {
       const message =
@@ -291,7 +302,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     } finally {
       setLeaveTypesLoading(false);
     }
-  }, []);
+  }, [employeeId]);
 
   const handleOpenLeaveModal = () => {
     setShowLeaveModal(true);
@@ -312,6 +323,14 @@ export const AttendanceScreen = ({ navigation }: Props) => {
       Alert.alert(
         'Missing leave details',
         'Please select a leave type and enter From/To dates as yyyy-mm-dd or dd/mm/yyyy.',
+      );
+      return;
+    }
+
+    if (!employeeId) {
+      Alert.alert(
+        'No employee record',
+        'No employee record is linked to your account. Contact your admin.',
       );
       return;
     }
@@ -394,64 +413,16 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     );
   };
 
-  const requestCurrentCoordinates = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Location Permission',
-          message:
-            'We need your location to submit attendance with real coordinates.',
-          buttonPositive: 'Allow',
-          buttonNegative: 'Cancel',
-        },
-      );
-
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        throw new Error('Location permission denied.');
-      }
-    }
-
-    const fallbackCoords = { latitude: 28.6139, longitude: 77.209 };
-
-    return await new Promise<{ latitude: number; longitude: number }>(
-      resolve => {
-        const navigator = globalThis as any;
-        const geolocation = navigator?.geolocation;
-
-        if (!geolocation?.getCurrentPosition) {
-          resolve(fallbackCoords);
-          return;
-        }
-
-        const timeoutId = setTimeout(() => {
-          resolve(fallbackCoords);
-        }, 10000);
-
-        geolocation.getCurrentPosition(
-          (position: any) => {
-            clearTimeout(timeoutId);
-            resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            });
-          },
-          () => {
-            clearTimeout(timeoutId);
-            resolve(fallbackCoords);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 10000,
-          },
-        );
-      },
-    );
-  }, []);
-
   const handleCheckin = useCallback(async () => {
     if (submitting) {
+      return;
+    }
+
+    if (!employeeId) {
+      Alert.alert(
+        'No employee record',
+        'No employee record is linked to your account. Contact your admin.',
+      );
       return;
     }
 

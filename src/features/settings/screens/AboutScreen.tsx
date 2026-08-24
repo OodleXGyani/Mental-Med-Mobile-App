@@ -39,6 +39,18 @@ export const AboutScreen = () => {
     Linking.openURL('https://www.meds15.com');
   };
 
+  const handleTerms = () => {
+    Linking.openURL('https://www.meds15.com/terms');
+  };
+
+  const handlePrivacyPolicy = () => {
+    Linking.openURL('https://www.meds15.com/privacy');
+  };
+
+  const handleLicense = () => {
+    Linking.openURL('https://www.meds15.com/license');
+  };
+
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
@@ -229,17 +241,17 @@ export const AboutScreen = () => {
           },
         ]}
       >
-        <Pressable>
+        <Pressable onPress={handleTerms}>
           <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
             Terms & Conditions
           </Text>
         </Pressable>
-        <Pressable style={styles.legalPressable}>
+        <Pressable style={styles.legalPressable} onPress={handlePrivacyPolicy}>
           <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
             Privacy Policy
           </Text>
         </Pressable>
-        <Pressable style={styles.legalPressable}>
+        <Pressable style={styles.legalPressable} onPress={handleLicense}>
           <Text style={[styles.legalLink, { color: theme.colors.primary }]}>
             License Agreement
           </Text>

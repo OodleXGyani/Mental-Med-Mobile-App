@@ -1,108 +1,48 @@
-import React from 'react';
-import { useNavigation } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
-  Bell,
-  Check,
-  ChevronLeft,
-  CircleAlert,
-  Package,
-  ShoppingCart,
-} from 'lucide-react-native';
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Bell, ChevronLeft, CircleAlert } from 'lucide-react-native';
 import { useAppTheme } from '../../../shared/theme';
-
-type NotificationItem = {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  variant: 'order' | 'stock' | 'expiry' | 'dispatch' | 'update';
-  unread?: boolean;
-};
-
-const notifications: NotificationItem[] = [
-  {
-    id: '1',
-    title: 'New order received',
-    message: 'ORD-2025-005 from Ramesh Kumar - 3 items, Rs 450',
-    time: '5 min ago',
-    variant: 'order',
-    unread: true,
-  },
-  {
-    id: '2',
-    title: 'Low stock alert',
-    message: 'Amoxicillin 250mg - Only 8 units remaining',
-    time: '30 min ago',
-    variant: 'stock',
-    unread: true,
-  },
-  {
-    id: '3',
-    title: 'Expiry alert',
-    message: 'Cetirizine 10mg batch B2025-102 expires in 30 days',
-    time: '1 hr ago',
-    variant: 'expiry',
-  },
-  {
-    id: '4',
-    title: 'Order dispatched',
-    message: 'ORD-2025-003 marked as dispatched',
-    time: '2 hrs ago',
-    variant: 'dispatch',
-  },
-  {
-    id: '5',
-    title: 'Stock updated',
-    message: 'Paracetamol 500mg restocked - 150 units added',
-    time: '3 hrs ago',
-    variant: 'update',
-  },
-];
+import { dashboardService, NotificationLog } from '../services/dashboardService';
+import { formatTimeAgo } from '../../../shared/utils/format';
 
 export const NotificationsScreen = () => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const navigation = useNavigation<any>();
 
-  const getItemIcon = (variant: NotificationItem['variant']) => {
-    switch (variant) {
-      case 'order':
-        return (
-          <ShoppingCart
-            size={14}
-            color={theme.colors.primary}
-            strokeWidth={2.4}
-          />
-        );
-      case 'stock':
-        return (
-          <Bell size={14} color={theme.colors.primary} strokeWidth={2.4} />
-        );
-      case 'expiry':
-        return (
-          <CircleAlert
-            size={14}
-            color={theme.colors.warning}
-            strokeWidth={2.4}
-          />
-        );
-      case 'dispatch':
-        return (
-          <ShoppingCart
-            size={14}
-            color={theme.colors.warning}
-            strokeWidth={2.4}
-          />
-        );
-      default:
-        return (
-          <Package size={14} color={theme.colors.warning} strokeWidth={2.4} />
-        );
+  const [notifications, setNotifications] = useState<NotificationLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const loadNotifications = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const data = await dashboardService.fetchNotifications();
+      setNotifications(data);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Unable to load notifications.',
+      );
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadNotifications();
+    }, [loadNotifications]),
+  );
 
   return (
     <ScrollView
@@ -134,65 +74,63 @@ export const NotificationsScreen = () => {
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Notifications
           </Text>
-          <View
-            style={[styles.pill, { backgroundColor: theme.colors.primary }]}
-          >
-            <Text style={styles.pillText}>2 new</Text>
-          </View>
-        </View>
-        <View style={styles.markWrap}>
-          <Check size={13} color={theme.colors.mutedText} strokeWidth={2.6} />
-          <Text style={[styles.markText, { color: theme.colors.mutedText }]}>
-            Mark all read
-          </Text>
         </View>
       </View>
 
-      {notifications.map(item => (
-        <View
-          key={item.id}
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border,
-            },
-            item.unread
-              ? {
-                  backgroundColor: theme.dark ? '#1E2C2A' : '#F2FBF8',
-                  borderColor: theme.dark ? '#2C3A37' : '#CFE9E3',
-                }
-              : null,
-          ]}
-        >
+      {loading ? (
+        <View style={styles.stateBox}>
+          <ActivityIndicator color={theme.colors.primary} />
+        </View>
+      ) : errorMessage ? (
+        <View style={styles.stateBox}>
+          <CircleAlert size={20} color={theme.colors.warning} strokeWidth={2} />
+          <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+            {errorMessage}
+          </Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.stateBox}>
+          <Bell size={20} color={theme.colors.mutedText} strokeWidth={2} />
+          <Text style={[styles.stateText, { color: theme.colors.mutedText }]}>
+            No notifications yet.
+          </Text>
+        </View>
+      ) : (
+        notifications.map((item, index) => (
           <View
+            key={`${item.sent_at}-${index}`}
             style={[
-              styles.iconWrap,
-              { backgroundColor: theme.dark ? '#1A2624' : '#EAF7F4' },
+              styles.card,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border,
+              },
             ]}
           >
-            {getItemIcon(item.variant)}
-          </View>
-          <View style={styles.textWrap}>
-            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-              {item.title}
-            </Text>
-            <Text
-              style={[styles.cardMessage, { color: theme.colors.mutedText }]}
-            >
-              {item.message}
-            </Text>
-            <Text style={[styles.cardTime, { color: theme.colors.mutedText }]}>
-              {item.time}
-            </Text>
-          </View>
-          {item.unread ? (
             <View
-              style={[styles.dot, { backgroundColor: theme.colors.primary }]}
-            />
-          ) : null}
-        </View>
-      ))}
+              style={[
+                styles.iconWrap,
+                { backgroundColor: theme.dark ? '#1A2624' : '#EAF7F4' },
+              ]}
+            >
+              <Bell size={14} color={theme.colors.primary} strokeWidth={2.4} />
+            </View>
+            <View style={styles.textWrap}>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                {item.title}
+              </Text>
+              <Text
+                style={[styles.cardMessage, { color: theme.colors.mutedText }]}
+              >
+                {item.body}
+              </Text>
+              <Text style={[styles.cardTime, { color: theme.colors.mutedText }]}>
+                {formatTimeAgo(item.sent_at)}
+              </Text>
+            </View>
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 };
@@ -227,27 +165,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1F2126',
   },
-  pill: {
-    backgroundColor: '#2FAF9A',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 2,
-  },
-  pillText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  markWrap: {
-    flexDirection: 'row',
+  stateBox: {
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 40,
   },
-  markText: {
-    color: '#5A4A42',
-    fontSize: 12,
+  stateText: {
+    fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -259,10 +186,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'flex-start',
-  },
-  cardUnread: {
-    backgroundColor: '#F2FBF8',
-    borderColor: '#CFE9E3',
   },
   iconWrap: {
     width: 22,
@@ -291,14 +214,6 @@ const styles = StyleSheet.create({
   cardTime: {
     color: '#B8ACA4',
     fontSize: 9.5,
-    marginTop: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#2FAF9A',
-    marginLeft: 6,
     marginTop: 4,
   },
 });

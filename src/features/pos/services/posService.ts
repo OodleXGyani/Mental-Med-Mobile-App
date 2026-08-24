@@ -5,11 +5,22 @@ import {
   GetOrAssignCartPayload,
   Medicine,
   APIResponse,
+  CreatePosInvoicePayload,
+  CreatePosInvoiceResponse,
+  CheckoutPreviewPayload,
+  CheckoutPreviewResponse,
+  ManagerUser,
+  RequestApprovalPayload,
+  RequestApprovalResponse,
+  SubmitApprovalPayload,
+  SubmitApprovalResponse,
 } from '../types';
 import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
 const CART_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.cart`;
+const APPROVAL_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.approval`;
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
+const MANAGER_USERS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.pharmacy.get_manager_users`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -54,6 +65,29 @@ const getErrorMessage = (payload: unknown, fallback: string) => {
   }
 
   return fallback;
+};
+
+const postJson = async <T,>(url: string, payload: unknown, fallbackError: string): Promise<T> => {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseBody = (await parseJsonSafely(response)) as any;
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(responseBody, fallbackError));
+  }
+
+  if (responseBody?.message !== undefined) {
+    return responseBody.message as T;
+  }
+
+  throw new Error(`Invalid response from server (${fallbackError})`);
 };
 
 export const posService = {
@@ -187,4 +221,106 @@ export const posService = {
       throw error instanceof Error ? error : new Error('Failed to save cart');
     }
   },
+
+  /**
+   * Finalize a cart into a real Sales Invoice + payment.
+   * erp_pharmacy.api.user_page.cart.cart.create_pos_invoice: submits the
+   * invoice, records the Payment Entry(s) for Cash mode (or a Razorpay
+   * payment link for Online mode), and returns the real invoice name +
+   * print_url -- there is no client-side "success" short of this call
+   * actually completing.
+   */
+  createPosInvoice: async (
+    payload: CreatePosInvoicePayload,
+  ): Promise<CreatePosInvoiceResponse> => {
+    try {
+      const response = await fetch(`${CART_API_ROOT}.create_pos_invoice`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseBody = (await parseJsonSafely(response)) as any;
+
+      if (!response.ok) {
+        throw new Error(
+          getErrorMessage(responseBody, 'Unable to complete the sale.'),
+        );
+      }
+
+      if (responseBody?.message && typeof responseBody.message === 'object') {
+        const message = responseBody.message as any;
+        if (message.success === false) {
+          throw new Error(getErrorMessage(responseBody, 'Unable to complete the sale.'));
+        }
+        return message as CreatePosInvoiceResponse;
+      }
+
+      throw new Error('Invalid checkout response from server');
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error('Failed to complete the sale');
+    }
+  },
+
+  /**
+   * Server-computed totals + the same three approval gates
+   * create_pos_invoice enforces (discount / prescription / margin) --
+   * call this before showing the payment screen so the cashier sees
+   * accurate totals and any required overrides up front, same as web POS.
+   */
+  checkoutPreview: async (
+    payload: CheckoutPreviewPayload,
+  ): Promise<CheckoutPreviewResponse> =>
+    postJson<CheckoutPreviewResponse>(
+      `${CART_API_ROOT}.checkout_preview`,
+      payload,
+      'Unable to load checkout preview.',
+    ),
+
+  /** Managers eligible to approve a PIN-based override (role_profile = Manager). */
+  getManagerUsers: async (search?: string): Promise<ManagerUser[]> => {
+    try {
+      const url = new URL(MANAGER_USERS_URL);
+      if (search) {
+        url.searchParams.set('search', search);
+      }
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      const responseBody = (await parseJsonSafely(response)) as any;
+      if (!response.ok) {
+        throw new Error(getErrorMessage(responseBody, 'Unable to load managers.'));
+      }
+      const data = responseBody?.message?.data ?? responseBody?.message ?? [];
+      return Array.isArray(data) ? (data as ManagerUser[]) : [];
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Failed to load managers');
+    }
+  },
+
+  /** Creates a Pending Manager Approval Log for a discount/prescription/margin override. */
+  requestApproval: async (
+    payload: RequestApprovalPayload,
+  ): Promise<RequestApprovalResponse> =>
+    postJson<RequestApprovalResponse>(
+      `${APPROVAL_API_ROOT}.request_approval`,
+      payload,
+      'Unable to request override.',
+    ),
+
+  /** Manager enters their PIN to approve a pending override. */
+  submitApproval: async (
+    payload: SubmitApprovalPayload,
+  ): Promise<SubmitApprovalResponse> =>
+    postJson<SubmitApprovalResponse>(
+      `${APPROVAL_API_ROOT}.submit_approval`,
+      payload,
+      'Unable to submit approval.',
+    ),
 };

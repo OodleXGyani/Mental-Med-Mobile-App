@@ -343,4 +343,47 @@ export const authService = {
       return false;
     }
   },
+
+  /**
+   * Deactivates this device's push token server-side. Uses `frappe.session.user`
+   * to scope the update, so this MUST run before logout() invalidates the
+   * session -- calling it after would silently no-op against a Guest session.
+   * Best-effort: sign-out should still proceed even if this fails.
+   */
+  deleteFCMToken: async (token: string): Promise<boolean> => {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) return false;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.fcm_api.delete_fcm_token`,
+        {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: trimmedToken }),
+        },
+      );
+      return response.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Invalidates the current sid server-side (Frappe's own core `logout`
+   * whitelisted method). Previously sign-out only cleared local
+   * AsyncStorage/Redux state -- the server-side session stayed live
+   * indefinitely, so a captured/leaked sid would keep working after the
+   * user "signed out" on their device.
+   */
+  logout: async (): Promise<void> => {
+    try {
+      await fetch(`${API_BASE_URL}api/method/logout`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+      });
+    } catch {
+      // Best-effort -- local sign-out proceeds regardless.
+    }
+  },
 };

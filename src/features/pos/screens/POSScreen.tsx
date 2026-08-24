@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet } from 'react-native';
+import { Alert, Linking, ScrollView, Share, StyleSheet } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePOS } from '../hooks/usePOS';
@@ -12,7 +12,7 @@ import { POSCustomerSection } from '../components/POSCustomerSection';
 import { POSCartSection } from '../components/POSCartSection';
 import { POSSummaryCard } from '../components/POSSummaryCard';
 import { POSScanModal } from '../components/POSScanModal';
-import { POSPaymentModal } from '../components/POSPaymentModal';
+import { POSPaymentModal, CompletedSaleContext } from '../components/POSPaymentModal';
 import { POSInvoiceModal } from '../components/POSInvoiceModal';
 import { POSCustomerPickerModal } from '../components/POSCustomerPickerModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
@@ -22,17 +22,23 @@ import {
   PaymentMethod,
   Medicine,
   CartItemAPI,
+  CreatePosInvoiceResponse,
 } from '../types';
 import { formatAmount } from '../utils';
 import { posService } from '../services/posService';
 import { customerService } from '../../settings/services/customerService';
 import { useAppTheme } from '../../../shared/theme';
+import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+import { useAppSelector } from '../../../app/hooks';
 
 export const POSScreen = () => {
   const { updateBillTotal } = usePOS();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
+  const autoPrintEnabled = useAppSelector(
+    state => state.settings.autoPrintEnabled,
+  );
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -50,6 +56,13 @@ export const POSScreen = () => {
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
   const [discountPercent, setDiscountPercent] = useState('0');
+
+  // The Eph POS Cart backing this bill -- required by create_pos_invoice.
+  // Populated from whatever get_or_assign_cart/save_cart last returned.
+  const [cartName, setCartName] = useState<string | null>(null);
+  const [isCompletingSale, setIsCompletingSale] = useState(false);
+  const [completedInvoice, setCompletedInvoice] =
+    useState<CreatePosInvoiceResponse | null>(null);
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -141,10 +154,11 @@ export const POSScreen = () => {
           rate: item.price,
         }));
 
-        await posService.saveCart({
+        const saved = await posService.saveCart({
           customer: selectedCustomer.id,
           items: itemsToSave,
         });
+        setCartName(saved.cart_name);
       } catch (error) {
         console.error('Failed to save cart:', error);
       }
@@ -259,6 +273,7 @@ export const POSScreen = () => {
         customer: customer.id,
         cart_name: '',
       });
+      setCartName(cartResponse.cart_name);
 
       // Merge existing items with API cart items
       if (cartResponse.items && cartResponse.items.length > 0) {
@@ -313,21 +328,74 @@ export const POSScreen = () => {
     [customerSearch, customerList],
   );
 
-  const onCompleteSale = () => {
-    setShowPayment(false);
-    setShowInvoice(true);
+  const onCompleteSale = async (context: CompletedSaleContext) => {
+    if (!cartName) {
+      Alert.alert(
+        'No cart',
+        'Select a customer and add items before completing the sale.',
+      );
+      return;
+    }
+    if (isCompletingSale) {
+      return;
+    }
+
+    setIsCompletingSale(true);
+    try {
+      // All three payment methods here are collected in person at time of
+      // sale (not a deferred Razorpay link), so payment_mode is always
+      // "Cash" server-side -- that's the immediate-payment code path.
+      // `mode` is passed through verbatim as the Mode of Payment record
+      // name; if this tenant doesn't have a matching one configured yet,
+      // the backend already raises a clear "No default account set for
+      // Mode of Payment 'X'" error instead of silently misrecording it
+      // under a guessed-at existing mode. Discount/prescription/margin
+      // approval logs come from POSPaymentModal's own checkout-preview
+      // gates -- create_pos_invoice re-validates all three regardless.
+      const result = await posService.createPosInvoice({
+        cart_name: cartName,
+        payment_mode: 'Cash',
+        payments: [{ mode: paymentMethod, amount: context.grandTotal }],
+        discount_value: Number(discountPercent) || 0,
+        discount_type: 'Percentage',
+        discount_approval_log: context.discountApprovalLog || undefined,
+        rx_override_log: context.rxOverrideLog || undefined,
+        margin_override_log: context.marginOverrideLog || undefined,
+        prescription: context.prescription || undefined,
+      });
+
+      setCompletedInvoice(result);
+      setShowPayment(false);
+      setShowInvoice(true);
+      if (autoPrintEnabled) {
+        // Pass `result` directly rather than relying on the `completedInvoice`
+        // state var just set above -- React state updates aren't synchronous,
+        // so reading it back immediately here would still see the stale value.
+        void openInvoicePrintView(result);
+      }
+    } catch (error) {
+      Alert.alert(
+        'Payment failed',
+        error instanceof Error ? error.message : 'Unable to complete the sale.',
+      );
+    } finally {
+      setIsCompletingSale(false);
+    }
   };
 
   const onCloseInvoice = () => {
     setShowInvoice(false);
     setCartItems([]);
     setDiscountPercent('0');
+    setCartName(null);
+    setCompletedInvoice(null);
   };
 
   const shareInvoice = async (channel?: 'whatsapp') => {
-    const message = `Invoice INV-155654 for ${
+    const invoiceLabel = completedInvoice?.invoice || 'this invoice';
+    const message = `Invoice ${invoiceLabel} for ${
       selectedCustomer?.name || 'Walk-in'
-    } | Total ${formatAmount(total)}`;
+    } | Total ${formatAmount(completedInvoice?.grand_total ?? total)}`;
     if (channel === 'whatsapp') {
       Alert.alert('WhatsApp', `Prepared message:\n${message}`);
       return;
@@ -337,6 +405,21 @@ export const POSScreen = () => {
       await Share.share({ message });
     } catch {
       Alert.alert('Share', 'Unable to share invoice right now.');
+    }
+  };
+
+  const openInvoicePrintView = async (
+    invoice: CreatePosInvoiceResponse | null = completedInvoice,
+  ) => {
+    if (!invoice?.print_url) {
+      Alert.alert('Not available', 'Invoice print view is not available yet.');
+      return;
+    }
+    const url = `${API_BASE_URL.replace(/\/$/, '')}${invoice.print_url}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Unable to open', 'Could not open the invoice print view.');
     }
   };
 
@@ -396,25 +479,26 @@ export const POSScreen = () => {
       />
       <POSPaymentModal
         visible={showPayment}
-        total={total}
+        cartName={cartName}
         selectedCustomer={selectedCustomer}
         paymentMethod={paymentMethod}
         setPaymentMethod={setPaymentMethod}
-        subtotal={subtotal}
-        gstAmount={gstAmount}
+        discountPercent={discountPercent}
+        isSubmitting={isCompletingSale}
         onClose={() => setShowPayment(false)}
         onCompleteSale={onCompleteSale}
       />
       <POSInvoiceModal
         visible={showInvoice}
-        total={total}
+        invoiceName={completedInvoice?.invoice ?? null}
+        total={completedInvoice?.grand_total ?? total}
         subtotal={subtotal}
         gstAmount={gstAmount}
         selectedCustomer={selectedCustomer}
         paymentMethod={paymentMethod}
         cartItems={cartItems}
-        onPressDownload={() => Alert.alert('Download', 'Invoice downloaded')}
-        onPressPrint={() => Alert.alert('Print', 'Print initiated')}
+        onPressDownload={() => openInvoicePrintView()}
+        onPressPrint={() => openInvoicePrintView()}
         onPressWhatsApp={() => shareInvoice('whatsapp')}
         onPressShare={() => shareInvoice()}
         onPressDone={onCloseInvoice}

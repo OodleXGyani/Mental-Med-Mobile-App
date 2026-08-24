@@ -10,12 +10,20 @@ export const socketMiddleware: Middleware = (store) => {
 
   const connectWithSession = (session: LoginSession | null | undefined) => {
     if (!session) return;
-    let socketUrl = session.socketUrl || session.tenantUrl;
+
+    // The web app connects to the main SaaS domain (pharmacy.oodleslab.com) 
+    // with the site name as the namespace. The tenant API sometimes returns 
+    // the tenant domain instead, which doesn't route socket traffic correctly.
+    // We will extract the site name from tenantUrl and force it to use SAAS_BASE_URL.
+    
+    // session.tenantUrl is typically "https://ketmeds.pharmacy.oodleslab.com"
+    const siteName = session.tenantUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    
+    // This creates exactly: "https://pharmacy.oodleslab.com/ketmeds.pharmacy.oodleslab.com"
+    let socketUrl = `https://pharmacy.oodleslab.com/${siteName}`;
+    
     const socketPath = session.socketPath || '/socket.io';
     const sid = session.sid;
-
-    // Keep socketUrl as is to preserve the Frappe namespace in the pathname.
-    // E.g., https://domain.com/sitename -> we need the "/sitename" part for socket.io namespace.
 
     console.log('[SocketMiddleware] Preparing session for socket connection:\n' + JSON.stringify({
       tenantUrl: session.tenantUrl,

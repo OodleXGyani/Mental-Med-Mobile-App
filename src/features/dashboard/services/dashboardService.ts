@@ -29,6 +29,18 @@ export type DashboardRecentSale = {
 
 const DASHBOARD_SUMMARY_URL =
   `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.dashboard.get_dashboard_summary`;
+const NOTIFICATIONS_URL =
+  `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.fcm_api.get_my_notifications`;
+
+export type NotificationLog = {
+  title: string;
+  body: string;
+  // Delivery status ("Pending"/"Sent"/"Failed"), not a read/unread flag --
+  // this doctype has no read-tracking, so the UI can't honestly show an
+  // unread count or "mark all read" without a backend addition.
+  status: string;
+  sent_at: string;
+};
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -144,5 +156,26 @@ export const dashboardService = {
     });
 
     return response.data;
+  },
+
+  fetchNotifications: async (limit = 20): Promise<NotificationLog[]> => {
+    const url = new URL(NOTIFICATIONS_URL);
+    url.searchParams.set('limit', String(limit));
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const payload = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throwResponseError(response, payload, 'Unable to load notifications.');
+    }
+
+    const data = (payload as { message?: unknown } | null)?.message;
+    return Array.isArray(data) ? (data as NotificationLog[]) : [];
   },
 };

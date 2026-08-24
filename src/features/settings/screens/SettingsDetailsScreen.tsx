@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import {
+  ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,10 +11,14 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, getToken } from '@react-native-firebase/messaging';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { setThemeMode } from '../store/settingsSlice';
+import { useSettings } from '../hooks/useSettings';
 import { useAppTheme } from '../../../shared/theme';
+import { authService } from '../../authentication/services/authService';
 
 export const SettingsDetailsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -20,13 +26,67 @@ export const SettingsDetailsScreen = () => {
   const dispatch = useAppDispatch();
   const theme = useAppTheme();
   const themeMode = useAppSelector(state => state.settings.themeMode);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [offlineMode, setOfflineMode] = useState(false);
-  const [autoPrint, setAutoPrint] = useState(false);
+  const session = useAppSelector(state => state.auth.session);
+  const {
+    pushNotificationsEnabled,
+    autoPrintEnabled,
+    updatePushNotificationsEnabled,
+    updateAutoPrintEnabled,
+  } = useSettings();
+  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const isDarkMode = themeMode === 'dark';
 
   const handleThemeToggle = (value: boolean) => {
     dispatch(setThemeMode(value ? 'dark' : 'light'));
+  };
+
+  const handlePushNotificationsToggle = async (value: boolean) => {
+    setNotificationBusy(true);
+    try {
+      const token = await getToken(getMessaging(getApp()));
+      if (token) {
+        if (value) {
+          await authService.uploadFCMToken(
+            session?.email || '',
+            token,
+            'android',
+          );
+        } else {
+          await authService.deleteFCMToken(token);
+        }
+      }
+      updatePushNotificationsEnabled(value);
+    } catch {
+      Alert.alert(
+        'Unable to update',
+        'Could not change your notification setting. Please try again.',
+      );
+    } finally {
+      setNotificationBusy(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!session?.email) {
+      Alert.alert('Unable to send reset link', 'No account email on file.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await authService.forgotPassword(session.email);
+      Alert.alert(
+        'Check your email',
+        `A password reset link has been sent to ${session.email}.`,
+      );
+    } catch (error) {
+      Alert.alert(
+        'Unable to send reset link',
+        error instanceof Error ? error.message : 'Please try again later.',
+      );
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -91,12 +151,18 @@ export const SettingsDetailsScreen = () => {
               Get alerts for orders & stock
             </Text>
           </View>
-          <Switch
-            value={pushNotifications}
-            onValueChange={setPushNotifications}
-            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
-            thumbColor={pushNotifications ? theme.colors.primary : '#F0F0F0'}
-          />
+          {notificationBusy ? (
+            <ActivityIndicator color={theme.colors.primary} />
+          ) : (
+            <Switch
+              value={pushNotificationsEnabled}
+              onValueChange={handlePushNotificationsToggle}
+              trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
+              thumbColor={
+                pushNotificationsEnabled ? theme.colors.primary : '#F0F0F0'
+              }
+            />
+          )}
         </View>
       </View>
 
@@ -145,51 +211,6 @@ export const SettingsDetailsScreen = () => {
         </View>
       </View>
 
-      {/* Sync & Storage */}
-      <View
-        style={[
-          styles.sectionCard,
-          {
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.sectionTitle,
-            {
-              color: theme.colors.text,
-              backgroundColor: theme.colors.background,
-            },
-          ]}
-        >
-          Sync & Storage
-        </Text>
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingContent}>
-            <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
-              Offline Mode
-            </Text>
-            <Text
-              style={[
-                styles.settingDescription,
-                { color: theme.colors.mutedText },
-              ]}
-            >
-              Enable offline data sync
-            </Text>
-          </View>
-          <Switch
-            value={offlineMode}
-            onValueChange={setOfflineMode}
-            trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
-            thumbColor={offlineMode ? theme.colors.primary : '#F0F0F0'}
-          />
-        </View>
-      </View>
-
       {/* Printing */}
       <View
         style={[
@@ -227,10 +248,10 @@ export const SettingsDetailsScreen = () => {
             </Text>
           </View>
           <Switch
-            value={autoPrint}
-            onValueChange={setAutoPrint}
+            value={autoPrintEnabled}
+            onValueChange={updateAutoPrintEnabled}
             trackColor={{ false: theme.colors.border, true: '#2A6F68' }}
-            thumbColor={autoPrint ? theme.colors.primary : '#F0F0F0'}
+            thumbColor={autoPrintEnabled ? theme.colors.primary : '#F0F0F0'}
           />
         </View>
       </View>
@@ -257,15 +278,23 @@ export const SettingsDetailsScreen = () => {
           Account
         </Text>
 
-        <Pressable style={styles.optionRow}>
+        <Pressable
+          style={styles.optionRow}
+          onPress={handleChangePassword}
+          disabled={changingPassword}
+        >
           <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
             Change Password
           </Text>
-          <ChevronRight
-            size={20}
-            color={theme.colors.mutedText}
-            strokeWidth={2}
-          />
+          {changingPassword ? (
+            <ActivityIndicator size="small" color={theme.colors.mutedText} />
+          ) : (
+            <ChevronRight
+              size={20}
+              color={theme.colors.mutedText}
+              strokeWidth={2}
+            />
+          )}
         </Pressable>
       </View>
 

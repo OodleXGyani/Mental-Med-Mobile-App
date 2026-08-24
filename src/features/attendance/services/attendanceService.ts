@@ -120,16 +120,23 @@ export const attendanceService = {
     };
   },
 
-  fetchLeaveTypeDropdown: async (): Promise<LeaveTypeOption[]> => {
-    const response = await fetch(
+  // Without `employee`, the backend returns every Leave Type in the system
+  // instead of just the ones on that employee's active Leave Policy
+  // Assignment -- staff could request leave types their policy doesn't cover.
+  fetchLeaveTypeDropdown: async (employee?: string): Promise<LeaveTypeOption[]> => {
+    const url = new URL(
       `${API_BASE_URL}api/method/erp_pharmacy.api.staff_management.get_leave_type_dropdown`,
-      {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      },
     );
+    if (employee) {
+      url.searchParams.set('employee', employee);
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
 
     const payload = await response.json();
 

@@ -10,7 +10,15 @@ import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
 const ADJUST_STOCK_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.adjust_stock`;
 const BARCODE_SCAN_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;
-const ADD_MEDICINE_URL = `${API_BASE_URL}api/resource/Item`;
+// "Quick Add Medicine" creates a pending Eph Item Request (same doctype and
+// same generic REST-insert pattern the web frontend already uses for its
+// own "Add Medicine" request flow -- POST /resource/Eph Item Request),
+// not a live Item directly. This used to post to /resource/Item with
+// field names that don't exist on either doctype (standard_selling_rate,
+// standard_cost, warehouse_location, margin_percent), so most of the form
+// silently vanished on save, and the "Submit for Approval" label lied --
+// no approval step existed for a direct Item write anyway.
+const ADD_MEDICINE_URL = `${API_BASE_URL}api/resource/Eph Item Request`;
 
 const parseJsonSafely = async (response: Response) => {
   const text = await response.text();
@@ -202,6 +210,18 @@ export const inventoryService = {
     let response: Response;
 
     try {
+      // Field names verified against the real Eph Item Request doctype
+      // schema and its validate_* methods
+      // (erp_pharmacy/doctype/eph_item_request/eph_item_request.py) -- the
+      // rate/pack_type/supplier/manufacturing_date fields below are all
+      // individually enforced server-side (validate_rates/validate_pack_type/
+      // validate_supplier/validate_batch), not just declared on the schema,
+      // so omitting any of them fails the request outright rather than
+      // silently dropping data the way the old wrong field names did.
+      // rackshelf_no is intentionally omitted: it's a Link to "Eph Rack
+      // Location", not free text, and this form only collects a plain
+      // string -- sending an arbitrary string there would fail link
+      // validation. The reviewing admin sets it during approval instead.
       const payload = {
         item_code: medicine.name,
         item_name: medicine.name,
@@ -209,18 +229,24 @@ export const inventoryService = {
         stock_uom: 'Nos',
         opening_stock: medicine.quantity,
         valuation_rate: medicine.purchaseRate,
+        standard_rate: medicine.saleRate,
         description: medicine.genericName,
-        // brand: medicine.genericName,
         gst_hsn_code: medicine.hsnSacCode,
-        item_tax_template: medicine.gst,
-        standard_selling_rate: medicine.mrp,
-        standard_cost: medicine.purchaseRate,
+        gst_tax_slab: medicine.gst,
+        mrp: medicine.mrp,
         barcode: medicine.barcode,
         batch_no: medicine.batch,
+        manufacturing_date: medicine.manufacturingDate,
         expiry_date: medicine.expiryDate,
-        warehouse_location: medicine.rackLocation,
         min_order_qty: medicine.minQuantity,
-        margin_percent: medicine.margin,
+        // margin is recomputed server-side from valuation_rate/standard_rate
+        // (validate_rates) regardless of what's sent -- included anyway for
+        // consistency with the rest of the payload.
+        margin: medicine.margin,
+        pack_type: medicine.packType,
+        tabs_per_strip_units_per_pack: medicine.unitsPerPack || 0,
+        strips_per_box_packs_per_carton: medicine.packsPerCarton || 0,
+        primary_supplier: medicine.primarySupplier,
       };
 
       response = await fetch(ADD_MEDICINE_URL, {
@@ -252,6 +278,9 @@ export const inventoryService = {
       throw new Error('Unexpected response from the server.');
     }
 
-    return 'Medicine added successfully!';
+    // This is now a pending Eph Item Request, not a live Item -- the
+    // message should say so rather than implying the medicine is already
+    // in inventory.
+    return 'Medicine request submitted for approval!';
   },
 };

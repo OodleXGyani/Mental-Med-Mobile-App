@@ -5,6 +5,15 @@ export type StockStatus =
   | 'Expiring'
   | 'Expired';
 
+export type PackType =
+  | 'Strip'
+  | 'Bottle'
+  | 'Tube'
+  | 'Vial'
+  | 'Piece'
+  | 'Box'
+  | 'Sachet';
+
 export type Medicine = {
   id: string;
   name: string;
@@ -12,14 +21,20 @@ export type Medicine = {
   barcode: string;
   batch: string;
   expiryDate: string; // YYYY-MM-DD
+  manufacturingDate: string; // YYYY-MM-DD -- required by Eph Item Request whenever batch is set
   rackLocation: string;
   quantity: number;
   minQuantity: number;
   mrp: number;
   purchaseRate: number;
-  margin: number; // percentage
+  saleRate: number; // Eph Item Request's standard_rate -- required, must be <= mrp
+  margin: number; // percentage -- server recalculates this from purchaseRate/saleRate regardless
   gst: string; // GST template name
   hsnSacCode: string;
+  packType: PackType;
+  unitsPerPack: number; // required when packType is Strip or Box
+  packsPerCarton: number; // required when packType is Box
+  primarySupplier: string;
   status: StockStatus;
 };
 
@@ -40,7 +55,7 @@ export type InventoryItem = {
   warehouse: string;
   batch_no: string;
   expiry_date: string;
-  days_left: number;
+  days_left: number | null;
   quantity: number;
   stock_value: number;
   purchase_price: number;

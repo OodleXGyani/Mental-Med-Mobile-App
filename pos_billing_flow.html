@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Billing Flow & API Architecture | Meds</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- Mermaid.js for Diagrams -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-base: #0B0F19;
+      --bg-surface: #111827;
+      --bg-card: #1E293B;
+      --bg-card-hover: #26354A;
+      --border-subtle: #334155;
+      --border-focus: #3B82F6;
+      
+      --primary: #2563EB;
+      --primary-glow: rgba(37, 99, 235, 0.35);
+      --primary-light: #60A5FA;
+      --accent-cyan: #06B6D4;
+      --accent-emerald: #10B981;
+      --accent-amber: #F59E0B;
+      --accent-rose: #F43F5E;
+      --accent-purple: #8B5CF6;
+
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 0 24px 80px 24px;
+    }
+
+    /* Header */
+    header {
+      padding: 48px 0 32px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 36px;
+      position: relative;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: var(--primary-light);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .badge-pill::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-emerald);
+    }
+
+    h1 {
+      font-family: var(--font-heading);
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #FFFFFF 30%, #94A3B8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+
+    .header-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 780px;
+    }
+
+    /* Tabs Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 36px;
+      background: rgba(17, 24, 39, 0.8);
+      backdrop-filter: blur(12px);
+      padding: 8px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 20px;
+      z-index: 100;
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-heading);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      box-shadow: 0 4px 15px var(--primary-glow);
+    }
+
+    /* Tab Panes */
+    .tab-pane {
+      display: none;
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card System */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Mermaid Container */
+    .mermaid-box {
+      background: #0D1322;
+      border-radius: var(--radius-md);
+      padding: 24px;
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      text-align: center;
+    }
+
+    /* UI Flow Simulator */
+    .simulator-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .simulator-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Screen Selector List */
+    .screen-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .screen-step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .screen-step-card:hover {
+      border-color: var(--primary-light);
+      background: var(--bg-card-hover);
+      transform: translateX(4px);
+    }
+
+    .screen-step-card.active {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.15);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .screen-step-card.active .step-num {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+
+    .step-info h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .step-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Interactive Phone Frame */
+    .phone-mockup-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #090D16;
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .phone-frame {
+      width: 380px;
+      min-height: 680px;
+      background: #0F172A;
+      border: 8px solid #1E293B;
+      border-radius: 40px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .phone-notch {
+      width: 140px;
+      height: 22px;
+      background: #1E293B;
+      border-radius: 0 0 16px 16px;
+      margin: 0 auto 12px auto;
+    }
+
+    .phone-screen {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      color: #F8FAFC;
+      font-size: 13px;
+      overflow-y: auto;
+    }
+
+    /* Mock Screen Components */
+    .mock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 700;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .mock-badge {
+      background: #2563EB;
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .mock-search {
+      background: #1E293B;
+      border: 1px solid #334155;
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: #94A3B8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mock-card {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .mock-btn {
+      background: #2563EB;
+      color: white;
+      text-align: center;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .mock-pill-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mock-pill {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-weight: 600;
+      color: #94A3B8;
+    }
+
+    .mock-pill.active {
+      background: #2563EB;
+      border-color: #2563EB;
+      color: white;
+    }
+
+    .mock-alert {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    .mock-alert-amber { background: rgba(245, 158, 11, 0.15); border: 1px solid #F59E0B; color: #FCD34D; }
+    .mock-alert-blue { background: rgba(59, 130, 246, 0.15); border: 1px solid #3B82F6; color: #93C5FD; }
+    .mock-alert-green { background: rgba(16, 185, 129, 0.15); border: 1px solid #10B981; color: #6EE7B7; }
+
+    /* API Table */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #172033;
+      padding: 16px 18px;
+      font-family: var(--font-heading);
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      vertical-align: top;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .method-tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: var(--font-code);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .method-get { background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .method-post { background: rgba(37, 99, 235, 0.2); color: #60A5FA; border: 1px solid rgba(37, 99, 235, 0.3); }
+
+    .endpoint-code {
+      font-family: var(--font-code);
+      font-size: 12px;
+      color: #E2E8F0;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+      word-break: break-all;
+    }
+
+    .code-block {
+      background: #0A0E17;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      color: #E2E8F0;
+      position: relative;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="badge-pill">POS Architecture & Lifecycle</div>
+      <h1>Point of Sale (POS) Billing Architecture</h1>
+      <p class="header-desc">
+        Complete system specification, interactive UI screen simulator, multi-gate validation logic, and exact API contracts for MedPlus Pharmacy Mobile & Web POS.
+      </p>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('flowchart')">📊 End-to-End Flowchart</button>
+      <button class="tab-btn" onclick="switchTab('simulator')">📱 Interactive UI Simulator</button>
+      <button class="tab-btn" onclick="switchTab('api-matrix')">🔌 API Matrix & Mapping</button>
+      <button class="tab-btn" onclick="switchTab('prompt-copy')">📋 Web App Prompt</button>
+    </nav>
+
+    <!-- TAB 1: FLOWCHART -->
+    <div id="tab-flowchart" class="tab-pane active">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔄 Complete POS Billing Flow</div>
+          <span style="color: var(--text-muted); font-size: 13px;">Rendered via Mermaid Engine</span>
+        </div>
+        <div class="mermaid-box">
+          <pre class="mermaid">
+flowchart TD
+    Start([POS Screen Opened]) --> LoadDir["1. Load Customer Directory<br/><code>erp_pharmacy...get_customer_directory</code>"]
+    LoadDir --> CustChoice{"Customer Selected?"}
+    
+    CustChoice -->|Existing Customer| AssignCart["2. Get/Assign Active Cart<br/><code>...cart.get_or_assign_cart</code>"]
+    CustChoice -->|Walk-in| WalkinCart["2. Create Anonymous Cart"]
+    
+    AssignCart --> AddItemEntry[3. Add Items to Cart]
+    WalkinCart --> AddItemEntry
+    
+    subgraph AdditionMethods ["Item Selection Channels"]
+      AddItemEntry -->|Search| MedList["Search Catalogue<br/><code>...inventory.get_inventory_items</code>"]
+      AddItemEntry -->|Scan| BarcodeScan["Barcode Camera Scanner"]
+      AddItemEntry -->|Reorder| PastOrders["Customer Past Orders<br/><code>...customer.get_customer_invoices</code>"]
+    end
+    
+    MedList --> LocalCartSync["4. Update Local Cart & Steppers"]
+    BarcodeScan --> LocalCartSync
+    PastOrders --> LocalCartSync
+    
+    LocalCartSync --> AutoSave["5. Auto-Save Cart (1s Debounce)<br/><code>...cart.save_cart</code>"]
+    
+    AutoSave --> Proceed{"Cashier Clicks Proceed to Payment"}
+    
+    Proceed --> CheckoutPreview["6. Checkout Preview & Validation<br/><code>...cart.checkout_preview</code><br/>+ <code>...pharmacy.get_manager_users</code>"]
+    
+    subgraph PreCheckoutGates ["Compliance & Approval Gates"]
+      CheckoutPreview --> DiscGate{"Discount > Role Limit?"}
+      DiscGate -->|Yes| ReqDisc["Request Discount Override<br/>+ Manager PIN (<code>request_approval</code> & <code>submit_approval</code>)"]
+      DiscGate -->|No / Approved| RxGate{"Rx Drug Missing Prescription?"}
+      
+      ReqDisc --> RxGate
+      RxGate -->|Yes| ReqRx["Select Reason + Manager PIN Override"]
+      RxGate -->|No / Approved| MarginGate{"Margin Check?"}
+      
+      ReqRx --> MarginGate
+      MarginGate -->|Blocked| BlockedTx["🛑 Transaction Blocked"]
+      MarginGate -->|Needs Admin Override| ReqMargin["Manager PIN Margin Override"]
+      MarginGate -->|Passed / Warn Only| AllApproved["✅ All Gates Satisfied"]
+      ReqMargin --> AllApproved
+    end
+    
+    AllApproved --> SelectPay["7. Select Payment Mode: Cash / UPI / Card"]
+    SelectPay --> SubmitInvoice["8. Complete Sale<br/><code>...cart.create_pos_invoice</code>"]
+    
+    SubmitInvoice --> InvoiceSuccess["9. Sales Invoice Created & Payment Entry Logged"]
+    InvoiceSuccess --> InvoiceModalView["10. Show Invoice Receipt Modal"]
+    
+    subgraph PostSaleOperations ["Receipt & Reset"]
+      InvoiceModalView --> PrintReceipt["🖨️ Open Print URL (PDF/Thermal)"]
+      InvoiceModalView --> ShareInvoice["💬 WhatsApp / Native Share"]
+      InvoiceModalView --> ResetPOS["Click Done -> Reset POS State for Next Customer"]
+    end
+    
+    ResetPOS --> Start
+          </pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: INTERACTIVE UI SIMULATOR -->
+    <div id="tab-simulator" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📱 Screen-by-Screen Interactive Simulator</div>
+          <span style="color: var(--text-muted); font-size: 13px;">Click on any step to inspect the UI layout</span>
+        </div>
+
+        <div class="simulator-layout">
+          <!-- Step Selector -->
+          <div class="screen-selector">
+            <div class="screen-step-card active" onclick="renderMockScreen(1)">
+              <div class="step-num">1</div>
+              <div class="step-info">
+                <h4>Main POS Screen</h4>
+                <p>Cart, search bar, stepper & total</p>
+              </div>
+            </div>
+            <div class="screen-step-card" onclick="renderMockScreen(2)">
+              <div class="step-num">2</div>
+              <div class="step-info">
+                <h4>Customer Picker Modal</h4>
+                <p>Search & select returning patient</p>
+              </div>
+            </div>
+            <div class="screen-step-card" onclick="renderMockScreen(3)">
+              <div class="step-num">3</div>
+              <div class="step-info">
+                <h4>Medicine Search Screen</h4>
+                <p>Stock badges, batch & pricing</p>
+              </div>
+            </div>
+            <div class="screen-step-card" onclick="renderMockScreen(4)">
+              <div class="step-num">4</div>
+              <div class="step-info">
+                <h4>Past Orders Re-Order</h4>
+                <p>1-tap re-order from previous bills</p>
+              </div>
+            </div>
+            <div class="screen-step-card" onclick="renderMockScreen(5)">
+              <div class="step-num">5</div>
+              <div class="step-info">
+                <h4>Payment & Approval Gates</h4>
+                <p>Discount, Rx & Margin PIN validation</p>
+              </div>
+            </div>
+            <div class="screen-step-card" onclick="renderMockScreen(6)">
+              <div class="step-num">6</div>
+              <div class="step-info">
+                <h4>Sale Receipt & Print</h4>
+                <p>Thermal format, WhatsApp & done</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phone Viewport -->
+          <div class="phone-mockup-wrapper">
+            <div class="phone-frame">
+              <div class="phone-notch"></div>
+              <div id="phone-screen-content" class="phone-screen">
+                <!-- Dynamically injected via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: API MATRIX -->
+    <div id="tab-api-matrix" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔌 POS API Reference & Integration Mapping</div>
+          <span style="color: var(--text-muted); font-size: 13px;">Exact Frappe/ERPNext endpoints</span>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>API Endpoint</th>
+                <th>Trigger & Component</th>
+                <th>Request Payload</th>
+                <th>Key Return Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...customer.customer.get_customer_directory</span></td>
+                <td><code>POSScreen</code> on focus & <code>POSCustomerPickerModal</code></td>
+                <td><em>None (Optional search query)</em></td>
+                <td>Array of customer objects <code>{ customer_code, customer_name, contact }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.cart.get_or_assign_cart</span></td>
+                <td>When customer is selected in <code>POSCustomerPickerModal</code></td>
+                <td><code>{ customer: string, cart_name?: string }</code></td>
+                <td><code>{ cart_name: "EPH-...", items: [], total_amount }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...inventory.get_inventory_items</span></td>
+                <td><code>MedicineListScreen</code> on mount</td>
+                <td><em>None</em></td>
+                <td><code>{ data: [{ medicine_id, name, stock_quantity, batch_no, rate, gst }] }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...customer.customer.get_customer_invoices</span></td>
+                <td><code>POSPastOrdersModal</code> for customer</td>
+                <td><code>?customer_name=ID&page=1&page_size=50</code></td>
+                <td>Array of past customer sales invoices with line items</td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.cart.save_cart</span></td>
+                <td><code>POSScreen</code> debounced auto-sync (1s)</td>
+                <td><code>{ customer: string, items: [{ item_code, qty, rate }] }</code></td>
+                <td><code>{ cart_name, total_amount, taxes }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.cart.checkout_preview</span></td>
+                <td><code>POSPaymentModal</code> on mount</td>
+                <td><code>{ cart_name, discount_value, discount_type }</code></td>
+                <td><code>{ net_total, taxes, grand_total, discount_approval_needed, prescription_check, margin_check }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-get">GET</span></td>
+                <td><span class="endpoint-code">...pharmacy.get_manager_users</span></td>
+                <td><code>POSPaymentModal</code> on mount</td>
+                <td><code>?search=string</code></td>
+                <td>List of eligible managers with PIN override privileges</td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.approval.request_approval</span></td>
+                <td>When cashier taps "Request Override" in <code>POSPaymentModal</code></td>
+                <td><code>{ approval_type, cart_name, discount_requested?, item_code?, override_reason? }</code></td>
+                <td><code>{ approval_log: "MGR-APP-0001" }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.approval.submit_approval</span></td>
+                <td>When manager selects user & enters 4-digit PIN</td>
+                <td><code>{ approval_log, manager_user, pin }</code></td>
+                <td><code>{ success: true, message: "Approved" }</code></td>
+              </tr>
+              <tr>
+                <td><span class="method-tag method-post">POST</span></td>
+                <td><span class="endpoint-code">...cart.cart.create_pos_invoice</span></td>
+                <td>"Complete Sale" button in <code>POSPaymentModal</code></td>
+                <td><code>{ cart_name, payment_mode, payments, discount_approval_log, rx_override_log, margin_override_log }</code></td>
+                <td><code>{ invoice: "ACC-SINV-...", status: "Paid", grand_total, print_url }</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: PROMPT COPY -->
+    <div id="tab-prompt-copy" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Prompt for Web App / Backend Dev Agent</div>
+          <button class="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+        </div>
+        <div class="code-block" id="prompt-text">
+### 🎯 Objective
+Implement and verify complete parity for the Point of Sale (POS) Billing workflow across the ERP backend, Web App POS, and Mobile POS client.
+
+---
+
+### 🔄 POS Billing Workflow Summary
+1. **Customer & Cart Initialization**:
+   - Fetch customer directory (`erp_pharmacy.api.user_page.customer.customer.get_customer_directory`).
+   - On selecting customer, assign or retrieve ephemeral cart via `erp_pharmacy.api.user_page.cart.cart.get_or_assign_cart`.
+
+2. **Item Selection & Sync**:
+   - Add items via Medicine Search (`get_inventory_items`), Barcode Scanner, or Past Orders (`get_customer_invoices`).
+   - Auto-sync local cart lines (`item_code`, `qty`, `rate`) with ERP using 1-second debounce on `save_cart`.
+
+3. **Checkout Validation & Multi-Gate Approvals**:
+   - On checkout, execute `checkout_preview` to get server totals + validation flags:
+     a. **Discount Gate**: If discount % > user role limit, generate approval via `request_approval` and approve with manager PIN via `submit_approval`.
+     b. **Prescription (Rx) Gate**: If schedule drug has no prescription, require override reason + manager PIN.
+     c. **Margin Gate**: Enforce margin rules (Block / Admin PIN Override / Warn).
+
+4. **Payment & Invoice Submission**:
+   - Choose payment mode (`Cash`, `UPI`, `Card`).
+   - Submit `create_pos_invoice` including cart name, payment breakdown, and all approved manager log IDs (`discount_approval_log`, `rx_override_log`, `margin_override_log`).
+   - Receive submitted Sales Invoice ID and `print_url`.
+
+5. **Post-Sale / Receipt**:
+   - Render receipt modal with auto-print, PDF download, and WhatsApp share.
+   - Reset POS state for the next customer.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: {
+        curve: 'basis',
+        htmlLabels: true
+      }
+    });
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+      
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+      
+      const targetPane = document.getElementById('tab-' + tabId);
+      if (targetPane) targetPane.classList.add('active');
+    }
+
+    // Copy Prompt Function
+    function copyPrompt() {
+      const text = document.getElementById('prompt-text').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.innerText = 'Copied! ✅';
+        setTimeout(() => { btn.innerText = 'Copy Prompt'; }, 2000);
+      });
+    }
+
+    // Mock Screens Content
+    const mockScreens = {
+      1: `
+        <div class="mock-header">
+          <span>Point of Sale</span>
+          <span class="mock-badge">2 Items</span>
+        </div>
+        <div class="mock-search">
+          <span>🔍 Search medicines...</span>
+          <span>📷</span>
+        </div>
+        <div class="mock-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:600;">Rahul Sharma</div>
+            <div style="font-size:11px; color:#94A3B8;">+91 98765 43210</div>
+          </div>
+          <span style="color:#60A5FA; font-size:12px; font-weight:600;">Change</span>
+        </div>
+        <div style="font-weight:600; font-size:12px; color:#94A3B8; margin-top:4px;">CART ITEMS</div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-weight:600;">Augmentin 625 Duo</span>
+            <span style="font-weight:700;">₹ 201.71</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">Batch: AUG992 | Exp: 12/26</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <span style="font-size:11px; color:#10B981;">GST 12%</span>
+            <div style="display:flex; align-items:center; gap:8px; background:#0F172A; padding:4px 8px; border-radius:6px;">
+              <span>-</span> <b>1</b> <span>+</span>
+            </div>
+          </div>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-weight:600;">Pan D Capsule</span>
+            <span style="font-weight:700;">₹ 199.00</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">Batch: PAND10 | Exp: 08/27</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <span style="font-size:11px; color:#10B981;">GST 12%</span>
+            <div style="display:flex; align-items:center; gap:8px; background:#0F172A; padding:4px 8px; border-radius:6px;">
+              <span>-</span> <b>2</b> <span>+</span>
+            </div>
+          </div>
+        </div>
+        <div class="mock-card" style="background:#172033; margin-top:auto;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:#94A3B8;">Subtotal</span>
+            <span>₹ 599.71</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:#94A3B8;">GST Tax</span>
+            <span>₹ 71.96</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:700; margin-top:6px; padding-top:6px; border-top:1px solid #334155;">
+            <span>Grand Total</span>
+            <span style="color:#60A5FA;">₹ 671.67</span>
+          </div>
+        </div>
+        <div class="mock-btn" onclick="renderMockScreen(5)">Proceed to Payment (₹ 671.67)</div>
+      `,
+      2: `
+        <div class="mock-header">
+          <span>Select Customer</span>
+          <span style="font-size:12px; color:#94A3B8;">Cancel</span>
+        </div>
+        <div class="mock-search">
+          <span>Search name or phone...</span>
+        </div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
+          <div style="font-weight:600;">Rahul Sharma</div>
+          <div style="font-size:11px; color:#94A3B8;">+91 98765 43210</div>
+          <div style="font-size:11px; color:#60A5FA; margin-top:4px;">Last visit: 3 days ago</div>
+        </div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
+          <div style="font-weight:600;">Priya Patel</div>
+          <div style="font-size:11px; color:#94A3B8;">+91 94231 88765</div>
+        </div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
+          <div style="font-weight:600;">Walk-in Customer</div>
+          <div style="font-size:11px; color:#94A3B8;">No customer record created</div>
+        </div>
+      `,
+      3: `
+        <div class="mock-header">
+          <span>Select Medicine</span>
+          <span style="font-size:12px; color:#94A3B8;">Back</span>
+        </div>
+        <div class="mock-search">
+          <span>Search brand, generic, or code...</span>
+        </div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-weight:600;">Augmentin 625 Duo</span>
+            <span style="font-weight:700;">₹ 201.71</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8;">Amoxycillin + Clavulanic Acid</div>
+          <div style="display:flex; justify-content:space-between; margin-top:6px;">
+            <span style="font-size:11px; color:#10B981;">In Stock: 45</span>
+            <span style="font-size:11px; color:#60A5FA;">+ Add to Cart</span>
+          </div>
+        </div>
+        <div class="mock-card" onclick="renderMockScreen(1)" style="cursor:pointer;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-weight:600;">Dolo 650 Tablet</span>
+            <span style="font-weight:700;">₹ 32.00</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8;">Paracetamol 650mg</div>
+          <div style="display:flex; justify-content:space-between; margin-top:6px;">
+            <span style="font-size:11px; color:#10B981;">In Stock: 120</span>
+            <span style="font-size:11px; color:#60A5FA;">+ Add to Cart</span>
+          </div>
+        </div>
+      `,
+      4: `
+        <div class="mock-header">
+          <span>Past Orders (Rahul Sharma)</span>
+          <span style="font-size:12px; color:#94A3B8;">Close</span>
+        </div>
+        <div class="mock-card">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="font-weight:600;">Invoice #ACC-SINV-0089</span>
+            <span style="color:#10B981; font-weight:600;">₹ 400.71</span>
+          </div>
+          <div style="font-size:11px; color:#94A3B8; margin: 4px 0;">21 Aug 2026 • 2 Items</div>
+          <div style="font-size:11px; color:#E2E8F0;">• Augmentin 625 Duo (1)<br/>• Pan D (1)</div>
+          <div class="mock-btn" style="padding:6px; font-size:12px; margin-top:8px;" onclick="renderMockScreen(1)">
+            + Reorder All Items
+          </div>
+        </div>
+      `,
+      5: `
+        <div class="mock-header">
+          <span>Payment - ₹ 671.67</span>
+          <span style="font-size:12px; color:#94A3B8;">✕</span>
+        </div>
+        <div style="font-size:12px; color:#94A3B8;">Payment Method</div>
+        <div class="mock-pill-group">
+          <div class="mock-pill active">Cash</div>
+          <div class="mock-pill">UPI</div>
+          <div class="mock-pill">Card</div>
+        </div>
+        <div class="mock-alert mock-alert-amber">
+          <b>⚠️ Discount Gate</b><br/>
+          Discount exceeds 10% role limit. Requires manager PIN.
+        </div>
+        <div class="mock-alert mock-alert-blue">
+          <b>📄 Prescription Gate</b><br/>
+          Augmentin requires Rx override. Reason: Verbal Consent.
+        </div>
+        <div class="mock-card" style="background:#172033; padding:10px;">
+          <div style="font-size:11px; color:#94A3B8; margin-bottom:4px;">Manager Approval PIN:</div>
+          <div style="display:flex; gap:6px;">
+            <input type="password" value="1234" style="background:#0F172A; border:1px solid #334155; color:white; padding:6px; border-radius:6px; flex:1;" />
+            <button style="background:#10B981; color:white; border:none; border-radius:6px; padding:0 12px; font-weight:600;">Verify</button>
+          </div>
+        </div>
+        <div class="mock-btn" style="background:#10B981; margin-top:auto;" onclick="renderMockScreen(6)">
+          Complete Sale (₹ 671.67)
+        </div>
+      `,
+      6: `
+        <div class="mock-alert mock-alert-green" style="text-align:center;">
+          <div style="font-size:16px; font-weight:700;">✅ Sale Completed!</div>
+          <div style="font-size:11px;">Invoice #ACC-SINV-2026-00124</div>
+        </div>
+        <div class="mock-card" style="background:#172033; font-size:11px;">
+          <div style="text-align:center; font-weight:700; font-size:13px;">MedPlus Pharmacy</div>
+          <div style="text-align:center; color:#94A3B8;">GSTIN: 36AABCU9603R1ZJ</div>
+          <hr style="border-color:#334155; margin:8px 0;"/>
+          <div style="display:flex; justify-content:space-between;">
+            <span>Customer: Rahul Sharma</span>
+            <span>Date: 24/08/2026</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <span>Mode: CASH</span>
+            <span>Total: ₹ 671.67</span>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="mock-btn" style="background:#1E293B; border:1px solid #334155; padding:8px; font-size:12px;">🖨️ Print</div>
+          <div class="mock-btn" style="background:#1E293B; border:1px solid #334155; padding:8px; font-size:12px;">📥 PDF</div>
+          <div class="mock-btn" style="background:#1E293B; border:1px solid #334155; padding:8px; font-size:12px;">💬 WhatsApp</div>
+          <div class="mock-btn" style="background:#1E293B; border:1px solid #334155; padding:8px; font-size:12px;">🔗 Share</div>
+        </div>
+        <div class="mock-btn" style="margin-top:auto;" onclick="renderMockScreen(1)">
+          Done (New Sale)
+        </div>
+      `
+    };
+
+    function renderMockScreen(step) {
+      document.querySelectorAll('.screen-step-card').forEach((card, idx) => {
+        if (idx + 1 === step) card.classList.add('active');
+        else card.classList.remove('active');
+      });
+      document.getElementById('phone-screen-content').innerHTML = mockScreens[step] || '';
+    }
+
+    // Initial Screen Load
+    renderMockScreen(1);
+  </script>
+</body>
+</html>

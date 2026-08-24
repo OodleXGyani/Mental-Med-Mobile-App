@@ -1,6 +1,10 @@
 import { ThemeMode } from '../../../shared/theme';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import { setThemeMode } from '../store/settingsSlice';
+import {
+  setThemeMode,
+  setPushNotificationsEnabled,
+  setAutoPrintEnabled,
+} from '../store/settingsSlice';
 
 export const useSettings = () => {
   const dispatch = useAppDispatch();
@@ -10,8 +14,18 @@ export const useSettings = () => {
     dispatch(setThemeMode(mode));
   };
 
+  const updatePushNotificationsEnabled = (enabled: boolean) => {
+    dispatch(setPushNotificationsEnabled(enabled));
+  };
+
+  const updateAutoPrintEnabled = (enabled: boolean) => {
+    dispatch(setAutoPrintEnabled(enabled));
+  };
+
   return {
     ...settings,
     updateThemeMode,
+    updatePushNotificationsEnabled,
+    updateAutoPrintEnabled,
   };
 };

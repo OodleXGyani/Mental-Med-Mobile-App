@@ -17,6 +17,7 @@ import { InventoryCard } from '../components/InventoryCard';
 import { QuickAddMedicineModal } from '../components/QuickAddMedicineModal';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { inventoryService } from '../services/inventoryService';
+import { profileService } from '../../settings/services/profileService';
 import {
   InventoryFilter,
   InventoryItem,
@@ -35,8 +36,12 @@ type Props = NativeStackScreenProps<
 const isExpired = (item: InventoryItem) =>
   item.status.toLowerCase() === 'expired';
 
+// get_inventory_items sets days_left to null for any item with no
+// expiry_date -- `null <= 30` is true in JS (null coerces to 0), so every
+// non-expiry-tracked item was silently misclassified as "Expiring Soon".
 const isExpiringSoon = (item: InventoryItem) =>
-  item.status.toLowerCase().includes('expiring') || item.days_left <= 30;
+  item.status.toLowerCase().includes('expiring') ||
+  (item.days_left != null && item.days_left <= 30);
 
 const isLowStock = (item: InventoryItem) =>
   item.reorder_level > 0 &&
@@ -74,6 +79,7 @@ export const InventoryScreen = ({ navigation }: Props) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [company, setCompany] = useState('');
 
   const loadInventory = useCallback(async () => {
     setLoading(true);
@@ -97,6 +103,20 @@ export const InventoryScreen = ({ navigation }: Props) => {
     useCallback(() => {
       loadInventory();
     }, [loadInventory]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      // scanBarcode defaults to a hardcoded "Test" company if none is
+      // passed -- fetch the user's real company so scans resolve against
+      // the actual warehouse/stock data instead of silently degrading.
+      profileService
+        .fetchUserProfile()
+        .then(profile => setCompany(profile.company || ''))
+        .catch(() => {
+          /* non-fatal -- barcode scanning just falls back if this fails */
+        });
+    }, []),
   );
 
   const displayedItems = useMemo(() => {
@@ -132,9 +152,11 @@ export const InventoryScreen = ({ navigation }: Props) => {
   ) => {
     setShowQuickAdd(false);
     try {
-      await inventoryService.addMedicine(medicine);
-      Alert.alert('Success', 'Medicine added successfully!');
-      await loadInventory();
+      // Creates a pending Eph Item Request, not a live Item -- it won't
+      // show up in inventory until an admin approves it, so re-fetching
+      // the list here would be pointless.
+      const message = await inventoryService.addMedicine(medicine);
+      Alert.alert('Submitted', message);
     } catch (error) {
       Alert.alert(
         'Error',
@@ -320,6 +342,7 @@ export const InventoryScreen = ({ navigation }: Props) => {
 
       <BarcodeScannerModal
         visible={showBarcodeScanner}
+        company={company}
         onClose={() => setShowBarcodeScanner(false)}
         onScannedItem={handleBarcodeScanned}
       />

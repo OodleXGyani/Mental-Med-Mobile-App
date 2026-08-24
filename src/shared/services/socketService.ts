@@ -46,7 +46,10 @@ class SocketService {
       const parsed = new URL(socketUrl);
       origin = parsed.origin;
       host = parsed.host;
-      siteName = parsed.hostname;
+      // If there is a namespace (e.g. /ketmeds.pharmacy.oodleslab.com), use it as the siteName.
+      // Otherwise fallback to hostname.
+      const pathName = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
+      siteName = pathName || parsed.hostname;
     } catch {
       // ignore
     }
@@ -64,6 +67,17 @@ class SocketService {
       let lastErrorLoggedTime = 0;
 
       this.socket = io(socketUrl, {
+        // Frappe's socketio auth middleware (realtime/middlewares/authenticate.js)
+        // hard-rejects any connection where the Host header's hostname doesn't
+        // match the Origin header's hostname ("Invalid origin") -- and native
+        // WebSocket (what socket.io upgrades to by default) does not support
+        // custom headers on React Native/browsers at all, so extraHeaders below
+        // is silently dropped the moment the transport upgrades. That produces
+        // exactly this symptom: the initial polling handshake completes fine
+        // ('connect' fires, looks healthy) but the connection that actually
+        // carries ongoing events loses its auth headers and crud_events never
+        // arrive. Polling-only keeps extraHeaders attached to every request.
+        transports: ['polling'],
         path: socketPath,
         withCredentials: true,
         auth: sid ? { sid, token: sid } : undefined,
@@ -95,8 +109,26 @@ class SocketService {
           this.socket?.emit('task_subscribe', this.currentUserEmail);
         }
 
-        // Subscribe to relevant Doctypes to receive their crud_events
-        const doctypes = ['Customer', 'Sales Invoice', 'Payment Entry'];
+        // Subscribe to relevant Doctypes to receive their crud_events.
+        // Was just ['Customer', 'Sales Invoice', 'Payment Entry'] -- far
+        // narrower than what this app's own features actually mutate.
+        // Cross-checked against every publish_crud_event(doctype=...) call
+        // reachable from this app's backend endpoints (cart.py -> POS,
+        // order_flow.py -> delivery Orders tab, inventory.py -> stock
+        // adjustments, staff_management.py -> Attendance).
+        const doctypes = [
+          'Customer',
+          'Sales Invoice',
+          'Payment Entry',
+          'Eph POS Cart',
+          'Mobile Order Flow',
+          'Stock Entry',
+          'Item Price',
+          'Item',
+          'Attendance',
+          'Employee Checkin',
+          'Leave Application',
+        ];
         doctypes.forEach((doctype) => {
           console.log(`[SocketService] 📡 Subscribing to doctype: ${doctype}`);
           this.socket?.emit('doctype_subscribe', doctype);

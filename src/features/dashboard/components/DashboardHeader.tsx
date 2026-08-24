@@ -7,9 +7,19 @@ import { useAppTheme } from '../../../shared/theme';
 type Props = {
   onPressNotification: () => void;
   username: string;
+  // The backend doctype behind notifications has no read/unread tracking
+  // (its `status` field is a delivery status: Pending/Sent/Failed), so
+  // there's no honest "unread count" to show -- this used to hardcode "3"
+  // regardless of reality. Pass the real recent-notification count instead;
+  // the badge only renders when there's something to show.
+  notificationCount?: number;
 };
 
-export const DashboardHeader = ({ onPressNotification, username }: Props) => {
+export const DashboardHeader = ({
+  onPressNotification,
+  username,
+  notificationCount = 0,
+}: Props) => {
   const theme = useAppTheme();
   const displayName = toPascalCase(username || 'User');
 
@@ -25,9 +35,18 @@ export const DashboardHeader = ({ onPressNotification, username }: Props) => {
       </View>
       <Pressable style={styles.notificationWrap} onPress={onPressNotification}>
         <Bell size={22} color={theme.colors.text} strokeWidth={2} />
-        <View style={[styles.badge, { backgroundColor: theme.colors.primary, borderColor: theme.colors.background }]}>
-          <Text style={styles.badgeText}>3</Text>
-        </View>
+        {notificationCount > 0 ? (
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: theme.colors.primary, borderColor: theme.colors.background },
+            ]}
+          >
+            <Text style={styles.badgeText}>
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </Text>
+          </View>
+        ) : null}
       </Pressable>
     </View>
   );

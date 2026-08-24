@@ -1,10 +1,20 @@
 // API response types for orders
+export interface OrderAPIItemLine {
+  name: string; // item_name
+  qty: number;
+}
+
 export interface OrderAPIItem {
   name: string;
   workflow_state: string;
   status: string;
   current_latitude: number;
   current_longitude: number;
+  customer_name: string | null;
+  phone: string | null;
+  total: number;
+  items: OrderAPIItemLine[];
+  modified: string;
 }
 
 export interface OrderAPIResponse {
@@ -45,7 +55,9 @@ export interface PerformActionResponse {
   message: {
     success: boolean;
     message: string;
-    data: {
+    // Absent on failure -- perform_action's except-branch returns
+    // {success:false, message:...} with no data key at all.
+    data?: {
       name: string;
       workflow_state: string;
       status: string;
@@ -136,10 +148,15 @@ export interface SalesInvoiceDetailsResponse {
   };
 }
 
-// Map workflow_state and status to internal Order type statuses
+// Map workflow_state and status to internal Order type statuses.
+// Rejected is a real terminal state on the backend (STATE_STATUS_MAP in
+// order_flow.py) -- without its own entry here this fell through to the
+// `|| 'new'` fallback in ordersService.fetchOrders, so a rejected order
+// permanently reappeared in the "New" tab as if still pending, and staff
+// could tap Accept/Reject on it again (which the backend then rejects).
 export const statusMap: Record<
   string,
-  'new' | 'accepted' | 'processing' | 'ready' | 'dispatched' | 'delivered'
+  'new' | 'accepted' | 'processing' | 'ready' | 'dispatched' | 'delivered' | 'rejected'
 > = {
   Pending: 'new',
   New: 'new',
@@ -153,10 +170,12 @@ export const statusMap: Record<
   'Out for Delivery': 'dispatched',
   'Mark Delivered': 'delivered',
   Delivered: 'delivered',
+  Reject: 'rejected',
+  Rejected: 'rejected',
 };
 
 export const orderActionFlow: Record<
-  'new' | 'accepted' | 'processing' | 'ready' | 'dispatched' | 'delivered',
+  'new' | 'accepted' | 'processing' | 'ready' | 'dispatched' | 'delivered' | 'rejected',
   OrderActionFlowItem[]
 > = {
   new: [
@@ -180,4 +199,5 @@ export const orderActionFlow: Record<
     },
   ],
   delivered: [],
+  rejected: [],
 };

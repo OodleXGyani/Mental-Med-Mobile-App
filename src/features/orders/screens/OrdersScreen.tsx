@@ -2,11 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  PermissionsAndroid,
   ScrollView,
   StyleSheet,
   Text,
-  Platform,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +17,7 @@ import { ordersService } from '../services/ordersService';
 import { orderActionFlow, statusMap } from '../types';
 import { SCREEN_BOTTOM_PADDING } from '../../../shared/constants/layout';
 import { useAppTheme } from '../../../shared/theme';
+import { requestCurrentCoordinates } from '../../../shared/utils/location';
 
 import { useCrudEventListener } from '../../../shared/hooks/useCrudEventListener';
 
@@ -66,80 +65,6 @@ export const OrdersScreen: React.FC = () => {
 
   const openOrder = (order: Order) => setSelectedOrder(order);
   const closeOrder = () => setSelectedOrder(null);
-
-  const requestCurrentCoordinates = useCallback(async () => {
-    if (Platform.OS === 'android') {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Location Permission',
-          message:
-            'We need your location to update the order status with real coordinates.',
-          buttonPositive: 'Allow',
-          buttonNegative: 'Cancel',
-        },
-      );
-
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        throw new Error('Location permission denied.');
-      }
-    }
-
-    // Fallback coordinates for simulator / dev environment
-    const fallbackCoords = { latitude: 28.6139, longitude: 77.209 };
-
-    return await new Promise<{ latitude: number; longitude: number }>(
-      resolve => {
-        const navigator = globalThis as any;
-        const geolocation = navigator?.geolocation;
-
-        if (!geolocation?.getCurrentPosition) {
-          console.log(
-            'Geolocation unavailable (simulator?). Using fallback coordinates:',
-            fallbackCoords,
-          );
-          resolve(fallbackCoords);
-          return;
-        }
-
-        // Try to get real location with a timeout
-        const timeoutId = setTimeout(() => {
-          console.log(
-            'Location request timed out. Using fallback coordinates:',
-            fallbackCoords,
-          );
-          resolve(fallbackCoords);
-        }, 10000);
-
-        geolocation.getCurrentPosition(
-          (position: any) => {
-            clearTimeout(timeoutId);
-            const realCoords = {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            };
-            console.log('Got real coordinates:', realCoords);
-            resolve(realCoords);
-          },
-          (error: any) => {
-            clearTimeout(timeoutId);
-            console.log(
-              'Location request failed:',
-              error.message,
-              '. Using fallback coordinates:',
-              fallbackCoords,
-            );
-            resolve(fallbackCoords);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 10000,
-          },
-        );
-      },
-    );
-  }, []);
 
   const onAction = async (order: Order) => {
     // Get the next action based on current status
@@ -242,8 +167,16 @@ export const OrdersScreen: React.FC = () => {
       o => o.status === 'accepted' || o.status === 'processing',
     ).length;
     const cReady = orders.filter(o => o.status === 'ready').length;
+    // Rejected is a terminal state, same as delivered -- fold it into
+    // "Done" so it stays visible somewhere instead of vanishing from
+    // every tab (it used to silently fall back into "New" as if still
+    // pending, which let staff re-tap Accept/Reject on an already-closed
+    // order).
     const cDone = orders.filter(
-      o => o.status === 'dispatched' || o.status === 'delivered',
+      o =>
+        o.status === 'dispatched' ||
+        o.status === 'delivered' ||
+        o.status === 'rejected',
     ).length;
     return { cNew, cActive, cReady, cDone };
   }, [orders]);
@@ -256,7 +189,10 @@ export const OrdersScreen: React.FC = () => {
       );
     if (tab === 'Ready') return orders.filter(o => o.status === 'ready');
     return orders.filter(
-      o => o.status === 'dispatched' || o.status === 'delivered',
+      o =>
+        o.status === 'dispatched' ||
+        o.status === 'delivered' ||
+        o.status === 'rejected',
     );
   };
 

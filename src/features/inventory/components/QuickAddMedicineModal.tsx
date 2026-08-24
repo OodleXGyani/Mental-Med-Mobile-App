@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
-import { Medicine } from '../types';
+import { Medicine, PackType } from '../types';
 import {
   SearchableDropdown,
   DropdownOption,
@@ -66,6 +66,21 @@ const getPickerDays = (monthDate: Date) => {
   return days;
 };
 
+// Eph Item Request's pack_type is a fixed Select field, not a Link -- these
+// options (and their validation rules) come straight from
+// validate_pack_type() in eph_item_request.py.
+const PACK_TYPE_OPTIONS: DropdownOption[] = [
+  { value: 'Strip', description: 'Strip' },
+  { value: 'Bottle', description: 'Bottle' },
+  { value: 'Tube', description: 'Tube' },
+  { value: 'Vial', description: 'Vial' },
+  { value: 'Piece', description: 'Piece' },
+  { value: 'Box', description: 'Box' },
+  { value: 'Sachet', description: 'Sachet' },
+];
+
+type DateField = 'expiryDate' | 'manufacturingDate';
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -83,14 +98,20 @@ export const QuickAddMedicineModal = ({
     barcode: '',
     batch: '',
     expiryDate: '',
+    manufacturingDate: '',
     rackLocation: '',
     quantity: '',
     minQuantity: '',
     mrp: '',
     purchaseRate: '',
+    saleRate: '',
     margin: '',
     gst: '',
     hsnSacCode: '',
+    packType: '',
+    unitsPerPack: '',
+    packsPerCarton: '',
+    primarySupplier: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -98,8 +119,19 @@ export const QuickAddMedicineModal = ({
   const [hsnLoading, setHsnLoading] = useState(false);
   const [gstOptions, setGstOptions] = useState<DropdownOption[]>([]);
   const [gstLoading, setGstLoading] = useState(false);
-  const [showExpiryDatePicker, setShowExpiryDatePicker] = useState(false);
-  const [expiryPickerMonth, setExpiryPickerMonth] = useState(() => new Date());
+  const [supplierOptions, setSupplierOptions] = useState<DropdownOption[]>([]);
+  const [supplierLoading, setSupplierLoading] = useState(false);
+
+  // Shared calendar picker for both Expiry Date and Manufacturing Date --
+  // Eph Item Request requires both once a Batch No is entered
+  // (validate_batch), and Expiry Date must fall after Manufacturing Date.
+  const [activeDateField, setActiveDateField] = useState<DateField | null>(
+    null,
+  );
+  const [pickerMonth, setPickerMonth] = useState(() => new Date());
+
+  const isStrip = form.packType === 'Strip';
+  const isBox = form.packType === 'Box';
 
   useEffect(() => {
     if (visible) {
@@ -108,7 +140,7 @@ export const QuickAddMedicineModal = ({
   }, [visible]);
 
   const loadDropdownOptions = async () => {
-    await Promise.all([loadHsnOptions(), loadGstOptions()]);
+    await Promise.all([loadHsnOptions(), loadGstOptions(), loadSupplierOptions()]);
   };
 
   const loadHsnOptions = useCallback(async () => {
@@ -165,21 +197,71 @@ export const QuickAddMedicineModal = ({
     }
   }, []);
 
+  const loadSupplierOptions = useCallback(async () => {
+    setSupplierLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}api/method/frappe.desk.search.search_link?doctype=Supplier&txt=&filters=%7B%7D`,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        },
+      );
+      const data = await response.json();
+      if (data.message && Array.isArray(data.message)) {
+        setSupplierOptions(
+          data.message.map((item: any) => ({
+            value: item.value,
+            description: item.description,
+          })),
+        );
+      }
+    } catch (error) {
+      console.error('Failed to load Supplier options:', error);
+      setSupplierOptions([]);
+    } finally {
+      setSupplierLoading(false);
+    }
+  }, []);
+
   const handleSubmit = () => {
     const newErrors: Record<string, string> = {};
 
     if (!form.name.trim()) newErrors.name = 'Medicine name is required';
     if (!form.batch.trim()) newErrors.batch = 'Batch no is required';
+    if (!form.manufacturingDate.trim())
+      newErrors.manufacturingDate = 'Manufacturing date is required';
     if (!form.expiryDate.trim())
       newErrors.expiryDate = 'Expiry date is required';
+    if (
+      form.manufacturingDate &&
+      form.expiryDate &&
+      form.expiryDate <= form.manufacturingDate
+    ) {
+      newErrors.expiryDate = 'Expiry date must be after manufacturing date';
+    }
     if (!form.rackLocation.trim())
       newErrors.rackLocation = 'Rack location is required';
     if (!form.quantity) newErrors.quantity = 'Quantity is required';
     if (!form.mrp) newErrors.mrp = 'MRP is required';
     if (!form.purchaseRate)
       newErrors.purchaseRate = 'Purchase rate is required';
+    if (!form.saleRate) newErrors.saleRate = 'Sale rate is required';
+    if (form.saleRate && form.mrp && Number(form.saleRate) > Number(form.mrp)) {
+      newErrors.saleRate = 'Sale rate cannot be greater than MRP';
+    }
     if (!form.hsnSacCode) newErrors.hsnSacCode = 'HSN/SAC Code is required';
     if (!form.gst) newErrors.gst = 'GST is required';
+    if (!form.packType) newErrors.packType = 'Pack type is required';
+    if (isStrip && !form.unitsPerPack) {
+      newErrors.unitsPerPack = 'Units per pack is required for Strip';
+    }
+    if (isBox && (!form.unitsPerPack || !form.packsPerCarton)) {
+      newErrors.unitsPerPack = 'Units per pack is required for Box';
+      newErrors.packsPerCarton = 'Packs per carton is required for Box';
+    }
+    if (!form.primarySupplier)
+      newErrors.primarySupplier = 'Primary supplier is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -192,14 +274,20 @@ export const QuickAddMedicineModal = ({
       barcode: form.barcode.trim(),
       batch: form.batch.trim(),
       expiryDate: form.expiryDate.trim(),
+      manufacturingDate: form.manufacturingDate.trim(),
       rackLocation: form.rackLocation.trim(),
       quantity: parseInt(form.quantity),
       minQuantity: parseInt(form.minQuantity) || 20,
       mrp: parseInt(form.mrp),
       purchaseRate: parseInt(form.purchaseRate),
+      saleRate: parseInt(form.saleRate),
       margin: parseFloat(form.margin) || 0,
       gst: form.gst,
       hsnSacCode: form.hsnSacCode,
+      packType: form.packType as PackType,
+      unitsPerPack: parseInt(form.unitsPerPack) || 0,
+      packsPerCarton: parseInt(form.packsPerCarton) || 0,
+      primarySupplier: form.primarySupplier,
     };
 
     onSubmit(medicine);
@@ -214,54 +302,67 @@ export const QuickAddMedicineModal = ({
       barcode: '',
       batch: '',
       expiryDate: '',
+      manufacturingDate: '',
       rackLocation: '',
       quantity: '',
       minQuantity: '',
       mrp: '',
       purchaseRate: '',
+      saleRate: '',
       margin: '',
       gst: '',
       hsnSacCode: '',
+      packType: '',
+      unitsPerPack: '',
+      packsPerCarton: '',
+      primarySupplier: '',
     });
     setErrors({});
-    setShowExpiryDatePicker(false);
-    setExpiryPickerMonth(new Date());
+    setActiveDateField(null);
+    setPickerMonth(new Date());
   };
 
-  const handleOpenExpiryDatePicker = () => {
-    const parsedDate = form.expiryDate
-      ? new Date(`${form.expiryDate}T00:00:00`)
+  const handleOpenDatePicker = (field: DateField) => {
+    const currentValue = form[field];
+    const parsedDate = currentValue
+      ? new Date(`${currentValue}T00:00:00`)
       : null;
 
-    setExpiryPickerMonth(
+    setPickerMonth(
       parsedDate && !Number.isNaN(parsedDate.getTime())
         ? parsedDate
         : new Date(),
     );
-    setShowExpiryDatePicker(true);
-    if (errors.expiryDate) {
-      setErrors({ ...errors, expiryDate: '' });
+    setActiveDateField(field);
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: '' });
     }
   };
 
-  const handleSelectExpiryDate = (date: Date) => {
-    setForm({ ...form, expiryDate: toDateValue(date) });
-    setShowExpiryDatePicker(false);
+  const handleSelectDate = (date: Date) => {
+    if (!activeDateField) return;
+    setForm({ ...form, [activeDateField]: toDateValue(date) });
+    setActiveDateField(null);
   };
 
-  const handleChangeExpiryMonth = (direction: -1 | 1) => {
-    setExpiryPickerMonth(
+  const handleChangePickerMonth = (direction: -1 | 1) => {
+    setPickerMonth(
       current =>
         new Date(current.getFullYear(), current.getMonth() + direction, 1),
     );
   };
 
-  const expiryPickerMonthLabel = new Intl.DateTimeFormat('en-US', {
+  const pickerMonthLabel = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     year: 'numeric',
-  }).format(expiryPickerMonth);
+  }).format(pickerMonth);
 
-  const expiryPickerDays = getPickerDays(expiryPickerMonth);
+  const pickerDays = getPickerDays(pickerMonth);
+  const pickerTitle =
+    activeDateField === 'manufacturingDate'
+      ? 'Select Manufacturing Date'
+      : 'Select Expiry Date';
+  const activeValue = activeDateField ? form[activeDateField] : '';
 
   return (
     <>
@@ -335,27 +436,52 @@ export const QuickAddMedicineModal = ({
                 )}
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Expiry Date (YYYY-MM-DD) *</Text>
-                <Pressable
-                  style={styles.dateInput}
-                  onPress={handleOpenExpiryDatePicker}
-                >
-                  <Text
-                    style={[
-                      styles.dateInputText,
-                      !form.expiryDate ? styles.datePlaceholder : null,
-                    ]}
+              <View style={styles.rowGroup}>
+                <View style={[styles.formGroup, styles.halfWidth]}>
+                  <Text style={styles.label}>Manufacturing Date *</Text>
+                  <Pressable
+                    style={styles.dateInput}
+                    onPress={() => handleOpenDatePicker('manufacturingDate')}
                   >
-                    {form.expiryDate
-                      ? formatDisplayDate(form.expiryDate)
-                      : 'Select expiry date'}
-                  </Text>
-                  <Calendar size={18} color="#A98F81" strokeWidth={2} />
-                </Pressable>
-                {errors.expiryDate && (
-                  <Text style={styles.error}>{errors.expiryDate}</Text>
-                )}
+                    <Text
+                      style={[
+                        styles.dateInputText,
+                        !form.manufacturingDate ? styles.datePlaceholder : null,
+                      ]}
+                    >
+                      {form.manufacturingDate
+                        ? formatDisplayDate(form.manufacturingDate)
+                        : 'Select date'}
+                    </Text>
+                    <Calendar size={18} color="#A98F81" strokeWidth={2} />
+                  </Pressable>
+                  {errors.manufacturingDate && (
+                    <Text style={styles.error}>{errors.manufacturingDate}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.formGroup, styles.halfWidth]}>
+                  <Text style={styles.label}>Expiry Date *</Text>
+                  <Pressable
+                    style={styles.dateInput}
+                    onPress={() => handleOpenDatePicker('expiryDate')}
+                  >
+                    <Text
+                      style={[
+                        styles.dateInputText,
+                        !form.expiryDate ? styles.datePlaceholder : null,
+                      ]}
+                    >
+                      {form.expiryDate
+                        ? formatDisplayDate(form.expiryDate)
+                        : 'Select date'}
+                    </Text>
+                    <Calendar size={18} color="#A98F81" strokeWidth={2} />
+                  </Pressable>
+                  {errors.expiryDate && (
+                    <Text style={styles.error}>{errors.expiryDate}</Text>
+                  )}
+                </View>
               </View>
 
               <View style={styles.formGroup}>
@@ -374,6 +500,10 @@ export const QuickAddMedicineModal = ({
                 {errors.rackLocation && (
                   <Text style={styles.error}>{errors.rackLocation}</Text>
                 )}
+                <Text style={styles.hint}>
+                  Not saved with this request yet — the reviewing admin sets
+                  the exact shelf location on approval.
+                </Text>
               </View>
 
               <View style={styles.rowGroup}>
@@ -409,6 +539,107 @@ export const QuickAddMedicineModal = ({
                     }
                   />
                 </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <SearchableDropdown
+                  label="Pack Type *"
+                  value={form.packType}
+                  placeholder="Select pack type"
+                  options={PACK_TYPE_OPTIONS}
+                  loading={false}
+                  error={errors.packType}
+                  onSelect={option => {
+                    setForm({
+                      ...form,
+                      packType: option.value,
+                      // Clear pack-size fields when switching away from a
+                      // pack type that needs them, so a stale value can't
+                      // slip through unnoticed.
+                      unitsPerPack:
+                        option.value === 'Strip' || option.value === 'Box'
+                          ? form.unitsPerPack
+                          : '',
+                      packsPerCarton:
+                        option.value === 'Box' ? form.packsPerCarton : '',
+                    });
+                    setErrors({
+                      ...errors,
+                      packType: '',
+                      unitsPerPack: '',
+                      packsPerCarton: '',
+                    });
+                  }}
+                  onClearError={() => {
+                    if (errors.packType) setErrors({ ...errors, packType: '' });
+                  }}
+                />
+              </View>
+
+              {(isStrip || isBox) && (
+                <View style={styles.rowGroup}>
+                  <View style={[styles.formGroup, styles.halfWidth]}>
+                    <Text style={styles.label}>
+                      {isStrip ? 'Units per Strip *' : 'Units per Pack *'}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="1"
+                      placeholderTextColor="#B8A89C"
+                      keyboardType="number-pad"
+                      value={form.unitsPerPack}
+                      onChangeText={value => {
+                        setForm({ ...form, unitsPerPack: value });
+                        if (errors.unitsPerPack)
+                          setErrors({ ...errors, unitsPerPack: '' });
+                      }}
+                    />
+                    {errors.unitsPerPack && (
+                      <Text style={styles.error}>{errors.unitsPerPack}</Text>
+                    )}
+                  </View>
+
+                  {isBox && (
+                    <View style={[styles.formGroup, styles.halfWidth]}>
+                      <Text style={styles.label}>Packs per Carton *</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="1"
+                        placeholderTextColor="#B8A89C"
+                        keyboardType="number-pad"
+                        value={form.packsPerCarton}
+                        onChangeText={value => {
+                          setForm({ ...form, packsPerCarton: value });
+                          if (errors.packsPerCarton)
+                            setErrors({ ...errors, packsPerCarton: '' });
+                        }}
+                      />
+                      {errors.packsPerCarton && (
+                        <Text style={styles.error}>{errors.packsPerCarton}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.formGroup}>
+                <SearchableDropdown
+                  label="Primary Supplier *"
+                  value={form.primarySupplier}
+                  placeholder="Select supplier"
+                  options={supplierOptions}
+                  loading={supplierLoading}
+                  error={errors.primarySupplier}
+                  onSelect={option => {
+                    setForm({ ...form, primarySupplier: option.value });
+                    if (errors.primarySupplier)
+                      setErrors({ ...errors, primarySupplier: '' });
+                  }}
+                  onClearError={() => {
+                    if (errors.primarySupplier)
+                      setErrors({ ...errors, primarySupplier: '' });
+                  }}
+                />
               </View>
 
               <View style={styles.rowGroup}>
@@ -448,6 +679,42 @@ export const QuickAddMedicineModal = ({
                 </View>
               </View>
 
+              <View style={styles.rowGroup}>
+                <View style={[styles.formGroup, styles.halfWidth]}>
+                  <Text style={styles.label}>Sale Rate *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    placeholderTextColor="#B8A89C"
+                    keyboardType="number-pad"
+                    value={form.saleRate}
+                    onChangeText={value => {
+                      setForm({ ...form, saleRate: value });
+                      if (errors.saleRate)
+                        setErrors({ ...errors, saleRate: '' });
+                    }}
+                  />
+                  {errors.saleRate && (
+                    <Text style={styles.error}>{errors.saleRate}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.formGroup, styles.halfWidth]}>
+                  <Text style={styles.label}>Margin %</Text>
+                  <TextInput
+                    style={[styles.input, styles.inputDisabled]}
+                    placeholder="Auto-calculated"
+                    placeholderTextColor="#B8A89C"
+                    keyboardType="decimal-pad"
+                    value={form.margin}
+                    editable={false}
+                  />
+                  <Text style={styles.hint}>
+                    Calculated from Purchase Rate and Sale Rate on approval.
+                  </Text>
+                </View>
+              </View>
+
               <View style={styles.formGroup}>
                 <SearchableDropdown
                   label="HSN/SAC Code *"
@@ -468,34 +735,22 @@ export const QuickAddMedicineModal = ({
                 />
               </View>
 
-              <View style={styles.formGroup}>
-                <SearchableDropdown
-                  label="GST *"
-                  value={form.gst}
-                  placeholder="Select GST"
-                  options={gstOptions}
-                  loading={gstLoading}
-                  error={errors.gst}
-                  onSelect={option => {
-                    setForm({ ...form, gst: option.value });
-                    if (errors.gst) setErrors({ ...errors, gst: '' });
-                  }}
-                  onClearError={() => {
-                    if (errors.gst) setErrors({ ...errors, gst: '' });
-                  }}
-                />
-              </View>
-
               <View style={styles.rowGroupLast}>
-                <View style={[styles.formGroup, styles.halfWidth]}>
-                  <Text style={styles.label}>Margin %</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    placeholderTextColor="#B8A89C"
-                    keyboardType="decimal-pad"
-                    value={form.margin}
-                    onChangeText={value => setForm({ ...form, margin: value })}
+                <View style={styles.formGroup}>
+                  <SearchableDropdown
+                    label="GST *"
+                    value={form.gst}
+                    placeholder="Select GST"
+                    options={gstOptions}
+                    loading={gstLoading}
+                    error={errors.gst}
+                    onSelect={option => {
+                      setForm({ ...form, gst: option.value });
+                      if (errors.gst) setErrors({ ...errors, gst: '' });
+                    }}
+                    onClearError={() => {
+                      if (errors.gst) setErrors({ ...errors, gst: '' });
+                    }}
                   />
                 </View>
               </View>
@@ -523,21 +778,19 @@ export const QuickAddMedicineModal = ({
       </Modal>
 
       <Modal
-        visible={showExpiryDatePicker}
+        visible={activeDateField !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowExpiryDatePicker(false)}
+        onRequestClose={() => setActiveDateField(null)}
       >
-        <TouchableWithoutFeedback
-          onPress={() => setShowExpiryDatePicker(false)}
-        >
+        <TouchableWithoutFeedback onPress={() => setActiveDateField(null)}>
           <View style={styles.pickerOverlay}>
             <TouchableWithoutFeedback>
               <View style={styles.pickerModal}>
                 <View style={styles.pickerHeader}>
-                  <Text style={styles.pickerTitle}>Select Expiry Date</Text>
+                  <Text style={styles.pickerTitle}>{pickerTitle}</Text>
                   <Pressable
-                    onPress={() => setShowExpiryDatePicker(false)}
+                    onPress={() => setActiveDateField(null)}
                     hitSlop={8}
                   >
                     <X size={20} color="#2A2A2A" strokeWidth={2.5} />
@@ -547,16 +800,14 @@ export const QuickAddMedicineModal = ({
                 <View style={styles.monthSwitcher}>
                   <Pressable
                     style={styles.monthNavButton}
-                    onPress={() => handleChangeExpiryMonth(-1)}
+                    onPress={() => handleChangePickerMonth(-1)}
                   >
                     <ChevronLeft size={18} color="#2A2A2A" strokeWidth={2.2} />
                   </Pressable>
-                  <Text style={styles.monthLabel}>
-                    {expiryPickerMonthLabel}
-                  </Text>
+                  <Text style={styles.monthLabel}>{pickerMonthLabel}</Text>
                   <Pressable
                     style={styles.monthNavButton}
-                    onPress={() => handleChangeExpiryMonth(1)}
+                    onPress={() => handleChangePickerMonth(1)}
                   >
                     <ChevronRight size={18} color="#2A2A2A" strokeWidth={2.2} />
                   </Pressable>
@@ -573,7 +824,7 @@ export const QuickAddMedicineModal = ({
                 </View>
 
                 <View style={styles.daysGrid}>
-                  {expiryPickerDays.map((day, index) => {
+                  {pickerDays.map((day, index) => {
                     if (!day) {
                       return (
                         <View key={`blank-${index}`} style={styles.dayCell} />
@@ -581,7 +832,7 @@ export const QuickAddMedicineModal = ({
                     }
 
                     const dateValue = toDateValue(day);
-                    const isSelected = form.expiryDate === dateValue;
+                    const isSelected = activeValue === dateValue;
 
                     return (
                       <Pressable
@@ -590,7 +841,7 @@ export const QuickAddMedicineModal = ({
                           styles.dayCell,
                           isSelected ? styles.dayCellSelected : null,
                         ]}
-                        onPress={() => handleSelectExpiryDate(day)}
+                        onPress={() => handleSelectDate(day)}
                       >
                         <Text
                           style={[
@@ -650,6 +901,7 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     marginBottom: 16,
+    flex: 1,
   },
   rowGroup: {
     flexDirection: 'row',
@@ -681,6 +933,10 @@ const styles = StyleSheet.create({
     color: '#2A2A2A',
     backgroundColor: '#FAFAF8',
   },
+  inputDisabled: {
+    backgroundColor: '#F0EEEC',
+    color: '#8F8580',
+  },
   dateInput: {
     borderWidth: 1,
     borderColor: '#D4C4B8',
@@ -704,6 +960,11 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 11,
     color: '#E74C3C',
+    marginTop: 4,
+  },
+  hint: {
+    fontSize: 10.5,
+    color: '#9E8E83',
     marginTop: 4,
   },
   footer: {

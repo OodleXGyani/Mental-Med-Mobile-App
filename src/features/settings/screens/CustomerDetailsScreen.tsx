@@ -74,16 +74,18 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
     }, [loadDetails]),
   );
 
-  const statusColor = getStatusColor('Active');
+  const statusColor = getStatusColor(details?.status);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [invoices, setInvoices] = useState<
     import('../types').CustomerInvoice[]
   >([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [invoicesError, setInvoicesError] = useState('');
 
   const loadInvoices = useCallback(
     async (page = 1) => {
       setInvoicesLoading(true);
+      setInvoicesError('');
       try {
         const data = await customerService.fetchCustomerInvoices(
           route.params.customerCode,
@@ -91,8 +93,13 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
           10,
         );
         setInvoices(data);
-      } catch {
-        // fail silently — keep UI simple
+      } catch (error) {
+        setInvoices([]);
+        setInvoicesError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load purchase history.',
+        );
       } finally {
         setInvoicesLoading(false);
       }
@@ -216,7 +223,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                   <Text
                     style={[styles.statusText, { color: statusColor.text }]}
                   >
-                    Active
+                    {details?.status || 'Active'}
                   </Text>
                 </View>
               </View>
@@ -424,12 +431,12 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                     ]}
                   >
                     <Text style={[styles.stateTitle, { color: theme.colors.text }]}>
-                      No purchases found
+                      {invoicesError ? 'Unable to load purchases' : 'No purchases found'}
                     </Text>
                     <Text
                       style={[styles.stateText, { color: theme.colors.mutedText }]}
                     >
-                      This customer has no invoices.
+                      {invoicesError || 'This customer has no invoices.'}
                     </Text>
                   </View>
                 )}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Boxes,
@@ -23,6 +23,7 @@ import { DashboardQuickActions } from '../components/DashboardQuickActions';
 import { DashboardRecentSales } from '../components/DashboardRecentSales';
 import { useAppSelector } from '../../../app/hooks';
 import { useAppTheme } from '../../../shared/theme';
+import { dashboardService } from '../services/dashboardService';
 
 export const DashboardScreen = () => {
   const { summary, recentSales, loading } = useDashboard();
@@ -30,6 +31,24 @@ export const DashboardScreen = () => {
   const navigation = useNavigation<any>();
   const session = useAppSelector(state => state.auth.session);
   const theme = useAppTheme();
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      dashboardService
+        .fetchNotifications()
+        .then(items => {
+          if (!cancelled) setNotificationCount(items.length);
+        })
+        .catch(() => {
+          /* non-fatal -- badge just stays hidden */
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
   const stats = [
     {
       label: "Today's Sales",
@@ -107,6 +126,7 @@ export const DashboardScreen = () => {
       >
         <DashboardHeader
           username={session?.username ?? session?.fullName ?? ''}
+          notificationCount={notificationCount}
           onPressNotification={() =>
             navigation.navigate(STACK_ROUTES.NOTIFICATIONS_HOME)
           }

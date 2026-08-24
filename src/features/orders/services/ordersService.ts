@@ -14,6 +14,7 @@ import {
   isAuthSessionExpiredResponse,
 } from '../../../shared/utils/auth';
 import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+import { formatTimeAgo } from '../../../shared/utils/format';
 
 const ORDERS_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.order_flow`;
 const CUSTOMER_INVOICES_URL =
@@ -78,11 +79,6 @@ const throwResponseError = (
 };
 
 export const ordersService = {
-  fetchPendingOrders: async (): Promise<number> => {
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 300));
-    return 12;
-  },
-
   fetchOrders: async (): Promise<Order[]> => {
     const url = `${ORDERS_API_ROOT}.get_orders`;
 
@@ -105,19 +101,27 @@ export const ordersService = {
       throwResponseError(response, payload, 'Unable to load orders.');
     }
 
-    // Map API response to Order type
-    const orders: Order[] = (payload?.message?.data ?? []).map((item, idx) => {
-      console.log(`Processing order ${idx + 1}:`, item);
-      // Map workflow_state to internal status
-      const internalStatus = statusMap[item.workflow_state] || 'new';
+    // Map API response to Order type. get_orders now actually selects
+    // customer_name/phone/total/items/modified (previously it silently
+    // hardcoded "Unknown"/empty items/"N/A"/0 for every order regardless
+    // of the real data, even though the doctype always had these fields).
+    const orders: Order[] = (payload?.message?.data ?? []).map(item => {
+      // Rejected has no dedicated bucket in the tab UI -- fold it into the
+      // same terminal state group "delivered" sits in rather than falling
+      // back to "new" (which used to make rejected orders look pending).
+      const internalStatus = statusMap[item.workflow_state] || 'rejected';
 
       return {
         id: item.name,
         status: internalStatus,
-        customer: 'Unknown', // API doesn't provide customer name, can be enhanced
-        items: [], // API doesn't provide items, can be enhanced
-        time: 'N/A', // API doesn't provide time info
-        amount: 0, // API doesn't provide amount
+        customer: item.customer_name || 'Unknown',
+        phone: item.phone || undefined,
+        items: (item.items || []).map(line => ({
+          name: line.name,
+          qty: line.qty,
+        })),
+        time: item.modified ? formatTimeAgo(item.modified) : 'N/A',
+        amount: item.total || 0,
       };
     });
 
@@ -241,6 +245,15 @@ export const ordersService = {
       throw new Error(
         getErrorMessage(parsed, 'Unable to update order status.'),
       );
+    }
+
+    // perform_action catches its own exceptions and returns
+    // {success:false, message:...} with NO data key and HTTP 200 -- was
+    // falling through to the generic "missing data" message below instead
+    // of surfacing the real reason (e.g. an action no longer valid from
+    // the order's current state).
+    if (parsed?.message?.success === false) {
+      throw new Error(parsed.message.message || 'Unable to update order status.');
     }
 
     const result = parsed?.message?.data;

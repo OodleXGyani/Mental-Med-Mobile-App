@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Check, Download, Phone, Printer, Share2 } from 'lucide-react-native';
 import { CartItem, Customer, PaymentMethod } from '../types';
@@ -7,6 +7,7 @@ import { useAppTheme } from '../../../shared/theme';
 
 type Props = {
   visible: boolean;
+  invoiceName: string | null;
   total: number;
   subtotal: number;
   gstAmount: number;
@@ -22,6 +23,7 @@ type Props = {
 
 export const POSInvoiceModal = ({
   visible,
+  invoiceName,
   total,
   subtotal,
   gstAmount,
@@ -35,6 +37,21 @@ export const POSInvoiceModal = ({
   onPressDone,
 }: Props) => {
   const theme = useAppTheme();
+  // Rendered right after creation, so "now" is close enough -- the backend
+  // doesn't return a creation timestamp on this response.
+  const completedAt = useMemo(
+    () =>
+      visible
+        ? new Date().toLocaleString(undefined, {
+            day: 'numeric',
+            month: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+        : '',
+    [visible],
+  );
 
   return (
     <Modal transparent visible={visible} animationType="slide">
@@ -51,7 +68,7 @@ export const POSInvoiceModal = ({
             <Text
               style={[styles.saleDoneMeta, { color: theme.colors.mutedText }]}
             >
-              {`Invoice INV-155654 - ${formatAmount(total)}`}
+              {`Invoice ${invoiceName || '—'} - ${formatAmount(total)}`}
             </Text>
           </View>
 
@@ -86,7 +103,7 @@ export const POSInvoiceModal = ({
             style={[styles.invoiceLine, { color: theme.colors.text }]}
           >{`Customer: ${selectedCustomer?.name || 'Walk-in'}`}</Text>
           <Text style={[styles.invoiceLine, { color: theme.colors.text }]}>
-            Date: 24/4/2026, 3:52 pm
+            {`Date: ${completedAt}`}
           </Text>
           <Text
             style={[styles.invoiceLine, { color: theme.colors.text }]}
