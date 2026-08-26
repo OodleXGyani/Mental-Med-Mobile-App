@@ -84,9 +84,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
           onPress={() => navigation.goBack()}
           style={[
             styles.backButton,
-            {
-              backgroundColor: theme.dark ? '#2A2A2A' : '#F0F0F0',
-            },
+            theme.dark ? styles.backButtonDark : styles.backButtonLight,
           ]}
           disabled={loading}
         >
@@ -99,7 +97,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
             <View
               style={[
                 styles.successIconCircle,
-                { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+                theme.dark ? styles.iconCircleDark : styles.iconCircleLight,
               ]}
             >
               <AppIcon name="CheckCircle2" size={48} color={theme.colors.primary} />
@@ -120,7 +118,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
               <View
                 style={[
                   styles.mailIconCircle,
-                  { backgroundColor: theme.dark ? '#163330' : '#E8F5F4' },
+                  theme.dark ? styles.iconCircleDark : styles.iconCircleLight,
                 ]}
               >
                 <AppIcon name="Mail" size={36} color={theme.colors.primary} />
@@ -151,8 +149,8 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
                 <View
                   style={[
                     styles.inputWrapper,
+                    theme.dark ? styles.inputWrapperDark : styles.inputWrapperLight,
                     {
-                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
                       borderColor: emailFocused
                         ? theme.colors.primary
                         : theme.colors.border,
@@ -189,8 +187,8 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
                 <View
                   style={[
                     styles.errorBox,
+                    theme.dark ? styles.errorBoxDark : styles.errorBoxLight,
                     {
-                      backgroundColor: theme.dark ? '#3B1E1E' : '#FFF1F1',
                       borderColor: theme.colors.danger,
                     },
                   ]}
@@ -401,5 +399,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
     lineHeight: 22,
+  },
+  backButtonLight: {
+    backgroundColor: '#F0F0F0',
+  },
+  backButtonDark: {
+    backgroundColor: '#2A2A2A',
+  },
+  iconCircleLight: {
+    backgroundColor: '#E8F5F4',
+  },
+  iconCircleDark: {
+    backgroundColor: '#163330',
+  },
+  inputWrapperLight: {
+    backgroundColor: '#F8F9FA',
+  },
+  inputWrapperDark: {
+    backgroundColor: '#1E1E1E',
+  },
+  errorBoxLight: {
+    backgroundColor: '#FFF1F1',
+  },
+  errorBoxDark: {
+    backgroundColor: '#3B1E1E',
   },
 });

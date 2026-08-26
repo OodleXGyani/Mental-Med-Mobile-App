@@ -134,20 +134,15 @@ export const MedicineListScreen = ({ navigation }: Props) => {
               <View
                 style={[
                   styles.stockBadge,
-                  {
-                    backgroundColor: isOutOfStock
-                      ? 'rgba(239, 68, 68, 0.15)'
-                      : 'rgba(16, 185, 129, 0.15)',
-                    borderColor: isOutOfStock
-                      ? 'rgba(239, 68, 68, 0.3)'
-                      : 'rgba(16, 185, 129, 0.3)',
-                  },
+                  isOutOfStock ? styles.stockBadgeOut : styles.stockBadgeIn,
                 ]}
               >
                 <Text
                   style={[
                     styles.stockBadgeText,
-                    { color: isOutOfStock ? '#EF4444' : '#10B981' },
+                    isOutOfStock
+                      ? styles.stockBadgeTextOut
+                      : styles.stockBadgeTextIn,
                   ]}
                 >
                   {isOutOfStock ? 'Out of stock' : `In Stock: ${stock}`}
@@ -196,7 +191,7 @@ export const MedicineListScreen = ({ navigation }: Props) => {
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
             Select Medicine
           </Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.colors.text }]}>
@@ -247,7 +242,7 @@ export const MedicineListScreen = ({ navigation }: Props) => {
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
           Select Medicine
         </Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.searchContainer}>
@@ -279,7 +274,7 @@ export const MedicineListScreen = ({ navigation }: Props) => {
           <ActivityIndicator
             size="large"
             color={theme.colors.primary}
-            style={{ marginBottom: 12 }}
+            style={styles.loaderMargin}
           />
           <Text style={[styles.loadingText, { color: theme.colors.mutedText }]}>
             Loading medicines catalogue...
@@ -438,5 +433,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  loaderMargin: {
+    marginBottom: 12,
+  },
+  stockBadgeIn: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  stockBadgeOut: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  stockBadgeTextIn: {
+    color: '#10B981',
+  },
+  stockBadgeTextOut: {
+    color: '#EF4444',
   },
 });

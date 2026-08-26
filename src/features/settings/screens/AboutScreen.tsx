@@ -10,7 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Zap, Mail, Phone, Globe } from 'lucide-react-native';
+import { ChevronLeft, Mail, Phone, Globe } from 'lucide-react-native';
 import { useAppTheme } from '../../../shared/theme';
 
 export const AboutScreen = () => {
@@ -163,7 +163,7 @@ export const AboutScreen = () => {
           <View
             style={[
               styles.contactIconWrap,
-              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+              theme.dark ? styles.contactIconWrapDark : styles.contactIconWrapLight,
             ]}
           >
             <Globe size={18} color={theme.colors.primary} strokeWidth={2.2} />
@@ -188,7 +188,7 @@ export const AboutScreen = () => {
           <View
             style={[
               styles.contactIconWrap,
-              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+              theme.dark ? styles.contactIconWrapDark : styles.contactIconWrapLight,
             ]}
           >
             <Mail size={18} color={theme.colors.primary} strokeWidth={2.2} />
@@ -213,7 +213,7 @@ export const AboutScreen = () => {
           <View
             style={[
               styles.contactIconWrap,
-              { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+              theme.dark ? styles.contactIconWrapDark : styles.contactIconWrapLight,
             ]}
           >
             <Phone size={18} color={theme.colors.primary} strokeWidth={2.2} />
@@ -391,10 +391,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#E5F4F3',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  contactIconWrapLight: {
+    backgroundColor: '#E5F4F3',
+  },
+  contactIconWrapDark: {
+    backgroundColor: '#163330',
   },
   contactContent: {
     flex: 1,

@@ -425,9 +425,7 @@ export const OrderHistoryScreen = () => {
             style={[
               styles.pageButton,
               { backgroundColor: theme.colors.primary },
-              page === 1 && {
-                backgroundColor: theme.dark ? '#2F3A39' : '#C7D5D3',
-              },
+              page === 1 && (theme.dark ? styles.pageButtonDisabledDark : styles.pageButtonDisabledLight),
             ]}
           >
             <Text style={styles.pageButtonText}>Previous</Text>
@@ -445,9 +443,7 @@ export const OrderHistoryScreen = () => {
             style={[
               styles.pageButton,
               { backgroundColor: theme.colors.primary },
-              page >= totalPages && {
-                backgroundColor: theme.dark ? '#2F3A39' : '#C7D5D3',
-              },
+              page >= totalPages && (theme.dark ? styles.pageButtonDisabledDark : styles.pageButtonDisabledLight),
             ]}
           >
             <Text style={styles.pageButtonText}>Next</Text>
@@ -1104,5 +1100,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+  },
+  pageButtonDisabledLight: {
+    backgroundColor: '#C7D5D3',
+  },
+  pageButtonDisabledDark: {
+    backgroundColor: '#2F3A39',
   },
 });

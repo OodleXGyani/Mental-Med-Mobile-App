@@ -28,7 +28,6 @@ import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 const CART_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.cart`;
 const APPROVAL_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.approval`;
 const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
-const MEDICINE_INVENTORY_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.medicine.medicine.get_medicine_inventory`;
 const MANAGER_USERS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.pharmacy.get_manager_users`;
 const SCAN_BARCODE_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;
 const RAZORPAY_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.razorpay.api`;

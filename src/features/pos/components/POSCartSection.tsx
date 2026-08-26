@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AlertCircle, ChevronRight, Minus, Plus, ShoppingCart, X } from 'lucide-react-native';
+import { AlertCircle, Minus, Plus, ShoppingCart, X } from 'lucide-react-native';
 import { CartItem } from '../types';
 import { useAppTheme } from '../../../shared/theme';
 
@@ -47,8 +47,9 @@ export const POSCartSection = ({
               styles.itemCard,
               {
                 backgroundColor: theme.colors.card,
-                borderColor: hasMissingBatch ? '#F59E0B' : theme.colors.border,
+                borderColor: theme.colors.border,
               },
+              hasMissingBatch && styles.itemCardMissingBatch,
             ]}
             onPress={() => onPressItem && onPressItem(item)}
           >
@@ -67,13 +68,13 @@ export const POSCartSection = ({
                   ) : (
                     <View style={[styles.badgePill, styles.badgeWarning]}>
                       <AlertCircle size={10} color="#B45309" />
-                      <Text style={[styles.badgeText, { color: '#B45309' }]}>
+                      <Text style={[styles.badgeText, styles.badgeWarningText]}>
                         Tap to select batch
                       </Text>
                     </View>
                   )}
                   {item.warehouse ? (
-                    <View style={[styles.badgePill, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: theme.colors.border }]}>
+                    <View style={[styles.badgePill, styles.warehouseBadge, { borderColor: theme.colors.border }]}>
                       <Text style={[styles.badgeText, { color: theme.colors.mutedText }]}>
                         {item.warehouse}
                       </Text>
@@ -159,6 +160,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
+  itemCardMissingBatch: {
+    borderColor: '#F59E0B',
+  },
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -191,6 +195,12 @@ const styles = StyleSheet.create({
   badgeWarning: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  badgeWarningText: {
+    color: '#B45309',
+  },
+  warehouseBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   badgeText: {
     fontSize: 10,

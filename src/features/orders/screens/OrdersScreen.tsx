@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { OrderCard, Order, OrderStatus } from '../components/OrderCard';
+import { OrderCard, Order } from '../components/OrderCard';
 import { OrdersTabs, TabType } from '../components/OrdersTabs';
 import { OrderDetailModal } from '../components/OrderDetailModal';
 import { OrderSummaryModal } from '../components/OrderSummaryModal';
@@ -47,7 +47,7 @@ export const OrdersScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      void loadOrders();
+      loadOrders();
     }, [loadOrders]),
   );
 
@@ -59,7 +59,7 @@ export const OrdersScreen: React.FC = () => {
       'erp_pharmacy.api.sales.sales_invoice.get_sales_invoice_list',
     ],
     useCallback(() => {
-      void loadOrders();
+      loadOrders();
     }, [loadOrders]),
   );
 
@@ -133,15 +133,12 @@ export const OrdersScreen: React.FC = () => {
     try {
       const { latitude, longitude } = await requestCurrentCoordinates();
 
-      const result = await ordersService.performAction(
+      await ordersService.performAction(
         order.id,
         'Reject',
         latitude,
         longitude,
       );
-
-      // Map the returned workflow_state to internal status
-      const newStatus = statusMap[result.workflow_state] || order.status;
 
       // Remove the rejected order from the list
       setOrders(prev => prev.filter(o => o.id !== order.id));

@@ -119,10 +119,12 @@ export const DashboardScreen = () => {
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <View
-        style={{
-          paddingTop: Math.max(insets.top, 15) + 16,
-          paddingHorizontal: 25,
-        }}
+        style={[
+          styles.headerWrap,
+          {
+            paddingTop: Math.max(insets.top, 15) + 16,
+          },
+        ]}
       >
         <DashboardHeader
           username={session?.username ?? session?.fullName ?? ''}
@@ -138,9 +140,7 @@ export const DashboardScreen = () => {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: 4,
             paddingBottom: Math.max(insets.bottom, 10) + SCREEN_BOTTOM_PADDING,
-            flexGrow: 1,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -176,8 +176,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F8F8',
   },
+  headerWrap: {
+    paddingHorizontal: 25,
+  },
   content: {
     paddingHorizontal: 20,
+    paddingTop: 4,
+    flexGrow: 1,
   },
   loader: {
     marginBottom: 10,

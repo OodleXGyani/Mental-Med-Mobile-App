@@ -10,6 +10,8 @@ export const useCrudEventListener = (
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
+  const apiPathsKey = JSON.stringify(apiPaths);
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -23,5 +25,5 @@ export const useCrudEventListener = (
     return () => {
       unsubs.forEach((unsub) => unsub());
     };
-  }, [JSON.stringify(apiPaths), enabled]);
+  }, [apiPaths, apiPathsKey, enabled]);
 };

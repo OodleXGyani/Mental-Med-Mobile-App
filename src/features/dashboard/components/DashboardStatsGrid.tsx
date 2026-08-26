@@ -37,9 +37,9 @@ export const DashboardStatsGrid = ({ stats }: Props) => {
           <View
             style={[
               styles.statIcon,
-              {
-                backgroundColor: theme.dark ? '#253634' : item.iconBackground,
-              },
+              theme.dark
+                ? styles.statIconDark
+                : { backgroundColor: item.iconBackground },
             ]}
           >
             <item.Icon size={15} color={item.iconColor} strokeWidth={2.3} />
@@ -85,6 +85,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginTop: 1,
     flexShrink: 0,
+  },
+  statIconDark: {
+    backgroundColor: '#253634',
   },
   statTextBlock: {
     flex: 1,

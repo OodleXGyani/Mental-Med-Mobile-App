@@ -1,6 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { BarcodeScannedItem, InventoryItem } from '../features/inventory/types';
-import { Medicine } from '../features/pos/types';
 import { STACK_ROUTES, TAB_ROUTES } from '../shared/constants/routes';
 
 export type AuthStackParamList = {

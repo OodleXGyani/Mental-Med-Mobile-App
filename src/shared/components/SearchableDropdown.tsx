@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -77,9 +77,7 @@ export const SearchableDropdown = ({
         <Text
           style={[
             styles.inputText,
-            {
-              color: value ? textColor : '#B8A89C',
-            },
+            value ? { color: textColor } : styles.placeholderColor,
           ]}
         >
           {displayText}
@@ -197,6 +195,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2A2A2A',
     flex: 1,
+  },
+  placeholderColor: {
+    color: '#B8A89C',
   },
   error: {
     fontSize: 11,

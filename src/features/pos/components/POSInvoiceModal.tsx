@@ -97,7 +97,7 @@ export const POSInvoiceModal = ({
                 </Text>
                 <Text style={[styles.sheetSubtitle, { color: theme.colors.mutedText }]}>
                   {`Invoice #${invoiceName || '—'} • `}
-                  <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>
+                  <Text style={[{ color: theme.colors.primary }, styles.bold700]}>
                     {formatAmount(total)}
                   </Text>
                 </Text>
@@ -116,8 +116,8 @@ export const POSInvoiceModal = ({
             <View
               style={[
                 styles.brandCard,
+                theme.dark ? styles.brandCardDark : styles.brandCardLight,
                 {
-                  backgroundColor: theme.dark ? '#0F172A' : '#F8FAFC',
                   borderColor: theme.colors.border,
                 },
               ]}
@@ -223,8 +223,8 @@ export const POSInvoiceModal = ({
             <View
               style={[
                 styles.sectionCard,
+                theme.dark ? styles.sectionCardDark : styles.sectionCardLight,
                 {
-                  backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
                   borderColor: theme.colors.border,
                 },
               ]}
@@ -240,8 +240,8 @@ export const POSInvoiceModal = ({
               <View
                 style={[
                   styles.itemTableHeader,
+                  theme.dark ? styles.itemTableHeaderDark : styles.itemTableHeaderLight,
                   {
-                    backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
                     borderBottomColor: theme.colors.border,
                   },
                 ]}
@@ -271,10 +271,10 @@ export const POSInvoiceModal = ({
                     key={`inv-item-${item.id}-${idx}`}
                     style={[
                       styles.itemTableRow,
-                      !isLast && {
-                        borderBottomColor: theme.colors.border,
-                        borderBottomWidth: 1,
-                      },
+                      !isLast && [
+                        styles.itemTableRowBorder,
+                        { borderBottomColor: theme.colors.border },
+                      ],
                     ]}
                   >
                     <View style={styles.thMedicine}>
@@ -304,7 +304,8 @@ export const POSInvoiceModal = ({
                       style={[
                         styles.itemValue,
                         styles.thAmount,
-                        { color: theme.colors.text, fontWeight: '700' },
+                        { color: theme.colors.text },
+                        styles.bold700,
                       ]}
                     >
                       {formatAmount(itemLineTotal)}
@@ -318,8 +319,8 @@ export const POSInvoiceModal = ({
             <View
               style={[
                 styles.sectionCard,
+                theme.dark ? styles.sectionCardDark : styles.sectionCardLight,
                 {
-                  backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
                   borderColor: theme.colors.border,
                 },
               ]}
@@ -689,5 +690,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14.5,
+  },
+  bold700: {
+    fontWeight: '700',
+  },
+  brandCardDark: {
+    backgroundColor: '#0F172A',
+  },
+  brandCardLight: {
+    backgroundColor: '#F8FAFC',
+  },
+  sectionCardDark: {
+    backgroundColor: '#0F172A',
+  },
+  sectionCardLight: {
+    backgroundColor: '#FAFAFA',
+  },
+  itemTableHeaderDark: {
+    backgroundColor: '#1E293B',
+  },
+  itemTableHeaderLight: {
+    backgroundColor: '#F1F5F9',
+  },
+  itemTableRowBorder: {
+    borderBottomWidth: 1,
   },
 });

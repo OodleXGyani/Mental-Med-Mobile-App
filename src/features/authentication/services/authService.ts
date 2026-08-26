@@ -72,15 +72,6 @@ type TenantLoginApiResponse = {
   full_name?: string;
 };
 
-type ForgotPasswordApiResponse = {
-  message?: {
-    success?: boolean;
-    message?: string;
-    data?: unknown;
-    error?: string | null;
-  };
-};
-
 const SAAS_LOGIN_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.login`;
 const SAAS_VERIFY_OTP_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.verify_login_otp`;
 const SAAS_RESEND_OTP_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.resend_login_otp`;
@@ -339,7 +330,7 @@ export const authService = {
         body: JSON.stringify({ token: trimmedToken, device_type: deviceType }),
       });
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   },

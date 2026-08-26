@@ -79,7 +79,7 @@ export const POSSummaryCard = ({
           <View
             style={[
               styles.discountTypeTabs,
-              { backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9' },
+              theme.dark ? styles.discountTypeTabsDark : styles.discountTypeTabsLight,
             ]}
           >
             <Pressable
@@ -108,8 +108,8 @@ export const POSSummaryCard = ({
                       discountType === 'Percentage'
                         ? theme.colors.primary
                         : theme.colors.mutedText,
-                    fontWeight: discountType === 'Percentage' ? '700' : '500',
                   },
+                  discountType === 'Percentage' ? styles.textBold700 : styles.textWeight500,
                 ]}
               >
                 Percent (%)
@@ -142,8 +142,8 @@ export const POSSummaryCard = ({
                       discountType === 'Amount'
                         ? theme.colors.primary
                         : theme.colors.mutedText,
-                    fontWeight: discountType === 'Amount' ? '700' : '500',
                   },
+                  discountType === 'Amount' ? styles.textBold700 : styles.textWeight500,
                 ]}
               >
                 Amount (₹)
@@ -371,5 +371,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  discountTypeTabsDark: {
+    backgroundColor: '#1E293B',
+  },
+  discountTypeTabsLight: {
+    backgroundColor: '#F1F5F9',
+  },
+  textWeight500: {
+    fontWeight: '500',
+  },
+  textBold700: {
+    fontWeight: '700',
   },
 });

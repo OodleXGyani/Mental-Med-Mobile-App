@@ -20,6 +20,26 @@ import { resolveTheme } from '../shared/theme';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+const iconMap: Record<
+  keyof MainTabParamList,
+  React.ComponentType<{ color: string; size: number }>
+> = {
+  [TAB_ROUTES.DASHBOARD]: House,
+  [TAB_ROUTES.POS]: ShoppingCart,
+  [TAB_ROUTES.ORDERS]: ClipboardList,
+  [TAB_ROUTES.INVENTORY]: Boxes,
+  [TAB_ROUTES.SETTINGS]: Menu,
+};
+
+const renderTabBarIcon = (
+  routeName: keyof MainTabParamList,
+  color: string,
+  size: number,
+) => {
+  const Icon = iconMap[routeName];
+  return <Icon size={size - 1} color={color} />;
+};
+
 export const MainTabNavigator = () => {
   const mode = useAppSelector(state => state.settings.themeMode);
   const systemScheme = useAppSelector(state => state.settings.systemScheme);
@@ -31,22 +51,8 @@ export const MainTabNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color, size }) => {
-          const iconMap: Record<
-            keyof MainTabParamList,
-            React.ComponentType<{ color: string; size: number }>
-          > = {
-            [TAB_ROUTES.DASHBOARD]: House,
-            [TAB_ROUTES.POS]: ShoppingCart,
-            [TAB_ROUTES.ORDERS]: ClipboardList,
-            [TAB_ROUTES.INVENTORY]: Boxes,
-            [TAB_ROUTES.SETTINGS]: Menu,
-          };
-
-          const Icon = iconMap[route.name];
-
-          return <Icon size={size - 1} color={color} />;
-        },
+        tabBarIcon: ({ color, size }) =>
+          renderTabBarIcon(route.name, color, size),
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.mutedText,

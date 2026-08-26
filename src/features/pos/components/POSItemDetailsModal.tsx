@@ -59,7 +59,7 @@ export const POSItemDetailsModal = ({
   const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
   const [batchSearch, setBatchSearch] = useState('');
 
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [_loadingDetails, setLoadingDetails] = useState(false);
   const [itemDetails, setItemDetails] = useState<ItemDetailsResponse | null>(null);
 
   const [qty, setQty] = useState<number>(1);
@@ -328,18 +328,17 @@ export const POSItemDetailsModal = ({
                     <View
                       style={[
                         styles.stockDot,
-                        {
-                          backgroundColor:
-                            warehouseStock > 0 ? '#10B981' : '#EF4444',
-                        },
+                        warehouseStock > 0
+                          ? styles.stockDotInStock
+                          : styles.stockDotOutOfStock,
                       ]}
                     />
                     <Text
                       style={[
                         styles.statValue,
-                        {
-                          color: warehouseStock > 0 ? '#10B981' : '#EF4444',
-                        },
+                        warehouseStock > 0
+                          ? styles.statValueInStock
+                          : styles.statValueOutOfStock,
                       ]}
                     >
                       {warehouseStock} {uom}
@@ -408,7 +407,7 @@ export const POSItemDetailsModal = ({
                   <Text
                     style={[
                       styles.statValue,
-                      { color: isRx ? '#EF4444' : theme.colors.text },
+                      isRx ? styles.statValueRx : { color: theme.colors.text },
                     ]}
                   >
                     {isRx ? 'Required (Rx)' : 'No'}
@@ -461,8 +460,8 @@ export const POSItemDetailsModal = ({
                         color: selectedWarehouse
                           ? theme.colors.text
                           : theme.colors.mutedText,
-                        fontWeight: selectedWarehouse ? '700' : '500',
                       },
+                      selectedWarehouse ? styles.textBold700 : styles.textWeight500,
                     ]}
                     numberOfLines={1}
                   >
@@ -523,7 +522,7 @@ export const POSItemDetailsModal = ({
                   {loadingWarehouses ? (
                     <ActivityIndicator
                       color={theme.colors.primary}
-                      style={{ paddingVertical: 12 }}
+                      style={styles.loadingPadding}
                     />
                   ) : filteredWarehouses.length === 0 ? (
                     <Text
@@ -564,8 +563,8 @@ export const POSItemDetailsModal = ({
                                     color: isSelected
                                       ? theme.colors.primary
                                       : theme.colors.text,
-                                    fontWeight: isSelected ? '700' : '600',
                                   },
+                                  isSelected ? styles.textBold700 : styles.textBold600,
                                 ]}
                               >
                                 {wh.warehouse || 'Default Warehouse'}
@@ -622,8 +621,8 @@ export const POSItemDetailsModal = ({
                         color: selectedBatch
                           ? theme.colors.text
                           : theme.colors.mutedText,
-                        fontWeight: selectedBatch ? '700' : '500',
                       },
+                      selectedBatch ? styles.textBold700 : styles.textWeight500,
                     ]}
                     numberOfLines={1}
                   >
@@ -684,7 +683,7 @@ export const POSItemDetailsModal = ({
                   {loadingBatches ? (
                     <ActivityIndicator
                       color={theme.colors.primary}
-                      style={{ paddingVertical: 12 }}
+                      style={styles.loadingPadding}
                     />
                   ) : filteredBatches.length === 0 ? (
                     <Text
@@ -725,8 +724,8 @@ export const POSItemDetailsModal = ({
                                     color: isSelected
                                       ? theme.colors.primary
                                       : theme.colors.text,
-                                    fontWeight: isSelected ? '700' : '600',
                                   },
+                                  isSelected ? styles.textBold700 : styles.textBold600,
                                 ]}
                               >
                                 {b.batch_no || 'Batch'}
@@ -807,9 +806,8 @@ export const POSItemDetailsModal = ({
                                 discountType === t
                                   ? theme.colors.primary
                                   : theme.colors.mutedText,
-                              fontWeight:
-                                discountType === t ? '700' : '500',
                             },
+                            discountType === t ? styles.textBold700 : styles.textWeight500,
                           ]}
                         >
                           {t === 'None' ? 'None' : t === 'Percentage' ? '% Pct' : '₹ Amt'}
@@ -1270,6 +1268,33 @@ const styles = StyleSheet.create({
   applyButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  stockDotInStock: {
+    backgroundColor: '#10B981',
+  },
+  stockDotOutOfStock: {
+    backgroundColor: '#EF4444',
+  },
+  statValueInStock: {
+    color: '#10B981',
+  },
+  statValueOutOfStock: {
+    color: '#EF4444',
+  },
+  statValueRx: {
+    color: '#EF4444',
+  },
+  loadingPadding: {
+    paddingVertical: 12,
+  },
+  textWeight500: {
+    fontWeight: '500',
+  },
+  textBold600: {
+    fontWeight: '600',
+  },
+  textBold700: {
     fontWeight: '700',
   },
 });

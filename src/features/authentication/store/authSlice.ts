@@ -52,7 +52,7 @@ export const loginHandshakeThunk = createAsyncThunk<
   any,
   LoginPayload,
   { rejectValue: string }
->('auth/loginHandshake', async (payload, { rejectWithValue, dispatch }) => {
+>('auth/loginHandshake', async (payload, { rejectWithValue }) => {
   try {
     const response = await authService.loginHandshake(payload);
     

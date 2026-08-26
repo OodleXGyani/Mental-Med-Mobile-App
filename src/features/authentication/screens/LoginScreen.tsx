@@ -121,8 +121,8 @@ export const LoginScreen = ({ navigation }: Props) => {
                 <View
                   style={[
                     styles.inputWrapper,
+                    theme.dark ? styles.inputWrapperDark : styles.inputWrapperLight,
                     {
-                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
                       borderColor: emailFocused
                         ? theme.colors.primary
                         : theme.colors.border,
@@ -166,8 +166,8 @@ export const LoginScreen = ({ navigation }: Props) => {
                 <View
                   style={[
                     styles.inputWrapper,
+                    theme.dark ? styles.inputWrapperDark : styles.inputWrapperLight,
                     {
-                      backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
                       borderColor: passwordFocused
                         ? theme.colors.primary
                         : theme.colors.border,
@@ -217,8 +217,8 @@ export const LoginScreen = ({ navigation }: Props) => {
                   <View
                     style={[
                       styles.inputWrapper,
+                      theme.dark ? styles.inputWrapperDark : styles.inputWrapperLight,
                       {
-                        backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
                         borderColor: phoneOtpFocused
                           ? theme.colors.primary
                           : theme.colors.border,
@@ -232,7 +232,7 @@ export const LoginScreen = ({ navigation }: Props) => {
                       style={styles.inputIcon}
                     />
                     <TextInput
-                      style={[styles.input, { color: theme.colors.text, fontSize: 18, letterSpacing: 8 }]}
+                      style={[styles.input, { color: theme.colors.text }, styles.otpInput]}
                       placeholder="000000"
                       placeholderTextColor={theme.colors.mutedText}
                       value={phoneOtp}
@@ -255,8 +255,8 @@ export const LoginScreen = ({ navigation }: Props) => {
                   <View
                     style={[
                       styles.inputWrapper,
+                      theme.dark ? styles.inputWrapperDark : styles.inputWrapperLight,
                       {
-                        backgroundColor: theme.dark ? '#1E1E1E' : '#F8F9FA',
                         borderColor: emailOtpFocused
                           ? theme.colors.primary
                           : theme.colors.border,
@@ -270,7 +270,7 @@ export const LoginScreen = ({ navigation }: Props) => {
                       style={styles.inputIcon}
                     />
                     <TextInput
-                      style={[styles.input, { color: theme.colors.text, fontSize: 18, letterSpacing: 8 }]}
+                      style={[styles.input, { color: theme.colors.text }, styles.otpInput]}
                       placeholder="000000"
                       placeholderTextColor={theme.colors.mutedText}
                       value={emailOtp}
@@ -292,8 +292,8 @@ export const LoginScreen = ({ navigation }: Props) => {
             <View
               style={[
                 styles.errorBox,
+                theme.dark ? styles.errorBoxDark : styles.errorBoxLight,
                 {
-                  backgroundColor: theme.dark ? '#3B1E1E' : '#FFF1F1',
                   borderColor: theme.colors.danger,
                 },
               ]}
@@ -503,5 +503,21 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  inputWrapperLight: {
+    backgroundColor: '#F8F9FA',
+  },
+  inputWrapperDark: {
+    backgroundColor: '#1E1E1E',
+  },
+  otpInput: {
+    fontSize: 18,
+    letterSpacing: 8,
+  },
+  errorBoxLight: {
+    backgroundColor: '#FFF1F1',
+  },
+  errorBoxDark: {
+    backgroundColor: '#3B1E1E',
   },
 });

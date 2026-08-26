@@ -133,16 +133,6 @@ export const QuickAddMedicineModal = ({
   const isStrip = form.packType === 'Strip';
   const isBox = form.packType === 'Box';
 
-  useEffect(() => {
-    if (visible) {
-      loadDropdownOptions();
-    }
-  }, [visible]);
-
-  const loadDropdownOptions = async () => {
-    await Promise.all([loadHsnOptions(), loadGstOptions(), loadSupplierOptions()]);
-  };
-
   const loadHsnOptions = useCallback(async () => {
     setHsnLoading(true);
     try {
@@ -223,6 +213,16 @@ export const QuickAddMedicineModal = ({
       setSupplierLoading(false);
     }
   }, []);
+
+  const loadDropdownOptions = useCallback(async () => {
+    await Promise.all([loadHsnOptions(), loadGstOptions(), loadSupplierOptions()]);
+  }, [loadHsnOptions, loadGstOptions, loadSupplierOptions]);
+
+  useEffect(() => {
+    if (visible) {
+      loadDropdownOptions();
+    }
+  }, [visible, loadDropdownOptions]);
 
   const handleSubmit = () => {
     const newErrors: Record<string, string> = {};

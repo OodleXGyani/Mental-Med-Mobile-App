@@ -88,7 +88,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         useNativeDriver: true,
       }),
     ]).start(() => onFinish());
-  }, []);
+  }, [
+    containerOpacity,
+    onFinish,
+    rackOpacity,
+    rackTranslateX,
+    rxOpacity,
+    rxScale,
+    taglineOpacity,
+  ]);
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
@@ -98,7 +106,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
       <View style={styles.logoRow}>
         {/* RACK SIDE (Cropped Left Half) */}
         {/* Container is fixed in place, clipping anything outside it */}
-        <View style={[styles.cropContainer, { width: CROP_X }]}>
+        <View style={[styles.cropContainer, styles.rackCropContainer]}>
           {/* Image translates *inside* the container, sliding into view from the right edge */}
           <Animated.Image
             source={require('../../../assets/images/Medslogo.png')}
@@ -117,18 +125,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         <Animated.View
           style={[
             styles.cropContainer,
+            styles.rxCropContainer,
             {
-              width: RX_WIDTH,
               opacity: rxOpacity,
               transform: [{ scale: rxScale }],
-              zIndex: 2,
             },
           ]}
         >
           {/* Shift image left so we only see the right half inside this container */}
           <Image
             source={require('../../../assets/images/Medslogo.png')}
-            style={[styles.fullImage, { left: -CROP_X }]}
+            style={[styles.fullImage, styles.rxImage]}
             resizeMode="contain"
           />
         </Animated.View>
@@ -159,6 +166,16 @@ const styles = StyleSheet.create({
     height: LOGO_HEIGHT,
     overflow: 'hidden',
     justifyContent: 'center',
+  },
+  rackCropContainer: {
+    width: CROP_X,
+  },
+  rxCropContainer: {
+    width: RX_WIDTH,
+    zIndex: 2,
+  },
+  rxImage: {
+    left: -CROP_X,
   },
   fullImage: {
     width: LOGO_WIDTH,

@@ -70,7 +70,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
 
   useFocusEffect(
     useCallback(() => {
-      void loadDetails();
+      loadDetails();
     }, [loadDetails]),
   );
 
@@ -139,7 +139,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
             {route.params.customerCode}
           </Text>
         </View>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -186,7 +186,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                 styles.retryButton,
                 { backgroundColor: theme.colors.primary },
               ]}
-              onPress={() => void loadDetails()}
+              onPress={() => loadDetails()}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
@@ -358,7 +358,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                 ]}
                 onPress={() => {
                   setShowHistoryModal(true);
-                  void loadInvoices();
+                  loadInvoices();
                 }}
               >
                 <Text style={styles.historyButtonText}>
@@ -419,12 +419,12 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                   styles.invoicesList,
                   { paddingBottom: Math.max(insets.bottom, 16) },
                 ]}
-                ListEmptyComponent={() => (
+                ListEmptyComponent={
                   <View
                     style={[
                       styles.stateBox,
+                      styles.emptyStateBox,
                       {
-                        paddingVertical: 24,
                         backgroundColor: theme.colors.card,
                         borderColor: theme.colors.border,
                       },
@@ -439,7 +439,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
                       {invoicesError || 'This customer has no invoices.'}
                     </Text>
                   </View>
-                )}
+                }
                 renderItem={({ item }) => (
                   <View
                     style={[
@@ -727,4 +727,6 @@ const styles = StyleSheet.create({
   invoiceAmount: { fontSize: 16, fontWeight: '800', color: '#1CA39A' },
   invoiceItems: { borderTopWidth: 1, borderTopColor: '#F1EFEF', paddingTop: 8 },
   invoiceItemText: { color: '#7B6D63', fontSize: 13, marginBottom: 6 },
+  headerSpacer: { width: 24 },
+  emptyStateBox: { paddingVertical: 24 },
 });

@@ -90,7 +90,6 @@ export const POSPaymentModal = ({
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null);
 
   const [managerOptions, setManagerOptions] = useState<DropdownOption[]>([]);
-  const [isLoadingManagers, setIsLoadingManagers] = useState(false);
 
   // Cash Amount Input State (defaults to rounded total)
   const [cashTendered, setCashTendered] = useState('');
@@ -187,7 +186,6 @@ export const POSPaymentModal = ({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, cartName, discountType, discountValue, discountPercent, redeemLoyalty, loyaltyPoints]);
 
   const prescriptionCheck = preview?.prescription_check;
@@ -350,7 +348,6 @@ export const POSPaymentModal = ({
     });
   };
 
-  const total = preview?.rounded_total ?? preview?.grand_total ?? 0;
   const netTotal = preview?.net_total ?? 0;
   const discountAmount = preview?.discount_amount ?? 0;
   const taxes = preview?.taxes ?? 0;
@@ -407,15 +404,13 @@ export const POSPaymentModal = ({
                 <View
                   style={[
                     styles.customerTag,
-                    {
-                      backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.colors.border,
-                    },
+                    theme.dark ? styles.customerTagDark : styles.customerTagLight,
+                    { borderColor: theme.colors.border },
                   ]}
                 >
                   <User size={14} color={theme.colors.primary} />
                   <Text style={[styles.customerTagText, { color: theme.colors.text }]}>
-                    Customer: <Text style={{ fontWeight: '700' }}>{selectedCustomer.name}</Text>
+                    Customer: <Text style={styles.bold700}>{selectedCustomer.name}</Text>
                     {selectedCustomer.phone ? ` (${selectedCustomer.phone})` : ''}
                   </Text>
                 </View>
@@ -425,10 +420,8 @@ export const POSPaymentModal = ({
               <View
                 style={[
                   styles.sectionCard,
-                  {
-                    backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
-                    borderColor: theme.colors.border,
-                  },
+                  theme.dark ? styles.sectionCardDark : styles.sectionCardLight,
+                  { borderColor: theme.colors.border },
                 ]}
               >
                 <View style={styles.sectionHeaderRow}>
@@ -442,10 +435,8 @@ export const POSPaymentModal = ({
                 <View
                   style={[
                     styles.itemTableHeader,
-                    {
-                      backgroundColor: theme.dark ? '#1E293B' : '#F1F5F9',
-                      borderBottomColor: theme.colors.border,
-                    },
+                    theme.dark ? styles.itemTableHeaderDark : styles.itemTableHeaderLight,
+                    { borderBottomColor: theme.colors.border },
                   ]}
                 >
                   <Text style={[styles.thText, styles.thMedicine, { color: theme.colors.mutedText }]}>
@@ -477,7 +468,7 @@ export const POSPaymentModal = ({
                       key={`preview-item-${cartItem.id}-${idx}`}
                       style={[
                         styles.itemTableRow,
-                        !isLast && { borderBottomColor: theme.colors.border, borderBottomWidth: 1 },
+                        !isLast && [styles.itemTableRowBorder, { borderBottomColor: theme.colors.border }],
                       ]}
                     >
                       <View style={styles.thMedicine}>
@@ -503,7 +494,7 @@ export const POSPaymentModal = ({
                         {formatAmount(itemRate)}
                       </Text>
 
-                      <View style={[styles.thDisc, { alignItems: 'center' }]}>
+                      <View style={[styles.thDisc, styles.discAlign]}>
                         {hasItemDiscount ? (
                           <View style={styles.discBadge}>
                             <Text style={styles.discBadgeText}>
@@ -521,7 +512,8 @@ export const POSPaymentModal = ({
                         style={[
                           styles.itemValue,
                           styles.thAmount,
-                          { color: theme.colors.text, fontWeight: '700' },
+                          { color: theme.colors.text },
+                          styles.bold700,
                         ]}
                       >
                         {formatAmount(itemLineTotal)}
@@ -535,10 +527,8 @@ export const POSPaymentModal = ({
               <View
                 style={[
                   styles.sectionCard,
-                  {
-                    backgroundColor: theme.dark ? '#0F172A' : '#FAFAFA',
-                    borderColor: theme.colors.border,
-                  },
+                  theme.dark ? styles.sectionCardDark : styles.sectionCardLight,
+                  { borderColor: theme.colors.border },
                 ]}
               >
                 <View style={styles.sectionHeaderRow}>
@@ -575,12 +565,9 @@ export const POSPaymentModal = ({
                         <Text
                           style={[
                             styles.methodText,
-                            {
-                              color:
-                                paymentMethod === method
-                                  ? '#FFFFFF'
-                                  : theme.colors.text,
-                            },
+                            paymentMethod === method
+                              ? styles.methodTextActive
+                              : { color: theme.colors.text },
                           ]}
                         >
                           {method}
@@ -628,7 +615,7 @@ export const POSPaymentModal = ({
                           <Text style={[styles.changeReturnLabel, { color: theme.colors.text }]}>
                             Return to customer
                           </Text>
-                          <Text style={[styles.changeReturnValue, { color: '#059669' }]}>
+                          <Text style={[styles.changeReturnValue, styles.changeReturnValueSuccess]}>
                             {formatAmount(changeToReturn)}
                           </Text>
                         </View>
@@ -665,10 +652,10 @@ export const POSPaymentModal = ({
 
                   {discountAmount > 0 && (
                     <View style={styles.calcRow}>
-                      <Text style={[styles.calcLabel, { color: '#D97706' }]}>
+                      <Text style={[styles.calcLabel, styles.calcLabelDiscount]}>
                         Cart Discount ({discountType})
                       </Text>
-                      <Text style={[styles.calcValue, { color: '#D97706', fontWeight: '700' }]}>
+                      <Text style={[styles.calcValue, styles.calcValueDiscount]}>
                         -{formatAmount(discountAmount)}
                       </Text>
                     </View>
@@ -684,10 +671,10 @@ export const POSPaymentModal = ({
                   </View>
 
                   <View style={styles.calcRow}>
-                    <Text style={[styles.calcLabel, { color: theme.colors.text, fontWeight: '700' }]}>
+                    <Text style={[styles.calcLabel, { color: theme.colors.text }, styles.bold700]}>
                       Grand Total
                     </Text>
-                    <Text style={[styles.calcValue, { color: theme.colors.text, fontWeight: '700' }]}>
+                    <Text style={[styles.calcValue, { color: theme.colors.text }, styles.bold700]}>
                       {formatAmount(grandTotal)}
                     </Text>
                   </View>
@@ -721,11 +708,11 @@ export const POSPaymentModal = ({
                 <View style={[styles.gatePanel, styles.gatePanelAmber]}>
                   <View style={styles.gateHeaderRow}>
                     <AlertTriangle size={16} color="#B45309" />
-                    <Text style={[styles.gateTitle, { color: '#92400E' }]}>
+                    <Text style={[styles.gateTitle, styles.gateTitleAmber]}>
                       Discount Above Role Limit
                     </Text>
                   </View>
-                  <Text style={[styles.gateBody, { color: '#92400E' }]}>
+                  <Text style={[styles.gateBody, styles.gateBodyAmber]}>
                     {`This discount exceeds your role's limit${
                       preview?.role_limit != null ? ` of ${preview.role_limit}%` : ''
                     } -- a manager needs to approve it.`}
@@ -740,21 +727,21 @@ export const POSPaymentModal = ({
                   ) : (
                     <>
                       <Pressable
-                        style={[styles.requestBtn, { borderColor: '#B45309' }]}
+                        style={[styles.requestBtn, styles.requestBtnAmber]}
                         onPress={handleRequestDiscountOverride}
                         disabled={isRequestingDiscountOverride}
                       >
                         {isRequestingDiscountOverride ? (
                           <ActivityIndicator size="small" color="#B45309" />
                         ) : (
-                          <Text style={[styles.requestBtnText, { color: '#B45309' }]}>
+                          <Text style={[styles.requestBtnText, styles.requestBtnTextAmber]}>
                             Request Override
                           </Text>
                         )}
                       </Pressable>
                       <ManagerApprovalFields
                         managerOptions={managerOptions}
-                        isLoadingManagers={isLoadingManagers}
+                        isLoadingManagers={false}
                         managerUser={discountManagerUser}
                         onManagerChange={setDiscountManagerUser}
                         pin={discountManagerPin}
@@ -772,11 +759,11 @@ export const POSPaymentModal = ({
                 <View style={[styles.gatePanel, styles.gatePanelSky]}>
                   <View style={styles.gateHeaderRow}>
                     <FileWarning size={16} color="#0369A1" />
-                    <Text style={[styles.gateTitle, { color: '#0C4A6E' }]}>
+                    <Text style={[styles.gateTitle, styles.gateTitleSky]}>
                       Prescription Required
                     </Text>
                   </View>
-                  <Text style={[styles.gateBody, { color: '#075985' }]}>
+                  <Text style={[styles.gateBody, styles.gateBodySky]}>
                     {`Restricted (Schedule H/H1/X) medicines in this bill: ${(
                       prescriptionCheck?.restricted_items || []
                     ).join(', ')}`}
@@ -797,7 +784,7 @@ export const POSPaymentModal = ({
                     </View>
                   ) : (
                     <>
-                      <Text style={[styles.gateBody, { color: '#075985' }]}>
+                      <Text style={[styles.gateBody, styles.gateBodySky]}>
                         No active prescription found. Request a manager override below.
                       </Text>
                       <SearchableDropdown
@@ -810,14 +797,14 @@ export const POSPaymentModal = ({
                       />
                       {rxApprovalLog ? null : (
                         <Pressable
-                          style={[styles.requestBtn, { borderColor: '#0369A1', marginTop: 8 }]}
+                          style={[styles.requestBtn, styles.requestBtnSky]}
                           onPress={handleRequestRxOverride}
                           disabled={isRequestingRxOverride || !rxOverrideReason}
                         >
                           {isRequestingRxOverride ? (
                             <ActivityIndicator size="small" color="#0369A1" />
                           ) : (
-                            <Text style={[styles.requestBtnText, { color: '#0369A1' }]}>
+                            <Text style={[styles.requestBtnText, styles.requestBtnTextSky]}>
                               Request Override
                             </Text>
                           )}
@@ -826,7 +813,7 @@ export const POSPaymentModal = ({
                       {rxApprovalLog && (
                         <ManagerApprovalFields
                           managerOptions={managerOptions}
-                          isLoadingManagers={isLoadingManagers}
+                          isLoadingManagers={false}
                           managerUser={rxManagerUser}
                           onManagerChange={setRxManagerUser}
                           pin={rxManagerPin}
@@ -863,13 +850,11 @@ export const POSPaymentModal = ({
                     <Text
                       style={[
                         styles.gateTitle,
-                        {
-                          color: marginBlocked
-                            ? '#991B1B'
-                            : marginNeedsOverride
-                              ? '#92400E'
-                              : '#0C4A6E',
-                        },
+                        marginBlocked
+                          ? styles.gateTitleRed
+                          : marginNeedsOverride
+                            ? styles.gateTitleAmber
+                            : styles.gateTitleSky,
                       ]}
                     >
                       {marginBlocked
@@ -882,13 +867,11 @@ export const POSPaymentModal = ({
                   <Text
                     style={[
                       styles.gateBody,
-                      {
-                        color: marginBlocked
-                          ? '#991B1B'
-                          : marginNeedsOverride
-                            ? '#92400E'
-                            : '#075985',
-                      },
+                      marginBlocked
+                        ? styles.gateBodyRed
+                        : marginNeedsOverride
+                          ? styles.gateBodyAmber
+                          : styles.gateBodySky,
                     ]}
                   >
                     {`${marginViolations.map(v => v.item_code).join(', ')} ${
@@ -917,8 +900,8 @@ export const POSPaymentModal = ({
                               borderColor: theme.colors.border,
                               color: theme.colors.text,
                               backgroundColor: theme.colors.background,
-                              marginTop: 8,
                             },
+                            styles.marginTop8,
                           ]}
                           placeholder="Override remarks"
                           value={marginRemarks}
@@ -927,14 +910,14 @@ export const POSPaymentModal = ({
                         />
                         {marginApprovalLog ? null : (
                           <Pressable
-                            style={[styles.requestBtn, { borderColor: '#B45309', marginTop: 8 }]}
+                            style={[styles.requestBtn, styles.requestBtnAmber, styles.marginTop8]}
                             onPress={handleRequestMarginOverride}
                             disabled={isRequestingMarginOverride}
                           >
                             {isRequestingMarginOverride ? (
                               <ActivityIndicator size="small" color="#B45309" />
                             ) : (
-                              <Text style={[styles.requestBtnText, { color: '#B45309' }]}>
+                              <Text style={[styles.requestBtnText, styles.requestBtnTextAmber]}>
                                 Request Override
                               </Text>
                             )}
@@ -943,7 +926,7 @@ export const POSPaymentModal = ({
                         {marginApprovalLog && (
                           <ManagerApprovalFields
                             managerOptions={managerOptions}
-                            isLoadingManagers={isLoadingManagers}
+                            isLoadingManagers={false}
                             managerUser={marginManagerUser}
                             onManagerChange={setMarginManagerUser}
                             pin={marginManagerPin}
@@ -1426,5 +1409,79 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  customerTagDark: {
+    backgroundColor: '#1E293B',
+  },
+  customerTagLight: {
+    backgroundColor: '#F1F5F9',
+  },
+  bold700: {
+    fontWeight: '700',
+  },
+  sectionCardDark: {
+    backgroundColor: '#0F172A',
+  },
+  sectionCardLight: {
+    backgroundColor: '#FAFAFA',
+  },
+  itemTableHeaderDark: {
+    backgroundColor: '#1E293B',
+  },
+  itemTableHeaderLight: {
+    backgroundColor: '#F1F5F9',
+  },
+  itemTableRowBorder: {
+    borderBottomWidth: 1,
+  },
+  discAlign: {
+    alignItems: 'center',
+  },
+  methodTextActive: {
+    color: '#FFFFFF',
+  },
+  changeReturnValueSuccess: {
+    color: '#059669',
+  },
+  calcLabelDiscount: {
+    color: '#D97706',
+  },
+  calcValueDiscount: {
+    color: '#D97706',
+    fontWeight: '700',
+  },
+  gateTitleAmber: {
+    color: '#92400E',
+  },
+  gateBodyAmber: {
+    color: '#92400E',
+  },
+  requestBtnAmber: {
+    borderColor: '#B45309',
+  },
+  requestBtnTextAmber: {
+    color: '#B45309',
+  },
+  gateTitleSky: {
+    color: '#0C4A6E',
+  },
+  gateBodySky: {
+    color: '#075985',
+  },
+  requestBtnSky: {
+    borderColor: '#0369A1',
+    marginTop: 8,
+  },
+  requestBtnTextSky: {
+    color: '#0369A1',
+  },
+  gateTitleRed: {
+    color: '#991B1B',
+  },
+  gateBodyRed: {
+    color: '#991B1B',
+  },
+  marginTop8: {
+    marginTop: 8,
   },
 });

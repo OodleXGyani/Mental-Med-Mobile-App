@@ -454,7 +454,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     checkinStatus,
     employeeId,
     loadAttendance,
-    requestCurrentCoordinates,
     submitting,
   ]);
 

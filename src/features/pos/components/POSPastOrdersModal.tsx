@@ -59,7 +59,7 @@ export const POSPastOrdersModal = ({
       }
     };
 
-    void loadInvoices();
+    loadInvoices();
   }, [visible, selectedCustomer]);
 
   const handleAddItemsFromInvoice = (invoice: CustomerInvoice) => {
@@ -144,7 +144,7 @@ export const POSPastOrdersModal = ({
         ]}
       >
         <View style={styles.pastOrderHeader}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.pastOrderInfo}>
             <Text style={[styles.pastOrderId, { color: theme.colors.text }]}>
               {invoiceId}
             </Text>
@@ -367,6 +367,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+  },
+  pastOrderInfo: {
+    flex: 1,
   },
   pastOrderId: {
     fontSize: 13,

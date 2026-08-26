@@ -58,9 +58,9 @@
     "node": ">= 22.11.0"
   },
   "pnpm": {
-    "allowBuild": {
-      "@firebase/util": true,
-      "protobufjs": true
-    }
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "protobufjs"
+    ]
   }
 }
