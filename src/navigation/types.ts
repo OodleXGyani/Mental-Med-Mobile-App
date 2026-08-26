@@ -14,10 +14,8 @@ export type DashboardStackParamList = {
 };
 
 export type POSStackParamList = {
-  [STACK_ROUTES.POS_HOME]: { selectedMedicine?: Medicine } | undefined;
-  [STACK_ROUTES.POS_MEDICINE_LIST]: {
-    onMedicineSelected?: (medicine: Medicine) => void;
-  } | undefined;
+  [STACK_ROUTES.POS_HOME]: undefined;
+  [STACK_ROUTES.POS_MEDICINE_LIST]: undefined;
 };
 
 export type OrdersStackParamList = {

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   Alert,
+  DeviceEventEmitter,
   Linking,
   Pressable,
   ScrollView,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { ChevronRight, UserPlus, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { STACK_ROUTES, TAB_ROUTES } from '../../../shared/constants/routes';
 import { CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse } from '../types';
@@ -39,7 +40,6 @@ export const POSScreen = () => {
   const theme = useAppTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<POSStackParamList>>();
-  const route = useRoute<RouteProp<POSStackParamList, typeof STACK_ROUTES.POS_HOME>>();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -192,9 +192,7 @@ export const POSScreen = () => {
       return;
     }
 
-    navigation.navigate(STACK_ROUTES.POS_MEDICINE_LIST, {
-      onMedicineSelected: handleSelectMedicineForDetails,
-    });
+    navigation.navigate(STACK_ROUTES.POS_MEDICINE_LIST);
   };
 
   const handleOpenScan = () => {
@@ -272,13 +270,16 @@ export const POSScreen = () => {
     [cartItems],
   );
 
-  // Listen for selected medicine returned from MedicineListScreen
+  // Listen for selected medicine returned from MedicineListScreen via event
   useEffect(() => {
-    if (route.params?.selectedMedicine) {
-      handleSelectMedicineForDetails(route.params.selectedMedicine);
-      navigation.setParams({ selectedMedicine: undefined });
-    }
-  }, [route.params?.selectedMedicine, handleSelectMedicineForDetails, navigation]);
+    const subscription = DeviceEventEmitter.addListener(
+      'POS_MEDICINE_SELECTED',
+      (medicine: Medicine) => {
+        handleSelectMedicineForDetails(medicine);
+      },
+    );
+    return () => subscription.remove();
+  }, [handleSelectMedicineForDetails]);
 
   // In-Cart Edit Item Details
   const handleOpenItemDetails = (item: CartItem) => {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   FlatList,
   Pressable,
   StyleSheet,
@@ -27,7 +28,7 @@ const formatPrice = (price: number | undefined) => {
   return `₹ ${price.toFixed(2)}`;
 };
 
-export const MedicineListScreen = ({ navigation, route }: Props) => {
+export const MedicineListScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -39,33 +40,31 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
   // Load medicines on mount
   useEffect(() => {
     const loadMedicines = async () => {
-      setLoading(true);
-      setError(null);
       try {
+        setLoading(true);
         const data = await posService.fetchMedicines();
         setMedicines(data);
         setFilteredMedicines(data);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load medicines',
-        );
+      } catch (e: unknown) {
+        console.error(e);
+        setError(e instanceof Error ? e.message : 'Failed to load medicines');
       } finally {
         setLoading(false);
       }
     };
 
-    void loadMedicines();
+    loadMedicines();
   }, []);
 
-  // Filter medicines based on search
+  // Search filter
   useEffect(() => {
-    const query = searchText.toLowerCase().trim();
+    const query = searchText.trim().toLowerCase();
     if (!query) {
       setFilteredMedicines(medicines);
       return;
     }
     const filtered = medicines.filter(
-      medicine =>
+      (medicine) =>
         medicine.item_name?.toLowerCase().includes(query) ||
         medicine.item_code?.toLowerCase().includes(query),
     );
@@ -74,12 +73,10 @@ export const MedicineListScreen = ({ navigation, route }: Props) => {
 
   const handleSelectMedicine = useCallback(
     (medicine: Medicine) => {
-      if (route.params?.onMedicineSelected) {
-        route.params.onMedicineSelected(medicine);
-      }
+      DeviceEventEmitter.emit('POS_MEDICINE_SELECTED', medicine);
       navigation.goBack();
     },
-    [navigation, route.params],
+    [navigation],
   );
 
   const renderMedicineItem = useCallback(

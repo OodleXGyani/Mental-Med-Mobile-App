@@ -50,6 +50,7 @@ export const MainTabNavigator = () => {
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.mutedText,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           height: 56 + bottomInset,
           paddingTop: 7,
