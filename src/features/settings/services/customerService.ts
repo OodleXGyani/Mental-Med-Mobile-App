@@ -5,6 +5,7 @@ import {
   CustomerDirectoryResponse,
   CustomerInvoicesResponse,
   CustomerListItem,
+  UpdateCustomerRequest,
 } from '../types';
 import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
@@ -155,6 +156,25 @@ export const customerService = {
 
     return 'Customer created successfully.';
   },
+  updateCustomer: async (payload: UpdateCustomerRequest): Promise<string> => {
+    const response = await fetch(`${CUSTOMER_API_ROOT}.update_customer`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const parsed = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throw new Error(getErrorMessage(parsed, 'Unable to update customer.'));
+    }
+
+    return 'Customer updated successfully.';
+  },
+
   fetchCustomerInvoices: async (
     customerCode: string,
     page = 1,

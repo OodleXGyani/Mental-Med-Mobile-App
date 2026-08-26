@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,12 +13,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Pencil } from 'lucide-react-native';
 import { customerService } from '../services/customerService';
 import { CustomerDetails } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
+import { CustomerFormModal } from '../components/CustomerFormModal';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
@@ -76,6 +78,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
 
   const statusColor = getStatusColor(details?.status);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [invoices, setInvoices] = useState<
     import('../types').CustomerInvoice[]
   >([]);
@@ -139,7 +142,18 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
             {route.params.customerCode}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          onPress={() => setShowEditModal(true)}
+          hitSlop={8}
+          disabled={!details}
+          style={styles.headerSpacer}
+        >
+          <Pencil
+            size={20}
+            color={details ? theme.colors.primary : theme.colors.mutedText}
+            strokeWidth={2.2}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -498,6 +512,19 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
           </View>
         </View>
       </Modal>
+
+      <CustomerFormModal
+        visible={showEditModal}
+        mode="edit"
+        customerId={route.params.customerCode}
+        initialData={details}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={message => {
+          setShowEditModal(false);
+          Alert.alert('Success', message);
+          loadDetails();
+        }}
+      />
     </View>
   );
 };

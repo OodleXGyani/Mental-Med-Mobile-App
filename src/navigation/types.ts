@@ -13,7 +13,7 @@ export type DashboardStackParamList = {
 };
 
 export type POSStackParamList = {
-  [STACK_ROUTES.POS_HOME]: undefined;
+  [STACK_ROUTES.POS_HOME]: { autoOpenScan?: boolean } | undefined;
   [STACK_ROUTES.POS_MEDICINE_LIST]: undefined;
 };
 

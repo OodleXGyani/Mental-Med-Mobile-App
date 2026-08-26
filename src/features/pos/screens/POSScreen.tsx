@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Alert,
   DeviceEventEmitter,
@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { ChevronRight, UserPlus, Users } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { STACK_ROUTES, TAB_ROUTES } from '../../../shared/constants/routes';
-import { CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse } from '../types';
+import { CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse, CheckoutPreviewResponse } from '../types';
 import { posService } from '../services/posService';
 import { customerService } from '../../settings/services/customerService';
 import { useAppTheme } from '../../../shared/theme';
@@ -40,6 +40,8 @@ export const POSScreen = () => {
   const theme = useAppTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<POSStackParamList>>();
+  const route =
+    useRoute<RouteProp<POSStackParamList, typeof STACK_ROUTES.POS_HOME>>();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -73,6 +75,19 @@ export const POSScreen = () => {
   const [completedInvoice, setCompletedInvoice] =
     useState<CreatePosInvoiceResponse | null>(null);
 
+  // Server-computed totals (subtotal/tax/discount/grand total) -- the same
+  // source of truth the web POS uses. Naive client math below only covers
+  // the brief window before the cart has a cart_name / first preview.
+  const [livePreview, setLivePreview] = useState<CheckoutPreviewResponse | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Sent as client_seq on every save so the backend can drop a stale,
+  // out-of-order save instead of letting it overwrite a newer one.
+  const clientSeqRef = useRef(0);
+  // Guards against an in-flight checkout_preview response landing after a
+  // newer one and overwriting fresher totals with a stale result.
+  const previewRequestIdRef = useRef(0);
+
   const loadCustomers = useCallback(async () => {
     try {
       const data = await customerService.fetchCustomers();
@@ -98,11 +113,14 @@ export const POSScreen = () => {
     () => cartItems.reduce((sum, item) => sum + item.qty, 0),
     [cartItems],
   );
-  const subtotal = useMemo(
+  // Naive fallback for the brief window before the cart has a cart_name and
+  // livePreview hasn't loaded yet -- intentionally ignores discount, since
+  // there's no server total yet to reflect it correctly.
+  const naiveSubtotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.price * item.qty, 0),
     [cartItems],
   );
-  const gstAmount = useMemo(
+  const naiveGstAmount = useMemo(
     () =>
       cartItems.reduce(
         (sum, item) => sum + (item.price * item.qty * (item.gst || 0)) / 100,
@@ -110,23 +128,26 @@ export const POSScreen = () => {
       ),
     [cartItems],
   );
-  const discountDeduction = useMemo(() => {
-    const val = Number(discountValue) || 0;
-    if (discountType === 'Percentage') {
-      return (subtotal * val) / 100;
-    }
-    return val;
-  }, [discountType, discountValue, subtotal]);
 
-  const loyaltyDeduction = useMemo(() => {
-    if (!redeemLoyalty || !loyaltyInfo) return 0;
-    return loyaltyInfo.redemption_value || 0;
-  }, [redeemLoyalty, loyaltyInfo]);
-
-  const total = useMemo(
-    () => Math.max(subtotal + gstAmount - discountDeduction - loyaltyDeduction, 0),
-    [subtotal, gstAmount, discountDeduction, loyaltyDeduction],
-  );
+  // `subtotal` is the pre-discount raw sum from checkout_preview -- NOT the
+  // same as ERPNext's `net_total`, which already has any discount (auto or
+  // manual) baked into it by the time it reaches this response.
+  const subtotal = livePreview ? livePreview.subtotal || 0 : naiveSubtotal;
+  const gstAmount = livePreview ? livePreview.taxes || 0 : naiveGstAmount;
+  const discountDeduction = livePreview
+    ? livePreview.discount_amount || 0
+    : (() => {
+        const val = Number(discountValue) || 0;
+        return discountType === 'Percentage' ? (naiveSubtotal * val) / 100 : val;
+      })();
+  const loyaltyDeduction = livePreview
+    ? livePreview.loyalty_redemption_value || 0
+    : redeemLoyalty && loyaltyInfo
+    ? loyaltyInfo.redemption_value || 0
+    : 0;
+  const total = livePreview
+    ? livePreview.rounded_total || livePreview.grand_total || 0
+    : Math.max(naiveSubtotal + naiveGstAmount - discountDeduction - loyaltyDeduction, 0);
 
   const filteredCustomers = useMemo(() => {
     const query = customerSearch.trim().toLowerCase();
@@ -144,13 +165,19 @@ export const POSScreen = () => {
     );
   }, [cartItems]);
 
-  // Debounced auto-save cart to Frappe/ERPNext backend (500ms debounce)
+  // Debounced auto-save cart to Frappe/ERPNext backend (500ms debounce),
+  // chained straight into a checkout_preview refresh -- mirrors the web
+  // POS's usePOSCart.js pattern so the displayed subtotal/tax/total always
+  // reflect what's actually persisted, not a client-side guess.
   useEffect(() => {
-    if (!selectedCustomer || cartItems.length === 0) {
+    if (!selectedCustomer || selectedCustomer.id === 'Walk-in' || cartItems.length === 0) {
+      setLivePreview(null);
       return;
     }
 
-    const saveCurrentCart = async () => {
+    const saveAndPreview = async () => {
+      const saveSeq = ++clientSeqRef.current;
+      let nextCartName = cartName;
       try {
         const itemsToSave = cartItems.map(item => ({
           item_code: item.item_code || item.id,
@@ -167,22 +194,64 @@ export const POSScreen = () => {
           customer: selectedCustomer.id,
           cart_name: cartName || undefined,
           items: itemsToSave,
+          client_seq: saveSeq,
         });
 
-        if (response?.cart_name && !cartName) {
-          setCartName(response.cart_name);
+        // A newer edit already started its own save while this one was in
+        // flight -- that newer save (and its own preview refresh) is the
+        // source of truth now.
+        if (saveSeq !== clientSeqRef.current) return;
+
+        if (response?.cart_name) {
+          nextCartName = response.cart_name;
+          if (!cartName) setCartName(response.cart_name);
         }
       } catch (err) {
         console.warn('Debounced save_cart notice:', err);
+        return;
+      }
+
+      if (!nextCartName) return;
+
+      const previewSeq = ++previewRequestIdRef.current;
+      setIsPreviewLoading(true);
+      try {
+        const preview = await posService.checkoutPreview({
+          cart_name: nextCartName,
+          discount_type: discountType,
+          discount_value: Number(discountValue) || 0,
+          redeem_loyalty: redeemLoyalty ? 1 : 0,
+          loyalty_points: redeemLoyalty ? loyaltyInfo?.loyalty_points || 0 : 0,
+        });
+        if (previewSeq === previewRequestIdRef.current) {
+          setLivePreview(preview);
+        }
+      } catch (err) {
+        console.warn('checkout_preview notice:', err);
+        if (previewSeq === previewRequestIdRef.current) {
+          setLivePreview(null);
+        }
+      } finally {
+        if (previewSeq === previewRequestIdRef.current) {
+          setIsPreviewLoading(false);
+        }
       }
     };
 
     const timer = setTimeout(() => {
-      saveCurrentCart().catch(() => {});
+      saveAndPreview().catch(() => {});
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [cartItems, selectedCustomer, cartName]);
+  }, [
+    cartItems,
+    selectedCustomer,
+    cartName,
+    discountType,
+    discountValue,
+    redeemLoyalty,
+    loyaltyInfo,
+  ]);
 
   // Mandatory Customer Selection Gates
   const handleOpenMedicineSearch = () => {
@@ -204,6 +273,21 @@ export const POSScreen = () => {
 
     setShowScan(true);
   };
+
+  // Dashboard's "Scan" quick action deep-links here with autoOpenScan --
+  // previously it just navigated to the POS tab with no params, landing on
+  // plain POS Billing with the scanner never opening at all. Goes through
+  // the same handleOpenScan gate as the in-screen Scan button (customer
+  // picker first if none selected yet), rather than forcing the camera
+  // open regardless. Clears the param immediately so navigating away and
+  // back doesn't reopen the scanner on its own.
+  useEffect(() => {
+    if (route.params?.autoOpenScan) {
+      handleOpenScan();
+      navigation.setParams({ autoOpenScan: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.autoOpenScan]);
 
   // Pre-Cart Item Details Trigger: Opens Warehouse & Batch Modal FIRST
   const handleSelectMedicineForDetails = useCallback(
@@ -406,6 +490,11 @@ export const POSScreen = () => {
             item_code: item.item_code,
             rate: item.rate,
             warehouse: item.warehouse || '',
+            // Without this, hasMissingBatches's `item.has_batch_no && ...`
+            // check silently passes every resumed item (falsy short-
+            // circuits it), even ones that genuinely need a batch --
+            // get_or_assign_cart already returns this flag per item.
+            has_batch_no: Boolean(item.has_batch_no),
           }));
 
           setCartItems(prev => {
@@ -461,6 +550,7 @@ export const POSScreen = () => {
           customer: selectedCustomer.id,
           cart_name: cartName || undefined,
           items: itemsToSave,
+          client_seq: ++clientSeqRef.current,
         });
         if (saved?.cart_name) {
           setCartName(saved.cart_name);
@@ -499,14 +589,24 @@ export const POSScreen = () => {
         payments: paymentsPayload,
         cart_name: cartName || undefined,
         items: itemsPayload,
+        // The bill-level discount previewed/approved in POSPaymentModal was
+        // never actually sent here -- create_pos_invoice reads these same
+        // two fields (apply_discount()) to apply it to the real invoice, so
+        // without them the approved discount silently didn't make it onto
+        // the invoice that gets billed.
+        discount_type: discountType,
+        discount_value: Number(discountValue) || 0,
         discount_approval_log: context.discountApprovalLog || undefined,
         rx_override_log: context.rxOverrideLog || undefined,
         margin_override_log: context.marginOverrideLog || undefined,
         prescription: context.prescription || undefined,
-        redeem_loyalty_points: redeemLoyalty,
-        loyalty_points_to_redeem: redeemLoyalty
-          ? loyaltyInfo?.loyalty_points
-          : undefined,
+        // create_pos_invoice's apply_loyalty() reads redeem_loyalty /
+        // loyalty_points -- the same field names checkout_preview uses --
+        // not redeem_loyalty_points / loyalty_points_to_redeem, which it
+        // never looks at. Previewed loyalty redemption was being silently
+        // dropped from the actual invoice.
+        redeem_loyalty: redeemLoyalty ? 1 : 0,
+        loyalty_points: redeemLoyalty ? loyaltyInfo?.loyalty_points || 0 : undefined,
       });
 
       setShowPayment(false);
@@ -703,12 +803,14 @@ export const POSScreen = () => {
               onDiscountTypeChange={setDiscountType}
               discountValue={discountValue}
               onDiscountValueChange={setDiscountValue}
+              discountAmount={discountDeduction}
               total={total}
               loyaltyPoints={loyaltyInfo?.loyalty_points}
               loyaltyRedemptionValue={loyaltyInfo?.redemption_value}
               redeemLoyalty={redeemLoyalty}
               onToggleRedeemLoyalty={setRedeemLoyalty}
               canProceed={!hasMissingBatches}
+              isPreviewLoading={isPreviewLoading}
               onPressProceed={handleProceedToPayment}
             />
           ) : null}

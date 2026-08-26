@@ -2,9 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,41 +12,18 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronRight, ChevronLeft, Search, X } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Search } from 'lucide-react-native';
 import { customerService } from '../services/customerService';
-import { CreateCustomerRequest, CustomerListItem } from '../types';
+import { CustomerListItem } from '../types';
 import { STACK_ROUTES } from '../../../shared/constants/routes';
 import { SettingsStackParamList } from '../../../navigation/types';
 import { useAppTheme } from '../../../shared/theme';
+import { CustomerFormModal } from '../components/CustomerFormModal';
 
 type Props = NativeStackScreenProps<
   SettingsStackParamList,
   typeof STACK_ROUTES.CUSTOMERS_HOME
 >;
-
-type AddCustomerFormState = {
-  customer_name: string;
-  contact_person: string;
-  phone: string;
-  email: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-};
-
-type FormErrors = Partial<Record<keyof AddCustomerFormState, string>>;
-
-const initialFormState: AddCustomerFormState = {
-  customer_name: '',
-  contact_person: '',
-  phone: '',
-  email: '',
-  address: '',
-  city: '',
-  state: '',
-  pincode: '',
-};
 
 const formatCurrency = (value: number | null | undefined) => {
   const numberValue = Number(value ?? 0);
@@ -68,10 +42,6 @@ export const CustomersScreen = ({ navigation }: Props) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [searchText, setSearchText] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [formData, setFormData] =
-    useState<AddCustomerFormState>(initialFormState);
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -112,151 +82,11 @@ export const CustomersScreen = ({ navigation }: Props) => {
     });
   }, [customers, searchText]);
 
-  const validateForm = () => {
-    const nextErrors: FormErrors = {};
-    let isValid = true;
-
-    if (!formData.customer_name.trim()) {
-      nextErrors.customer_name = 'Customer name is required';
-      isValid = false;
-    }
-
-    if (!formData.contact_person.trim()) {
-      nextErrors.contact_person = 'Contact person is required';
-      isValid = false;
-    }
-
-    if (!formData.phone.trim()) {
-      nextErrors.phone = 'Phone number is required';
-      isValid = false;
-    } else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
-      nextErrors.phone = 'Phone must be 10 digits';
-      isValid = false;
-    }
-
-    if (!formData.address.trim()) {
-      nextErrors.address = 'Address is required';
-      isValid = false;
-    }
-
-    if (!formData.city.trim()) {
-      nextErrors.city = 'City is required';
-      isValid = false;
-    }
-
-    if (!formData.state.trim()) {
-      nextErrors.state = 'State is required';
-      isValid = false;
-    }
-
-    if (!formData.pincode.trim()) {
-      nextErrors.pincode = 'Pincode is required';
-      isValid = false;
-    } else if (!/^\d{6}$/.test(formData.pincode.replace(/\D/g, ''))) {
-      nextErrors.pincode = 'Pincode must be 6 digits';
-      isValid = false;
-    }
-
-    setErrors(nextErrors);
-    return isValid;
-  };
-
-  const resetForm = () => {
-    setFormData(initialFormState);
-    setErrors({});
-  };
-
-  const handleCloseModal = () => {
-    if (submitting) {
-      return;
-    }
-
+  const handleAddSuccess = (message: string) => {
     setShowAddModal(false);
-    resetForm();
+    Alert.alert('Success', message);
+    void loadCustomers();
   };
-
-  const handleAddCustomer = async () => {
-    if (submitting || !validateForm()) {
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const payload: CreateCustomerRequest = {
-        ...formData,
-        customer_type: 'Company',
-        credit_limit: 500000,
-      };
-
-      const message = await customerService.createCustomer(payload);
-      setShowAddModal(false);
-      resetForm();
-      Alert.alert('Success', message);
-      await loadCustomers();
-    } catch (error) {
-      Alert.alert(
-        'Unable to create customer',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const renderInput = (
-    label: string,
-    field: keyof AddCustomerFormState,
-    placeholder: string,
-    options?: {
-      keyboardType?: React.ComponentProps<typeof TextInput>['keyboardType'];
-      autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-      multiline?: boolean;
-      numberOfLines?: number;
-      maxLength?: number;
-      required?: boolean;
-    },
-  ) => (
-    <View style={styles.formGroup}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>
-        {label}{' '}
-        {options?.required !== false ? (
-          <Text style={styles.required}>*</Text>
-        ) : null}
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.colors.background,
-            borderColor: theme.colors.border,
-            color: theme.colors.text,
-          },
-          options?.multiline && styles.multilineInput,
-          errors[field] && { borderColor: theme.colors.danger },
-        ]}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.mutedText}
-        value={formData[field]}
-        onChangeText={text => {
-          setFormData(prev => ({ ...prev, [field]: text }));
-          if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-          }
-        }}
-        keyboardType={options?.keyboardType}
-        autoCapitalize={options?.autoCapitalize ?? 'sentences'}
-        multiline={options?.multiline}
-        numberOfLines={options?.numberOfLines}
-        maxLength={options?.maxLength}
-      />
-      {errors[field] ? (
-        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
-          {errors[field]}
-        </Text>
-      ) : null}
-    </View>
-  );
 
   return (
     <>
@@ -451,102 +281,12 @@ export const CustomersScreen = ({ navigation }: Props) => {
         )}
       </ScrollView>
 
-      <Modal
+      <CustomerFormModal
         visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={handleCloseModal}
-      >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardAvoid}
-          >
-            <View
-              style={[
-                styles.modalContent,
-                { backgroundColor: theme.colors.card },
-              ]}
-            >
-              <View
-                style={[
-                  styles.modalHeader,
-                  { borderBottomColor: theme.colors.border },
-                ]}
-              >
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                  Add Customer
-                </Text>
-                <Pressable onPress={handleCloseModal}>
-                  <X size={24} color={theme.colors.text} strokeWidth={2.5} />
-                </Pressable>
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {renderInput(
-                  'Customer Name',
-                  'customer_name',
-                  'ABC Pharma Pvt Ltd',
-                )}
-                {renderInput(
-                  'Contact Person',
-                  'contact_person',
-                  'Rahul Sharma',
-                )}
-                {renderInput('Phone', 'phone', '9876543210', {
-                  keyboardType: 'phone-pad',
-                  maxLength: 10,
-                })}
-                {renderInput('Email', 'email', 'rahul@abcpharma.com', {
-                  keyboardType: 'email-address',
-                  autoCapitalize: 'none',
-                  required: false,
-                })}
-                {renderInput(
-                  'Address',
-                  'address',
-                  'Plot 12, Industrial Area Phase 2',
-                  {
-                    multiline: true,
-                    numberOfLines: 3,
-                  },
-                )}
-                {renderInput('City', 'city', 'Delhi')}
-                {renderInput('State', 'state', 'Delhi')}
-                {renderInput('Pincode', 'pincode', '110034', {
-                  keyboardType: 'number-pad',
-                  maxLength: 6,
-                })}
-              </ScrollView>
-
-              <View
-                style={[
-                  styles.modalFooter,
-                  { borderTopColor: theme.colors.border },
-                ]}
-              >
-                <Pressable
-                  style={[
-                    styles.addCustomerButton,
-                    { backgroundColor: theme.colors.primary },
-                    submitting && styles.addCustomerButtonDisabled,
-                  ]}
-                  onPress={handleAddCustomer}
-                  disabled={submitting}
-                >
-                  <Text style={styles.addCustomerButtonText}>
-                    {submitting ? 'Saving...' : 'Add Customer'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+        mode="create"
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleAddSuccess}
+      />
     </>
   );
 };

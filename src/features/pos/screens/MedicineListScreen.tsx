@@ -32,44 +32,42 @@ export const MedicineListScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [filteredMedicines, setFilteredMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Load medicines on mount
+  // Server-side search, debounced -- mirrors the web POS's medicine search
+  // (get_medicine_inventory with a `search` filter), rather than loading one
+  // page once and filtering it client-side, which silently limited results
+  // to whatever page size loaded first instead of searching the full
+  // catalogue.
   useEffect(() => {
-    const loadMedicines = async () => {
-      try {
-        setLoading(true);
-        const data = await posService.fetchMedicines();
-        setMedicines(data);
-        setFilteredMedicines(data);
-      } catch (e: unknown) {
-        console.error(e);
-        setError(e instanceof Error ? e.message : 'Failed to load medicines');
-      } finally {
-        setLoading(false);
-      }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const timer = setTimeout(() => {
+      posService
+        .fetchMedicines(searchText.trim() || undefined)
+        .then(data => {
+          if (!cancelled) setMedicines(data);
+        })
+        .catch((e: unknown) => {
+          if (!cancelled) {
+            console.error(e);
+            setError(e instanceof Error ? e.message : 'Failed to load medicines');
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-
-    loadMedicines();
-  }, []);
-
-  // Search filter
-  useEffect(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) {
-      setFilteredMedicines(medicines);
-      return;
-    }
-    const filtered = medicines.filter(
-      (medicine) =>
-        medicine.item_name?.toLowerCase().includes(query) ||
-        medicine.item_code?.toLowerCase().includes(query),
-    );
-    setFilteredMedicines(filtered);
-  }, [searchText, medicines]);
+  }, [searchText]);
 
   const handleSelectMedicine = useCallback(
     (medicine: Medicine) => {
@@ -206,10 +204,9 @@ export const MedicineListScreen = ({ navigation }: Props) => {
               setError(null);
               setLoading(true);
               posService
-                .fetchMedicines()
+                .fetchMedicines(searchText.trim() || undefined)
                 .then(data => {
                   setMedicines(data);
-                  setFilteredMedicines(data);
                 })
                 .catch(err => {
                   setError(
@@ -280,7 +277,7 @@ export const MedicineListScreen = ({ navigation }: Props) => {
             Loading medicines catalogue...
           </Text>
         </View>
-      ) : filteredMedicines.length === 0 ? (
+      ) : medicines.length === 0 ? (
         <View style={styles.centerContainer}>
           <Text style={[styles.emptyText, { color: theme.colors.mutedText }]}>
             No medicines match your search
@@ -288,7 +285,7 @@ export const MedicineListScreen = ({ navigation }: Props) => {
         </View>
       ) : (
         <FlatList
-          data={filteredMedicines}
+          data={medicines}
           renderItem={renderMedicineItem}
           keyExtractor={(item, index) =>
             `${item.item_code}-${item.batch || ''}-${item.warehouse || ''}-${index}`

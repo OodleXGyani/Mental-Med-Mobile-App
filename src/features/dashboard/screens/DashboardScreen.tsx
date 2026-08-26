@@ -95,7 +95,14 @@ export const DashboardScreen = () => {
   ];
 
   const actions = [
-    { label: 'Scan', Icon: ScanLine, color: '#2CB3A6', tab: TAB_ROUTES.POS },
+    {
+      label: 'Scan',
+      Icon: ScanLine,
+      color: '#2CB3A6',
+      tab: TAB_ROUTES.POS,
+      screen: STACK_ROUTES.POS_HOME,
+      params: { autoOpenScan: true },
+    },
     {
       label: 'New Sale',
       Icon: ShoppingCart,
@@ -105,7 +112,7 @@ export const DashboardScreen = () => {
     {
       label: 'Orders',
       Icon: ClipboardList,
-      color: '#3A8EF5',
+      color: '#845EC2',
       tab: TAB_ROUTES.ORDERS,
     },
     {
@@ -151,7 +158,14 @@ export const DashboardScreen = () => {
         <DashboardStatsGrid stats={stats} />
         <DashboardQuickActions
           actions={actions}
-          onPressAction={(tab: string) => navigation.navigate(tab)}
+          onPressAction={action =>
+            action.screen
+              ? navigation.navigate(action.tab, {
+                  screen: action.screen,
+                  params: action.params,
+                })
+              : navigation.navigate(action.tab)
+          }
         />
         <DashboardRecentSales
           sales={recentSales}

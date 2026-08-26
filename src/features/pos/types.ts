@@ -86,12 +86,19 @@ export type CartItemAPI = {
   batch_no?: string;
   discount_type?: string;
   discount_value?: number;
+  has_batch_no?: boolean;
 };
 
 export type SaveCartPayload = {
   customer: string;
   cart_name?: string;
   items: CartItemInput[];
+  // Monotonically increasing per-device counter. The backend drops a save
+  // whose client_seq is older than what's already persisted for this cart,
+  // so an out-of-order network response (an earlier edit's request arriving
+  // after a later one) can't silently overwrite fresher cart data -- same
+  // guard the web POS uses.
+  client_seq?: number;
 };
 
 export type SaveCartResponse = {
@@ -161,8 +168,6 @@ export type CreatePosInvoicePayload = {
   margin_override_log?: string;
   redeem_loyalty?: number;
   loyalty_points?: number;
-  redeem_loyalty_points?: boolean;
-  loyalty_points_to_redeem?: number;
 };
 
 export type CreatePosInvoiceResponse = {
@@ -207,9 +212,21 @@ export type MarginCheck = {
   blocked: boolean;
 };
 
+export type TaxBreakupRow = {
+  account_head: string;
+  tax_amount: number;
+  rate: number;
+};
+
 export type CheckoutPreviewResponse = {
+  // Pre-discount raw sum -- the correct value for a "Subtotal" display line.
+  // `net_total` below is ERPNext's post-discount, pre-tax figure: any
+  // discount (auto or manual) is already baked into it, so it can't be used
+  // as "the total before discount".
+  subtotal: number;
   net_total: number;
   taxes: number;
+  tax_breakup: TaxBreakupRow[];
   grand_total: number;
   rounded_total: number;
   discount_amount: number;

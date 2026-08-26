@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '../../../shared/theme';
 
-type Action = {
+export type Action = {
   label: string;
   Icon: React.ComponentType<{
     size?: number;
@@ -11,11 +11,18 @@ type Action = {
   }>;
   color: string;
   tab: string;
+  // Optional deep-link into a specific screen (+ params) inside that tab's
+  // stack -- without this, every action that targets the same tab (e.g.
+  // "Scan" and "New Sale" both target POS) is indistinguishable once
+  // navigated, since a bare tab navigate always just lands on that stack's
+  // default screen.
+  screen?: string;
+  params?: Record<string, unknown>;
 };
 
 type Props = {
   actions: Action[];
-  onPressAction: (tab: string) => void;
+  onPressAction: (action: Action) => void;
 };
 
 export const DashboardQuickActions = ({ actions, onPressAction }: Props) => {
@@ -31,7 +38,7 @@ export const DashboardQuickActions = ({ actions, onPressAction }: Props) => {
           <Pressable
             style={styles.actionItem}
             key={action.label}
-            onPress={() => onPressAction(action.tab)}
+            onPress={() => onPressAction(action)}
           >
             <View
               style={[styles.actionIcon, { backgroundColor: action.color }]}

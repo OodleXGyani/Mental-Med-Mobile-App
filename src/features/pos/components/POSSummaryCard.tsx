@@ -11,7 +11,9 @@ type Props = {
   onDiscountTypeChange: (type: 'Percentage' | 'Amount') => void;
   discountValue: string;
   onDiscountValueChange: (value: string) => void;
+  discountAmount?: number;
   total: number;
+  isPreviewLoading?: boolean;
   loyaltyPoints?: number;
   loyaltyRedemptionValue?: number;
   redeemLoyalty?: boolean;
@@ -27,7 +29,9 @@ export const POSSummaryCard = ({
   onDiscountTypeChange,
   discountValue,
   onDiscountValueChange,
+  discountAmount = 0,
   total,
+  isPreviewLoading = false,
   loyaltyPoints = 0,
   loyaltyRedemptionValue = 0,
   redeemLoyalty = false,
@@ -181,6 +185,17 @@ export const POSSummaryCard = ({
         </View>
       </View>
 
+      {discountAmount > 0 ? (
+        <View style={styles.summaryRow}>
+          <Text style={[styles.summaryLabel, { color: theme.colors.mutedText }]}>
+            Discount Applied
+          </Text>
+          <Text style={[styles.summaryValueNeutral, styles.discountValueText]}>
+            -{formatAmount(discountAmount)}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Loyalty Points Redemption Toggle */}
       {loyaltyPoints > 0 && loyaltyRedemptionValue > 0 ? (
         <View style={[styles.loyaltyRow, { borderColor: theme.colors.border }]}>
@@ -213,6 +228,11 @@ export const POSSummaryCard = ({
       >
         <Text style={[styles.totalLabel, { color: theme.colors.text }]}>
           Grand Total
+          {isPreviewLoading ? (
+            <Text style={[styles.updatingLabel, { color: theme.colors.mutedText }]}>
+              {'  updating...'}
+            </Text>
+          ) : null}
         </Text>
         <Text style={[styles.totalValue, { color: theme.colors.primary }]}>
           {formatAmount(total)}
@@ -257,6 +277,16 @@ const styles = StyleSheet.create({
   summaryValueNeutral: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  discountValueText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  updatingLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   discountContainer: {
     borderWidth: 1,

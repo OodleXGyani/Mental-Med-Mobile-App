@@ -27,7 +27,12 @@ import { API_BASE_URL } from '../../../shared/constants/apiConfig';
 
 const CART_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.cart`;
 const APPROVAL_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.approval`;
-const INVENTORY_ITEMS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.inventory.get_inventory_items`;
+// erp_pharmacy.api.inventory.get_inventory_items is the general Inventory
+// admin module's listing endpoint -- POS medicine search uses the same
+// endpoint the web POS does instead (erp_pharmacy.api.user_page.medicine),
+// which is company-scoped, server-side searchable, and returns the real
+// selling rate rather than raw MRP.
+const MEDICINE_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.medicine.medicine`;
 const MANAGER_USERS_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.pharmacy.get_manager_users`;
 const SCAN_BARCODE_URL = `${API_BASE_URL}api/method/erpnext.stock.utils.scan_barcode`;
 const RAZORPAY_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.razorpay.api`;
@@ -152,48 +157,33 @@ export const posService = {
     ),
 
   /**
-   * Fetch medicines from inventory for the medicine list
+   * Fetch medicines for the POS medicine picker -- same endpoint and
+   * request shape as the web POS's medicine search (server-side search,
+   * not a one-shot fetch filtered client-side), so results aren't capped
+   * to whatever page size happened to load first and a search actually
+   * searches the full catalog rather than whatever's already in memory.
    */
-  fetchMedicines: async (search?: string, salt?: string): Promise<Medicine[]> => {
+  fetchMedicines: async (search?: string, page = 1, limit = 20): Promise<Medicine[]> => {
     try {
-      const url = new URL(INVENTORY_ITEMS_URL);
-      if (search) url.searchParams.set('search', search);
-      if (salt) url.searchParams.set('salt', salt);
+      const raw = await postJson<any>(
+        `${MEDICINE_API_ROOT}.get_medicine_inventory`,
+        {
+          filters: search ? { search } : {},
+          page,
+          limit,
+        },
+        'Unable to fetch medicines.',
+      );
 
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = (await parseJsonSafely(response)) as any;
-
-      if (!response.ok) {
-        throw new Error(getErrorMessage(payload, 'Unable to fetch medicines.'));
-      }
-
-      let medicinesData: any[] = [];
-      if (payload?.data && Array.isArray(payload.data)) {
-        medicinesData = payload.data;
-      } else if (
-        payload?.message &&
-        typeof payload.message === 'object' &&
-        payload.message.data &&
-        Array.isArray(payload.message.data)
-      ) {
-        medicinesData = payload.message.data;
-      } else if (Array.isArray(payload)) {
-        medicinesData = payload;
-      }
+      const medicinesData: any[] = Array.isArray(raw) ? raw : raw?.data || [];
 
       return medicinesData.map(item => ({
-        item_code: item.medicine_id || item.item_code || '',
-        item_name: item.name || item.item_name || '',
-        quantity: item.stock_quantity || item.quantity || 0,
-        batch: item.batch_no || item.batch || '',
-        expiry_date: item.expiry_date || '',
-        rate: item.selling_price || item.rate || 0,
-        gst: item.gst || item.gst_rate || 0,
-        warehouse: item.warehouse || '',
+        item_code: item.item_code || '',
+        item_name: item.medicine_name || item.item_name || '',
+        quantity: Number(item.stock ?? item.quantity ?? 0),
+        expiry_date: item.expiry || item.expiry_date || '',
+        rate: Number(item.rate ?? 0),
+        mrp: Number(item.mrp ?? 0),
         has_batch_no: item.has_batch_no ?? true,
       }));
     } catch (error) {

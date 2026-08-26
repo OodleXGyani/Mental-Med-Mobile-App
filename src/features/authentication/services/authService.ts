@@ -76,8 +76,17 @@ const SAAS_LOGIN_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.login`;
 const SAAS_VERIFY_OTP_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.verify_login_otp`;
 const SAAS_RESEND_OTP_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.resend_login_otp`;
 
-// Legacy or fallback endpoints
-const FORGOT_PASSWORD_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.user_auth.forgot_password`;
+// Forgot Password is reachable straight from the Login screen, before any
+// tenant has ever been resolved on this device -- API_BASE_URL is still
+// sitting at its default (SAAS_BASE_URL) for a first-time or freshly
+// installed user, not the tenant site the email address actually belongs
+// to. saas_app.api.tenant.forgot_password (on the control site) is built
+// for exactly this: it looks the person up by email as a Tenant User,
+// resolves their real site, and triggers the reset email from there --
+// calling the tenant's own erp_pharmacy.api.user_auth.forgot_password
+// directly only works by accident, when API_BASE_URL already happens to
+// be pointed at the right tenant from a previous successful login.
+const FORGOT_PASSWORD_URL = `${SAAS_BASE_URL}api/method/saas_app.api.tenant.forgot_password`;
 const UPLOAD_FCM_TOKEN_URL = `${API_BASE_URL}api/method/erp_pharmacy.api.mobile_api.fcm_api.save_fcm_token`;
 
 const AUTH_SESSION_STORAGE_KEY = '@meds/auth-session';
@@ -306,16 +315,20 @@ export const authService = {
     }
 
     const responseBody = await parseJsonSafely<any>(response);
+    // saas_app.api.tenant.* responses use {status: "success"|"error",
+    // message} -- NOT the erp_pharmacy {success: bool, message, error}
+    // shape the old endpoint used. Reading `.success`/`.error` here always
+    // came back undefined against this endpoint's real shape.
+    const data = responseBody?.message;
 
-    if (!response.ok) {
-      throw new Error(responseBody?.message?.message || `Request failed (${response.status})`);
+    if (!response.ok || data?.status !== 'success') {
+      throw new Error(
+        (typeof data?.message === 'string' && data.message) ||
+          `Request failed (${response.status})`,
+      );
     }
 
-    if (!responseBody?.message?.success) {
-      throw new Error(responseBody?.message?.error || 'Failed to send reset link.');
-    }
-
-    return responseBody.message.message ?? 'Reset link sent successfully.';
+    return data.message || 'Reset link sent successfully.';
   },
 
   uploadFCMToken: async (email: string, token: string, deviceType: 'android' | 'ios'): Promise<boolean> => {
