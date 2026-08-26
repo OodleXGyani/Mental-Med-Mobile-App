@@ -36,19 +36,19 @@ export const AboutScreen = () => {
   };
 
   const handleWebsite = () => {
-    Linking.openURL('https://www.meds15.com');
+    Linking.openURL('https://pharmacy.oodleslab.com');
   };
 
   const handleTerms = () => {
-    Linking.openURL('https://www.meds15.com/terms');
+    Linking.openURL('https://pharmacy.oodleslab.com/terms');
   };
 
   const handlePrivacyPolicy = () => {
-    Linking.openURL('https://www.meds15.com/privacy');
+    Linking.openURL('https://pharmacy.oodleslab.com/privacy');
   };
 
   const handleLicense = () => {
-    Linking.openURL('https://www.meds15.com/license');
+    Linking.openURL('https://pharmacy.oodleslab.com/license');
   };
 
   return (
@@ -175,7 +175,7 @@ export const AboutScreen = () => {
               Website
             </Text>
             <Text style={[styles.contactValue, { color: theme.colors.text }]}>
-              www.meds15.com
+              pharmacy.oodleslab.com
             </Text>
           </View>
         </Pressable>
