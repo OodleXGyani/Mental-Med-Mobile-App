@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -97,7 +98,7 @@ export const LoginScreen = ({ navigation }: Props) => {
           <Text style={[styles.subtitle, { color: theme.colors.mutedText }]}>
             {authStep === 'AWAITING_OTP' 
               ? 'Enter the code sent to your devices' 
-              : 'Sign in to your Meds15 Staff account'}
+              : 'Sign in to your RackRx Staff account'}
           </Text>
         </View>
 
@@ -343,10 +344,39 @@ export const LoginScreen = ({ navigation }: Props) => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <AppIcon name="Shield" size={13} color={theme.colors.mutedText} />
-          <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
-            {' '}Secured by Meds15 ERP
-          </Text>
+          <View style={styles.footerRow}>
+            <AppIcon name="Shield" size={13} color={theme.colors.mutedText} />
+            <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
+              {' '}Secured by RackRx ERP
+            </Text>
+          </View>
+          <View style={styles.legalLinksRow}>
+            <Pressable
+              onPress={() => {
+                Linking.openURL('https://pharmacy.oodleslab.com/terms-and-conditions').catch(err => {
+                  console.warn('Unable to open Terms & Conditions:', err);
+                });
+              }}
+              hitSlop={8}
+            >
+              <Text style={[styles.legalLinkText, { color: theme.colors.primary }]}>
+                Terms & Conditions
+              </Text>
+            </Pressable>
+            <Text style={[styles.legalDivider, { color: theme.colors.mutedText }]}>•</Text>
+            <Pressable
+              onPress={() => {
+                Linking.openURL('https://pharmacy.oodleslab.com/privacy-policy').catch(err => {
+                  console.warn('Unable to open Privacy Policy:', err);
+                });
+              }}
+              hitSlop={8}
+            >
+              <Text style={[styles.legalLinkText, { color: theme.colors.primary }]}>
+                Privacy Policy
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -495,14 +525,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    gap: 6,
+  },
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 8,
   },
   footerText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  legalLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  legalDivider: {
+    fontSize: 12,
   },
   inputWrapperLight: {
     backgroundColor: '#F8F9FA',

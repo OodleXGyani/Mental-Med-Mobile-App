@@ -1,29 +1,30 @@
-import { PermissionsAndroid, Platform } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
+import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 export type Coordinates = { latitude: number; longitude: number };
 
-try {
-  Geolocation.setRNConfiguration({
-    skipPermissionRequests: false,
-    authorizationLevel: 'whenInUse',
-    locationProvider: 'auto',
-  });
-} catch {
-  // Ignore configuration errors if native module is not ready
-}
+const { NativeLocationModule } = NativeModules;
 
 const checkAndRequestLocationPermission = async (): Promise<boolean> => {
   if (Platform.OS === 'ios') {
     return new Promise<boolean>(resolve => {
       try {
-        Geolocation.requestAuthorization(
-          () => resolve(true),
-          error => {
-            console.warn('iOS location authorization denied:', error);
-            resolve(false);
-          },
-        );
+        let Geolocation: any = null;
+        try {
+          Geolocation = require('@react-native-community/geolocation').default;
+        } catch {
+          // Ignore
+        }
+        if (Geolocation?.requestAuthorization) {
+          Geolocation.requestAuthorization(
+            () => resolve(true),
+            (error: any) => {
+              console.warn('iOS location authorization denied:', error);
+              resolve(false);
+            },
+          );
+        } else {
+          resolve(true);
+        }
       } catch {
         resolve(true);
       }
@@ -61,10 +62,40 @@ const checkAndRequestLocationPermission = async (): Promise<boolean> => {
   }
 };
 
-const getPositionPromise = (highAccuracy: boolean, timeoutMs: number): Promise<Coordinates> => {
+const getPositionPromise = (
+  highAccuracy: boolean,
+  timeoutMs: number,
+): Promise<Coordinates> => {
+  if (Platform.OS === 'android' && NativeLocationModule) {
+    return NativeLocationModule.getCurrentPosition({
+      enableHighAccuracy: highAccuracy,
+      timeout: timeoutMs,
+    }).then((res: { latitude: number; longitude: number }) => {
+      if (typeof res?.latitude === 'number' && typeof res?.longitude === 'number') {
+        return {
+          latitude: res.latitude,
+          longitude: res.longitude,
+        };
+      }
+      throw new Error('Invalid coordinate data returned.');
+    });
+  }
+
   return new Promise<Coordinates>((resolve, reject) => {
+    let Geolocation: any = null;
+    try {
+      Geolocation = require('@react-native-community/geolocation').default;
+    } catch {
+      // Ignore
+    }
+
+    if (!Geolocation) {
+      reject(new Error('Location service is unavailable on this device.'));
+      return;
+    }
+
     Geolocation.getCurrentPosition(
-      position => {
+      (position: any) => {
         if (position && position.coords) {
           resolve({
             latitude: position.coords.latitude,
@@ -74,7 +105,7 @@ const getPositionPromise = (highAccuracy: boolean, timeoutMs: number): Promise<C
           reject(new Error('No coordinate data returned.'));
         }
       },
-      error => {
+      (error: any) => {
         reject(error);
       },
       {
@@ -146,4 +177,3 @@ export const requestCurrentCoordinates = async (): Promise<Coordinates> => {
     }
   }
 };
-

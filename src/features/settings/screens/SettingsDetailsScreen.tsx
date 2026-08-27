@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getApp } from '@react-native-firebase/app';
 import { getMessaging, getToken } from '@react-native-firebase/messaging';
-import { ChevronLeft, ChevronRight, Lock } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, ExternalLink, Lock } from 'lucide-react-native';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { setThemeMode } from '../store/settingsSlice';
 import { useSettings } from '../hooks/useSettings';
@@ -323,7 +324,7 @@ export const SettingsDetailsScreen = () => {
         <View
           style={[
             styles.securityBox,
-            { backgroundColor: theme.dark ? '#163330' : '#E5F4F3' },
+            theme.dark ? styles.securityBoxDark : styles.securityBoxLight,
           ]}
         >
           <Lock size={24} color={theme.colors.primary} strokeWidth={2} />
@@ -343,23 +344,89 @@ export const SettingsDetailsScreen = () => {
         </View>
       </View>
 
+      {/* Legal & Policies */}
+      <View
+        style={[
+          styles.sectionCard,
+          {
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: theme.colors.text,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+        >
+          Legal & Policies
+        </Text>
+
+        <Pressable
+          style={styles.optionRow}
+          onPress={() => {
+            Linking.openURL('https://pharmacy.oodleslab.com/terms-and-conditions').catch(err => {
+              console.warn('Unable to open Terms & Conditions:', err);
+            });
+          }}
+        >
+          <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+            Terms & Conditions
+          </Text>
+          <ExternalLink
+            size={18}
+            color={theme.colors.mutedText}
+            strokeWidth={2}
+          />
+        </Pressable>
+
+        <View
+          style={[
+            styles.divider,
+            { backgroundColor: theme.colors.border },
+          ]}
+        />
+
+        <Pressable
+          style={styles.optionRow}
+          onPress={() => {
+            Linking.openURL('https://pharmacy.oodleslab.com/privacy-policy').catch(err => {
+              console.warn('Unable to open Privacy Policy:', err);
+            });
+          }}
+        >
+          <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+            Privacy Policy
+          </Text>
+          <ExternalLink
+            size={18}
+            color={theme.colors.mutedText}
+            strokeWidth={2}
+          />
+        </Pressable>
+      </View>
+
       {/* App Info */}
       <View
         style={[
           styles.appInfoBox,
-          { backgroundColor: theme.dark ? '#1C1A18' : '#F4F2EF' },
+          theme.dark ? styles.appInfoBoxDark : styles.appInfoBoxLight,
         ]}
       >
         <Text style={[styles.appVersion, { color: theme.colors.text }]}>
-          Meds15 Pharmacy Management
+          RackRx Pharmacy Management
         </Text>
         <Text
           style={[styles.appVersionNumber, { color: theme.colors.mutedText }]}
         >
-          Version 1.0.0
+          Version 2.0.0
         </Text>
         <Text style={[styles.copyright, { color: theme.colors.mutedText }]}>
-          © 2024 Meds15. All rights reserved.
+          © 2026 RackRx. All rights reserved.
         </Text>
       </View>
     </ScrollView>
@@ -454,10 +521,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#E5F4F3',
     borderRadius: 8,
     marginHorizontal: 16,
     gap: 12,
+  },
+  securityBoxLight: {
+    backgroundColor: '#E5F4F3',
+  },
+  securityBoxDark: {
+    backgroundColor: '#163330',
   },
   securityContent: {
     flex: 1,
@@ -474,13 +546,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   appInfoBox: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E8E3DE',
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 20,
+  },
+  appInfoBoxLight: {
+    backgroundColor: '#F4F2EF',
+  },
+  appInfoBoxDark: {
+    backgroundColor: '#1C1A18',
   },
   appVersion: {
     fontSize: 14,

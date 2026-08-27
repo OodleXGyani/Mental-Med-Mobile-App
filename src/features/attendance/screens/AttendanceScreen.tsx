@@ -15,7 +15,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { X, Calendar, ChevronLeft, ChevronRight, Check, Clock } from 'lucide-react-native';
+import {
+  X,
+  Calendar,
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Clock,
+  AlertCircle,
+  FileText,
+  Sparkles,
+} from 'lucide-react-native';
 import {
   attendanceService,
   type LeaveTypeOption,
@@ -77,6 +88,24 @@ const normalizeLeaveDate = (value: string) => {
 
   const [, day, month, year] = match;
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+const calculateLeaveDays = (
+  fromDateStr: string,
+  toDateStr: string,
+  isHalfDay: boolean,
+): number => {
+  if (!fromDateStr || !toDateStr) return 0;
+  if (isHalfDay) return 0.5;
+
+  const start = new Date(`${fromDateStr}T00:00:00`);
+  const end = new Date(`${toDateStr}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  if (end < start) return 0;
+
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  return Math.max(diffDays, 1);
 };
 
 const formatDisplayDate = (value: string) => {
@@ -240,7 +269,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeOption[]>([]);
   const [leaveTypesLoading, setLeaveTypesLoading] = useState(false);
   const [leaveTypesError, setLeaveTypesError] = useState('');
@@ -429,7 +457,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
 
   const handleOpenLeaveModal = () => {
     setShowLeaveModal(true);
-    setShowDropdown(false);
     setActiveDateField(null);
     loadLeaveTypes();
   };
@@ -488,7 +515,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
         halfDay: false,
       });
       setShowLeaveModal(false);
-      setShowDropdown(false);
       await loadAttendance();
     } catch (error) {
       Alert.alert(
@@ -506,7 +532,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     }
 
     setShowLeaveModal(false);
-    setShowDropdown(false);
     setActiveDateField(null);
     setLeaveTypesError('');
     setLeaveForm({
@@ -516,11 +541,6 @@ export const AttendanceScreen = ({ navigation }: Props) => {
       reason: '',
       halfDay: false,
     });
-  };
-
-  const getLeaveTypeLabel = () => {
-    const selected = leaveTypes.find(t => t.value === leaveForm.leaveType);
-    return selected ? selected.label : 'Leave Type';
   };
 
   const handleOpenDatePicker = (field: LeaveDateField) => {
@@ -979,9 +999,10 @@ export const AttendanceScreen = ({ navigation }: Props) => {
           ) : null}
         </View>
 
+        {/* Modern Apply for Leave Card */}
         <Pressable
           style={[
-            styles.requestLeaveButton,
+            styles.applyLeaveCard,
             {
               backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
@@ -989,12 +1010,29 @@ export const AttendanceScreen = ({ navigation }: Props) => {
           ]}
           onPress={handleOpenLeaveModal}
         >
-          <Text style={[styles.requestLeaveText, { color: theme.colors.text }]}>
-            Request Leave
-          </Text>
+          <View style={styles.applyLeaveCardLeft}>
+            <View
+              style={[
+                styles.applyLeaveIconWrap,
+                theme.dark ? styles.tintPillDark : styles.tintPillLight,
+              ]}
+            >
+              <CalendarPlus size={22} color={theme.colors.primary} strokeWidth={2.2} />
+            </View>
+            <View style={styles.applyLeaveTextWrap}>
+              <Text style={[styles.applyLeaveTitle, { color: theme.colors.text }]}>
+                Apply for Leave
+              </Text>
+              <Text style={[styles.applyLeaveSubtitle, { color: theme.colors.mutedText }]}>
+                Submit and track your leave applications
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={20} color={theme.colors.mutedText} strokeWidth={2} />
         </Pressable>
       </ScrollView>
 
+      {/* Modern Request Leave Modal */}
       <Modal
         visible={showLeaveModal}
         transparent
@@ -1003,216 +1041,404 @@ export const AttendanceScreen = ({ navigation }: Props) => {
       >
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.keyboardAvoid}
           >
             <View
               style={[
-                styles.modalContent,
+                styles.leaveModalContent,
                 { backgroundColor: theme.colors.card },
               ]}
             >
+              {/* Sheet Drag Handle */}
+              <View style={styles.modalHandleBar}>
+                <View
+                  style={[
+                    styles.modalHandle,
+                    { backgroundColor: theme.colors.border },
+                  ]}
+                />
+              </View>
+
+              {/* Modal Header */}
               <View
                 style={[
-                  styles.modalHeader,
+                  styles.leaveModalHeader,
                   { borderBottomColor: theme.colors.border },
                 ]}
               >
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                  Request Leave
-                </Text>
-                <Pressable onPress={handleCloseModal}>
-                  <X size={24} color={theme.colors.text} strokeWidth={2.5} />
+                <View style={styles.leaveModalHeaderLeft}>
+                  <View
+                    style={[
+                      styles.leaveModalBadge,
+                      theme.dark ? styles.tintPillDark : styles.tintPillLight,
+                    ]}
+                  >
+                    <CalendarPlus
+                      size={20}
+                      color={theme.colors.primary}
+                      strokeWidth={2.2}
+                    />
+                  </View>
+                  <View>
+                    <Text
+                      style={[
+                        styles.leaveModalTitle,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      Request Leave
+                    </Text>
+                    <Text
+                      style={[
+                        styles.leaveModalSubtitle,
+                        { color: theme.colors.mutedText },
+                      ]}
+                    >
+                      Fill in details to submit for approval
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={handleCloseModal}
+                  style={[
+                    styles.modalCloseButton,
+                    { backgroundColor: theme.colors.background },
+                  ]}
+                  hitSlop={8}
+                >
+                  <X size={18} color={theme.colors.text} strokeWidth={2.5} />
                 </Pressable>
               </View>
 
               <ScrollView
-                style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
-                keyboardShouldPersistTaps="always"
+                style={styles.leaveModalScrollView}
+                contentContainerStyle={styles.leaveModalScrollContent}
+                keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.colors.text }]}>
-                    Leave Type
+                {/* 1. Select Leave Type */}
+                <View style={styles.leaveSection}>
+                  <View style={styles.sectionLabelRow}>
+                    <Text
+                      style={[
+                        styles.sectionLabel,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      Select Leave Type
+                    </Text>
+                    <Text
+                      style={[
+                        styles.requiredAsterisk,
+                        { color: theme.colors.danger },
+                      ]}
+                    >
+                      *
+                    </Text>
+                  </View>
+
+                  {leaveTypesLoading ? (
+                    <View
+                      style={[
+                        styles.loadingBox,
+                        {
+                          backgroundColor: theme.colors.background,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                    >
+                      <ActivityIndicator
+                        size="small"
+                        color={theme.colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.loadingBoxText,
+                          { color: theme.colors.mutedText },
+                        ]}
+                      >
+                        Loading available leave types...
+                      </Text>
+                    </View>
+                  ) : leaveTypesError ? (
+                    <View
+                      style={[
+                        styles.leaveErrorBox,
+                        { borderColor: theme.colors.danger },
+                      ]}
+                    >
+                      <AlertCircle size={16} color={theme.colors.danger} />
+                      <Text
+                        style={[
+                          styles.leaveErrorText,
+                          { color: theme.colors.danger },
+                        ]}
+                      >
+                        {leaveTypesError}
+                      </Text>
+                      <Pressable onPress={loadLeaveTypes} style={styles.retryBtn}>
+                        <Text
+                          style={[
+                            styles.retryBtnText,
+                            { color: theme.colors.primary },
+                          ]}
+                        >
+                          Retry
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View style={styles.leaveChipsWrap}>
+                      {leaveTypes.map(type => {
+                        const isSelected = leaveForm.leaveType === type.value;
+                        return (
+                          <Pressable
+                            key={type.value}
+                            style={[
+                              styles.leaveChip,
+                              {
+                                backgroundColor: isSelected
+                                  ? theme.colors.primary
+                                  : theme.colors.background,
+                                borderColor: isSelected
+                                  ? theme.colors.primary
+                                  : theme.colors.border,
+                              },
+                            ]}
+                            onPress={() =>
+                              setLeaveForm(prev => ({
+                                ...prev,
+                                leaveType: type.value,
+                              }))
+                            }
+                          >
+                            {isSelected ? (
+                              <Check
+                                size={14}
+                                color="#FFFFFF"
+                                strokeWidth={2.8}
+                              />
+                            ) : (
+                              <FileText
+                                size={13}
+                                color={theme.colors.mutedText}
+                                strokeWidth={2}
+                              />
+                            )}
+                            <Text
+                              style={[
+                                styles.leaveChipText,
+                                isSelected
+                                  ? styles.leaveChipTextSelected
+                                  : [styles.leaveChipTextNormal, { color: theme.colors.text }],
+                              ]}
+                            >
+                              {type.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                {/* 2. Quick Presets Bar */}
+                <View style={styles.quickPresetsRow}>
+                  <Text
+                    style={[
+                      styles.presetsLabel,
+                      { color: theme.colors.mutedText },
+                    ]}
+                  >
+                    Quick select:
                   </Text>
                   <Pressable
                     style={[
-                      styles.dropdownButton,
+                      styles.presetBtn,
                       {
                         backgroundColor: theme.colors.background,
                         borderColor: theme.colors.border,
                       },
                     ]}
                     onPress={() => {
-                      if (!leaveTypesLoading && leaveTypes.length > 0) {
-                        setShowDropdown(!showDropdown);
-                      }
+                      const today = toDateValue(new Date());
+                      setLeaveForm(prev => ({
+                        ...prev,
+                        fromDate: today,
+                        toDate: today,
+                      }));
+                      setActiveDateField(null);
                     }}
                   >
                     <Text
                       style={[
-                        styles.dropdownText,
+                        styles.presetBtnText,
                         { color: theme.colors.text },
                       ]}
                     >
-                      {leaveForm.leaveType
-                        ? getLeaveTypeLabel()
-                        : leaveTypesLoading
-                        ? 'Loading leave types...'
-                        : 'Select leave type'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dropdownArrow,
-                        { color: theme.colors.mutedText },
-                      ]}
-                    >
-                      ∨
+                      Today
                     </Text>
                   </Pressable>
-
-                  {leaveTypesError ? (
-                    <Text
-                      style={[styles.errorText, { color: theme.colors.danger }]}
-                    >
-                      {leaveTypesError}
-                    </Text>
-                  ) : null}
-
-                  {!leaveTypesLoading &&
-                  !leaveTypesError &&
-                  leaveTypes.length === 0 ? (
+                  <Pressable
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      const tmrw = new Date();
+                      tmrw.setDate(tmrw.getDate() + 1);
+                      const tmrwStr = toDateValue(tmrw);
+                      setLeaveForm(prev => ({
+                        ...prev,
+                        fromDate: tmrwStr,
+                        toDate: tmrwStr,
+                      }));
+                      setActiveDateField(null);
+                    }}
+                  >
                     <Text
                       style={[
-                        styles.errorText,
+                        styles.presetBtnText,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      Tomorrow
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      const start = new Date();
+                      const end = new Date();
+                      end.setDate(end.getDate() + 1);
+                      setLeaveForm(prev => ({
+                        ...prev,
+                        fromDate: toDateValue(start),
+                        toDate: toDateValue(end),
+                      }));
+                      setActiveDateField(null);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.presetBtnText,
+                        { color: theme.colors.text },
+                      ]}
+                    >
+                      Next 2 Days
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* 3. Date Selection Cards */}
+                <View style={styles.dateCardsRow}>
+                  <Pressable
+                    style={[
+                      styles.dateCard,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor:
+                          activeDateField === 'fromDate'
+                            ? theme.colors.primary
+                            : theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => handleOpenDatePicker('fromDate')}
+                  >
+                    <Text
+                      style={[
+                        styles.dateCardSub,
                         { color: theme.colors.mutedText },
                       ]}
                     >
-                      No leave types available.
+                      FROM DATE
                     </Text>
-                  ) : null}
-
-                  {showDropdown && leaveTypes.length > 0 && (
-                    <View
-                      style={[
-                        styles.dropdownMenu,
-                        {
-                          backgroundColor: theme.colors.card,
-                          borderColor: theme.colors.border,
-                        },
-                      ]}
-                    >
-                      {leaveTypes.map(type => (
-                        <Pressable
-                          key={type.value}
-                          style={[
-                            styles.dropdownItem,
-                            { borderBottomColor: theme.colors.border },
-                          ]}
-                          onPress={() => {
-                            setLeaveForm({
-                              ...leaveForm,
-                              leaveType: type.value,
-                            });
-                            setShowDropdown(false);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.dropdownItemText,
-                              { color: theme.colors.mutedText },
-                              leaveForm.leaveType === type.value && {
-                                color: theme.colors.primary,
-                              },
-                            ]}
-                          >
-                            {type.label}
-                          </Text>
-                        </Pressable>
-                      ))}
+                    <View style={styles.dateCardValueRow}>
+                      <Calendar
+                        size={16}
+                        color={theme.colors.primary}
+                        strokeWidth={2.2}
+                      />
+                      <Text
+                        style={[
+                          styles.dateCardValue,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        {leaveForm.fromDate
+                          ? formatDisplayDate(leaveForm.fromDate)
+                          : 'Select date'}
+                      </Text>
                     </View>
-                  )}
-                </View>
+                  </Pressable>
 
-                <View style={styles.dateRow}>
-                  <View style={[styles.formGroup, styles.fromGroupWrapper]}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>
-                      From
-                    </Text>
-                    <Pressable
-                      style={[
-                        styles.dateInputWrapper,
-                        {
-                          backgroundColor: theme.colors.background,
-                          borderColor: theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => handleOpenDatePicker('fromDate')}
-                    >
-                      <Text
-                        style={[
-                          styles.dateInput,
-                          {
-                            color: leaveForm.fromDate
-                              ? theme.colors.text
-                              : theme.colors.mutedText,
-                          },
-                        ]}
-                      >
-                        {formatDisplayDate(leaveForm.fromDate) || 'Select date'}
-                      </Text>
-                      <Calendar
-                        size={18}
-                        color={theme.colors.mutedText}
-                        strokeWidth={2}
-                      />
-                    </Pressable>
+                  <View style={styles.dateCardArrow}>
+                    <ChevronRight
+                      size={18}
+                      color={theme.colors.mutedText}
+                      strokeWidth={2.5}
+                    />
                   </View>
 
-                  <View style={[styles.formGroup, styles.toGroupWrapper]}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>
-                      To
-                    </Text>
-                    <Pressable
+                  <Pressable
+                    style={[
+                      styles.dateCard,
+                      {
+                        backgroundColor: theme.colors.background,
+                        borderColor:
+                          activeDateField === 'toDate'
+                            ? theme.colors.primary
+                            : theme.colors.border,
+                      },
+                    ]}
+                    onPress={() => handleOpenDatePicker('toDate')}
+                  >
+                    <Text
                       style={[
-                        styles.dateInputWrapper,
-                        {
-                          backgroundColor: theme.colors.background,
-                          borderColor: theme.colors.border,
-                        },
+                        styles.dateCardSub,
+                        { color: theme.colors.mutedText },
                       ]}
-                      onPress={() => handleOpenDatePicker('toDate')}
                     >
+                      TO DATE
+                    </Text>
+                    <View style={styles.dateCardValueRow}>
+                      <Calendar
+                        size={16}
+                        color={theme.colors.primary}
+                        strokeWidth={2.2}
+                      />
                       <Text
                         style={[
-                          styles.dateInput,
-                          {
-                            color: leaveForm.toDate
-                              ? theme.colors.text
-                              : theme.colors.mutedText,
-                          },
+                          styles.dateCardValue,
+                          { color: theme.colors.text },
                         ]}
                       >
-                        {formatDisplayDate(leaveForm.toDate) || 'Select date'}
+                        {leaveForm.toDate
+                          ? formatDisplayDate(leaveForm.toDate)
+                          : 'Select date'}
                       </Text>
-                      <Calendar
-                        size={18}
-                        color={theme.colors.mutedText}
-                        strokeWidth={2}
-                      />
-                    </Pressable>
-                  </View>
+                    </View>
+                  </Pressable>
                 </View>
 
+                {/* Inline Modern Calendar Picker if Active */}
                 {activeDateField ? (
                   <View
                     style={[
-                      styles.datePickerCard,
-                      styles.inlineDatePickerCard,
+                      styles.leavePickerCard,
                       {
-                        backgroundColor: theme.colors.card,
-                        borderColor: theme.colors.border,
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.primary,
                       },
                     ]}
                   >
@@ -1220,15 +1446,13 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                       <Pressable
                         style={styles.monthButton}
                         onPress={() => handleChangePickerMonth(-1)}
+                        hitSlop={8}
                       >
-                        <Text
-                          style={[
-                            styles.monthButtonText,
-                            { color: theme.colors.text },
-                          ]}
-                        >
-                          ‹
-                        </Text>
+                        <ChevronLeft
+                          size={20}
+                          color={theme.colors.text}
+                          strokeWidth={2.5}
+                        />
                       </Pressable>
                       <Text
                         style={[
@@ -1241,62 +1465,82 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                       <Pressable
                         style={styles.monthButton}
                         onPress={() => handleChangePickerMonth(1)}
+                        hitSlop={8}
                       >
-                        <Text
-                          style={[
-                            styles.monthButtonText,
-                            { color: theme.colors.text },
-                          ]}
-                        >
-                          ›
-                        </Text>
+                        <ChevronRight
+                          size={20}
+                          color={theme.colors.text}
+                          strokeWidth={2.5}
+                        />
                       </Pressable>
                     </View>
 
                     <View style={styles.datePickerWeekRow}>
-                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                        <Text
-                          key={`${day}-${index}`}
-                          style={[
-                            styles.datePickerWeekDay,
-                            { color: theme.colors.mutedText },
-                          ]}
-                        >
-                          {day}
-                        </Text>
-                      ))}
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
+                        (day, idx) => (
+                          <Text
+                            key={day}
+                            style={[
+                              styles.datePickerWeekDay,
+                              idx === 0
+                                ? { color: theme.colors.danger }
+                                : { color: theme.colors.mutedText },
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        ),
+                      )}
                     </View>
 
                     <View style={styles.datePickerGrid}>
                       {getPickerDays(pickerMonth).map((date, index) => {
-                        const value = date ? toDateValue(date) : '';
-                        const isSelected = value === leaveForm[activeDateField];
+                        if (!date) {
+                          return (
+                            <View
+                              key={`empty-picker-${index}`}
+                              style={styles.datePickerDayEmpty}
+                            />
+                          );
+                        }
+                        const value = toDateValue(date);
+                        const isSelected =
+                          value === leaveForm[activeDateField];
+                        const inRange =
+                          leaveForm.fromDate &&
+                          leaveForm.toDate &&
+                          value >= leaveForm.fromDate &&
+                          value <= leaveForm.toDate;
 
                         return (
                           <Pressable
                             key={`${value}-${index}`}
                             style={[
                               styles.datePickerDay,
+                              inRange &&
+                                !isSelected &&
+                                (theme.dark
+                                  ? styles.datePickerDayInRangeDark
+                                  : styles.datePickerDayInRangeLight),
                               isSelected && {
                                 backgroundColor: theme.colors.primary,
                               },
                             ]}
-                            disabled={!date}
-                            onPress={() => {
-                              if (date) {
-                                handleSelectDate(date);
-                              }
-                            }}
+                            onPress={() => handleSelectDate(date)}
                           >
                             <Text
                               style={[
                                 styles.datePickerDayText,
                                 { color: theme.colors.text },
                                 isSelected && styles.datePickerDayTextSelected,
-                                !date && styles.datePickerDayTextHidden,
+                                inRange &&
+                                  !isSelected && [
+                                    styles.datePickerDayTextInRange,
+                                    { color: theme.colors.primary },
+                                  ],
                               ]}
                             >
-                              {date?.getDate() ?? ''}
+                              {date.getDate()}
                             </Text>
                           </Pressable>
                         );
@@ -1305,56 +1549,160 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                   </View>
                 ) : null}
 
+                {/* 4. Half Day Toggle Card */}
                 <Pressable
-                  style={styles.checkboxRow}
+                  style={[
+                    styles.halfDayCard,
+                    {
+                      backgroundColor: theme.colors.background,
+                      borderColor: leaveForm.halfDay
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                    },
+                  ]}
                   onPress={() =>
-                    setLeaveForm(prev => ({ ...prev, halfDay: !prev.halfDay }))
+                    setLeaveForm(prev => ({
+                      ...prev,
+                      halfDay: !prev.halfDay,
+                    }))
                   }
                 >
+                  <View style={styles.halfDayLeft}>
+                    <View
+                      style={[
+                        styles.halfDayIconWrap,
+                        leaveForm.halfDay
+                          ? theme.dark
+                            ? styles.tintPillDark
+                            : styles.tintPillLight
+                          : theme.dark
+                          ? styles.iconWrapDarkInactive
+                          : styles.iconWrapLightInactive,
+                      ]}
+                    >
+                      <Clock
+                        size={18}
+                        color={
+                          leaveForm.halfDay
+                            ? theme.colors.primary
+                            : theme.colors.mutedText
+                        }
+                        strokeWidth={2.2}
+                      />
+                    </View>
+                    <View>
+                      <Text
+                        style={[
+                          styles.halfDayTitle,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        Half Day Leave
+                      </Text>
+                      <Text
+                        style={[
+                          styles.halfDaySub,
+                          { color: theme.colors.mutedText },
+                        ]}
+                      >
+                        Count as 0.5 working day
+                      </Text>
+                    </View>
+                  </View>
+
                   <View
                     style={[
-                      styles.checkbox,
+                      styles.toggleSwitch,
                       {
-                        borderColor: leaveForm.halfDay
+                        backgroundColor: leaveForm.halfDay
                           ? theme.colors.primary
                           : theme.colors.border,
                       },
-                      leaveForm.halfDay && [
-                        styles.checkboxSelected,
-                        { backgroundColor: theme.colors.primary },
-                      ],
                     ]}
                   >
-                    {leaveForm.halfDay ? (
-                      <Check size={14} color="#FFFFFF" strokeWidth={3} />
-                    ) : null}
+                    <View
+                      style={[
+                        styles.toggleKnob,
+                        leaveForm.halfDay && styles.toggleKnobActive,
+                      ]}
+                    />
                   </View>
-                  <Text
-                    style={[styles.checkboxLabel, { color: theme.colors.text }]}
-                  >
-                    Half Day Leave
-                  </Text>
                 </Pressable>
 
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.colors.text }]}>
-                    Reason for leave
+                {/* 5. Live Leave Summary Banner */}
+                {leaveForm.fromDate && leaveForm.toDate ? (
+                  <View
+                    style={[
+                      styles.leaveSummaryBanner,
+                      theme.dark ? styles.tintPillDark : styles.tintPillLight,
+                      { borderColor: theme.colors.primary },
+                    ]}
+                  >
+                    <Sparkles
+                      size={18}
+                      color={theme.colors.primary}
+                      strokeWidth={2.2}
+                    />
+                    <View style={styles.summaryBannerTextCol}>
+                      <Text
+                        style={[
+                          styles.summaryBannerTitle,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        Total Duration:{' '}
+                        {calculateLeaveDays(
+                          leaveForm.fromDate,
+                          leaveForm.toDate,
+                          leaveForm.halfDay,
+                        )}{' '}
+                        {calculateLeaveDays(
+                          leaveForm.fromDate,
+                          leaveForm.toDate,
+                          leaveForm.halfDay,
+                        ) === 1
+                          ? 'Day'
+                          : 'Days'}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.summaryBannerSub,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        {formatDisplayDate(leaveForm.fromDate)}{' '}
+                        {leaveForm.fromDate !== leaveForm.toDate
+                          ? `→ ${formatDisplayDate(leaveForm.toDate)}`
+                          : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* 6. Reason Field */}
+                <View style={styles.leaveSection}>
+                  <Text
+                    style={[
+                      styles.sectionLabel,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    Reason for Leave (Optional)
                   </Text>
                   <TextInput
                     style={[
-                      styles.textArea,
-                      styles.input,
+                      styles.reasonInput,
                       {
                         backgroundColor: theme.colors.background,
                         borderColor: theme.colors.border,
                         color: theme.colors.text,
                       },
                     ]}
-                    placeholder="Enter reason (optional)"
+                    placeholder="Enter reason (e.g. Medical appointment, personal)..."
                     placeholderTextColor={theme.colors.mutedText}
                     value={leaveForm.reason}
                     onChangeText={text =>
-                      setLeaveForm({ ...leaveForm, reason: text })
+                      setLeaveForm(prev => ({ ...prev, reason: text }))
                     }
                     multiline
                     numberOfLines={3}
@@ -1363,25 +1711,55 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                 </View>
               </ScrollView>
 
+              {/* Bottom Action Footer */}
               <View
                 style={[
-                  styles.modalFooter,
+                  styles.leaveModalFooter,
                   { borderTopColor: theme.colors.border },
                 ]}
               >
                 <Pressable
                   style={[
-                    styles.submitButton,
+                    styles.cancelButton,
+                    { borderColor: theme.colors.border },
+                  ]}
+                  onPress={handleCloseModal}
+                  disabled={leaveSubmitting}
+                >
+                  <Text
+                    style={[
+                      styles.cancelButtonText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.submitLeaveButton,
                     { backgroundColor: theme.colors.primary },
-                    (leaveSubmitting || leaveTypesLoading) && styles.buttonDisabledOpacity,
+                    (!leaveForm.leaveType ||
+                      !leaveForm.fromDate ||
+                      !leaveForm.toDate ||
+                      leaveSubmitting) &&
+                      styles.buttonDisabledOpacity,
                   ]}
                   onPress={handleSubmitLeave}
-                  disabled={leaveSubmitting || leaveTypesLoading}
+                  disabled={
+                    !leaveForm.leaveType ||
+                    !leaveForm.fromDate ||
+                    !leaveForm.toDate ||
+                    leaveSubmitting
+                  }
                 >
                   {leaveSubmitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Submit Request</Text>
+                    <Text style={styles.submitLeaveButtonText}>
+                      Submit Request
+                    </Text>
                   )}
                 </Pressable>
               </View>
@@ -1728,205 +2106,244 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: '600',
   },
-  requestLeaveButton: {
-    marginTop: 12,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E3DE',
+  // Leave Entry Card & Modal Styles
+  applyLeaveCard: {
+    marginTop: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
+    padding: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  requestLeaveText: {
-    color: '#5A514D',
+  applyLeaveCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  applyLeaveIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyLeaveTextWrap: {
+    flex: 1,
+  },
+  applyLeaveTitle: {
+    fontSize: 15,
     fontWeight: '700',
   },
-  // Modal Styles
+  applyLeaveSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   keyboardAvoid: {
     flex: 1,
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  leaveModalContent: {
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     maxHeight: '90%',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modalHandleBar: {
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+  },
+  leaveModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E3DE',
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2A2A2A',
-  },
-  modalBody: {
-    flexGrow: 0,
-  },
-  modalBodyContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2A2A2A',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F5F5F6',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#2A2A2A',
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 12,
-  },
-  dropdownButton: {
-    backgroundColor: '#F5F5F6',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+  leaveModalHeaderLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  dropdownText: {
-    color: '#2A2A2A',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dropdownArrow: {
-    color: '#B59D90',
-    fontSize: 14,
-  },
-  dropdownMenu: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
-    marginTop: -10,
-    marginBottom: 10,
-    overflow: 'hidden',
-    zIndex: 100,
-  },
-  dropdownItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E3DE',
-  },
-  dropdownItemText: {
-    color: '#5A514D',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateInputWrapper: {
-    backgroundColor: '#F5F5F6',
-    borderWidth: 1,
-    borderColor: '#E8E3DE',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateInput: {
+    gap: 12,
     flex: 1,
-    fontSize: 14,
-    color: '#2A2A2A',
-    fontWeight: '500',
   },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
+  leaveModalBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
-  checkboxLabel: {
+  leaveModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  leaveModalSubtitle: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leaveModalScrollView: {
+    maxHeight: 480,
+  },
+  leaveModalScrollContent: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 16,
+  },
+  leaveSection: {
+    gap: 8,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sectionLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  requiredAsterisk: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  loadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  loadingBoxText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  leaveErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  leaveErrorText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  retryBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  leaveChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  leaveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  leaveChipText: {
+    fontSize: 13,
+  },
+  quickPresetsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  presetsLabel: {
+    fontSize: 12,
     fontWeight: '600',
   },
-  modalFooter: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E3DE',
-  },
-  submitButton: {
-    backgroundColor: '#1CA39A',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  datePickerCard: {
-    width: '100%',
-    borderRadius: 16,
+  presetBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
-    padding: 14,
   },
-  inlineDatePickerCard: {
-    maxWidth: '100%',
-    marginBottom: 16,
+  presetBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateCardsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  dateCardSub: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  dateCardValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  dateCardValue: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  dateCardArrow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leavePickerCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 14,
+    marginTop: 4,
   },
   datePickerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   monthButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthButtonText: {
-    fontSize: 30,
-    fontWeight: '700',
-  },
   datePickerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
   },
   datePickerWeekRow: {
     flexDirection: 'row',
@@ -1935,38 +2352,16 @@ const styles = StyleSheet.create({
   datePickerWeekDay: {
     width: '14.285%',
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   datePickerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  headerSpacer: {
-    width: 24,
-  },
-  loadingIndicator: {
-    marginBottom: 12,
-  },
-  fromGroupWrapper: {
-    flex: 1,
-    marginRight: 8,
-  },
-  toGroupWrapper: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  datePickerDayTextSelected: {
-    color: '#FFFFFF',
-  },
-  datePickerDayTextHidden: {
-    color: 'transparent',
-  },
-  checkboxSelected: {
-    backgroundColor: '#1CA39A',
-  },
-  buttonDisabledOpacity: {
-    opacity: 0.7,
+  datePickerDayEmpty: {
+    width: '14.285%',
+    aspectRatio: 1,
   },
   datePickerDay: {
     width: '14.285%',
@@ -1976,7 +2371,151 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   datePickerDayText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  datePickerDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  halfDayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  halfDayLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  halfDayIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  halfDayTitle: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  halfDaySub: {
+    fontSize: 11.5,
+    marginTop: 1,
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  leaveSummaryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  summaryBannerTextCol: {
+    flex: 1,
+  },
+  summaryBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  summaryBannerSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  reasonInput: {
+    minHeight: 80,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13.5,
+  },
+  leaveModalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  submitLeaveButton: {
+    flex: 2,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitLeaveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  buttonDisabledOpacity: {
+    opacity: 0.6,
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  loadingIndicator: {
+    marginBottom: 12,
+  },
+  tintPillLight: {
+    backgroundColor: '#E6F4F2',
+  },
+  tintPillDark: {
+    backgroundColor: '#163330',
+  },
+  iconWrapLightInactive: {
+    backgroundColor: '#F0EFEB',
+  },
+  iconWrapDarkInactive: {
+    backgroundColor: '#2A2A2A',
+  },
+  leaveChipTextNormal: {
+    fontWeight: '600',
+  },
+  leaveChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  datePickerDayInRangeLight: {
+    backgroundColor: '#E6F4F2',
+  },
+  datePickerDayInRangeDark: {
+    backgroundColor: '#163330',
+  },
+  datePickerDayTextInRange: {
     fontWeight: '700',
   },
 });

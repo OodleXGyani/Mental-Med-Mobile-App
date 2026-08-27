@@ -40,11 +40,11 @@ export const AboutScreen = () => {
   };
 
   const handleTerms = () => {
-    Linking.openURL('https://pharmacy.oodleslab.com/terms');
+    Linking.openURL('https://pharmacy.oodleslab.com/terms-and-conditions');
   };
 
   const handlePrivacyPolicy = () => {
-    Linking.openURL('https://pharmacy.oodleslab.com/privacy');
+    Linking.openURL('https://pharmacy.oodleslab.com/privacy-policy');
   };
 
   const handleLicense = () => {
@@ -85,13 +85,13 @@ export const AboutScreen = () => {
           resizeMode="contain"
         />
         <Text style={[styles.appName, { color: theme.colors.text }]}>
-          Meds15
+          RackRx
         </Text>
         <Text style={[styles.appTagline, { color: theme.colors.mutedText }]}>
           Pharmacy Management System
         </Text>
         <Text style={[styles.appVersion, { color: theme.colors.mutedText }]}>
-          Version 1.0.0
+          Version 2.0.0
         </Text>
       </View>
 
@@ -108,7 +108,7 @@ export const AboutScreen = () => {
         <Text
           style={[styles.descriptionText, { color: theme.colors.mutedText }]}
         >
-          Meds15 is a comprehensive pharmacy management solution designed to
+          RackRx is a comprehensive pharmacy management solution designed to
           streamline operations for Indian pharmacies. From POS billing and
           inventory management to order tracking and fulfillment, staff
           coordination — all in one platform.
@@ -261,10 +261,10 @@ export const AboutScreen = () => {
       {/* Footer */}
       <View style={styles.footerCard}>
         <Text style={[styles.footerText, { color: theme.colors.mutedText }]}>
-          © 2024 Meds15. All rights reserved.
+          © 2026 RackRx. All rights reserved.
         </Text>
         <Text style={[styles.footerSubtext, { color: theme.colors.mutedText }]}>
-          Made with ❤️ for Indian Pharmacies
+          Made with ❤️ for Modern Pharmacies
         </Text>
       </View>
     </ScrollView>
