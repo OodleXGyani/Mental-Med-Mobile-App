@@ -82,7 +82,7 @@ export const CustomersScreen = ({ navigation }: Props) => {
     });
   }, [customers, searchText]);
 
-  const handleAddSuccess = (message: string) => {
+  const handleAddSuccess = ({ message }: { message: string }) => {
     setShowAddModal(false);
     Alert.alert('Success', message);
     void loadCustomers();

@@ -29,6 +29,7 @@ import { POSPaymentModal, CompletedSaleContext } from '../components/POSPaymentM
 import { POSInvoiceModal } from '../components/POSInvoiceModal';
 import { POSOnlinePaymentModal } from '../components/POSOnlinePaymentModal';
 import { POSCustomerPickerModal } from '../components/POSCustomerPickerModal';
+import { CustomerFormModal } from '../../settings/components/CustomerFormModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
 import { POSItemDetailsModal } from '../components/POSItemDetailsModal';
 import { POSStackParamList } from '../../../navigation/types';
@@ -52,7 +53,7 @@ export const POSScreen = () => {
   const [showInvoice, setShowInvoice] = useState(false);
   const [showOnlinePayment, setShowOnlinePayment] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
-  const [customerModalTab, setCustomerModalTab] = useState<'search' | 'add'>('search');
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [showPastOrders, setShowPastOrders] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
 
@@ -256,7 +257,6 @@ export const POSScreen = () => {
   // Mandatory Customer Selection Gates
   const handleOpenMedicineSearch = () => {
     if (!selectedCustomer) {
-      setCustomerModalTab('search');
       setShowCustomerPicker(true);
       return;
     }
@@ -266,7 +266,6 @@ export const POSScreen = () => {
 
   const handleOpenScan = () => {
     if (!selectedCustomer) {
-      setCustomerModalTab('search');
       setShowCustomerPicker(true);
       return;
     }
@@ -449,6 +448,7 @@ export const POSScreen = () => {
 
   const handleSelectCustomer = useCallback(async (customer: Customer) => {
     setShowCustomerPicker(false);
+    setShowAddCustomerModal(false);
 
     // 1. Fetch Loyalty Info
     let customerWithLoyalty = { ...customer };
@@ -770,7 +770,6 @@ export const POSScreen = () => {
           <POSCustomerSection
             selectedCustomer={selectedCustomer}
             onPressAddCustomer={() => {
-              setCustomerModalTab('search');
               setShowCustomerPicker(true);
             }}
             onPressViewOrders={() => setShowPastOrders(true)}
@@ -837,7 +836,6 @@ export const POSScreen = () => {
               },
             ]}
             onPress={() => {
-              setCustomerModalTab('search');
               setShowCustomerPicker(true);
             }}
           >
@@ -877,8 +875,7 @@ export const POSScreen = () => {
               },
             ]}
             onPress={() => {
-              setCustomerModalTab('add');
-              setShowCustomerPicker(true);
+              setShowAddCustomerModal(true);
             }}
           >
             <View
@@ -966,7 +963,6 @@ export const POSScreen = () => {
       />
       <POSCustomerPickerModal
         visible={showCustomerPicker}
-        initialTab={customerModalTab}
         searchValue={customerSearch}
         onSearchChange={setCustomerSearch}
         customers={filteredCustomers}
@@ -975,7 +971,41 @@ export const POSScreen = () => {
           setSelectedCustomer(customer);
           setShowPastOrders(true);
         }}
+        onPressAddNewCustomer={() => {
+          setShowCustomerPicker(false);
+          setShowAddCustomerModal(true);
+        }}
         onClose={() => setShowCustomerPicker(false)}
+      />
+      <CustomerFormModal
+        visible={showAddCustomerModal}
+        mode="create"
+        onClose={() => setShowAddCustomerModal(false)}
+        onSuccess={result => {
+          setShowAddCustomerModal(false);
+          handleSelectCustomer({
+            id: result.customerName,
+            name: result.customerName,
+            phone: result.phone,
+            loyalty_points: 0,
+            loyalty_redemption_value: 0,
+          }).catch(error => {
+            console.error('Failed to select newly created customer:', error);
+          });
+          customerService.fetchCustomers().then(data => {
+            setCustomerList(
+              data.map(c => ({
+                id: c.customer_code || '',
+                name: c.customer_name || '',
+                phone: c.contact?.mobile || '',
+                loyalty_points: 0,
+                loyalty_redemption_value: 0,
+              })),
+            );
+          }).catch(error => {
+            console.error('Failed to reload customer list:', error);
+          });
+        }}
       />
       <POSPastOrdersModal
         visible={showPastOrders}

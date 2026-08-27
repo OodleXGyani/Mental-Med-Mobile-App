@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Linking,
   Modal,
   Pressable,
@@ -11,7 +12,11 @@ import {
   View,
 } from 'react-native';
 import { Barcode, Search, X } from 'lucide-react-native';
-import CameraKit, { Camera, CameraType } from 'react-native-camera-kit';
+import { Camera, CameraType } from 'react-native-camera-kit';
+import {
+  checkCameraPermission,
+  requestCameraPermission,
+} from '../../../shared/utils/cameraPermissions';
 import { useAppTheme } from '../../../shared/theme';
 import { posService } from '../services/posService';
 import { Medicine } from '../types';
@@ -24,15 +29,6 @@ type Props = {
 
 type PermissionState = 'unknown' | 'granted' | 'denied';
 
-// Previously this modal had no camera integration at all -- just a static
-// decorative frame graphic with no <Camera> component, so no camera
-// permission (however correctly granted at the OS level) had anything to
-// attach to. Rebuilt on the same react-native-camera-kit setup already
-// working in the Inventory feature's BarcodeScannerModal, wired to POS's
-// own barcode-lookup endpoint. The manual entry field is kept as a second
-// input path -- a wired/USB HID barcode scanner types into whatever text
-// field has focus, so it still works as a physical-scanner fallback
-// alongside the live camera.
 export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => {
   const theme = useAppTheme();
   const [permission, setPermission] = useState<PermissionState>('unknown');
@@ -41,14 +37,40 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
   const [error, setError] = useState<string | null>(null);
   const scannedRef = useRef(false);
 
-  const checkPermission = useCallback(async () => {
+  const checkPermission = useCallback(async (requestIfMissing = false) => {
     try {
-      const granted = await CameraKit.requestDeviceCameraAuthorization();
-      setPermission(granted ? 'granted' : 'denied');
+      const isGranted = await checkCameraPermission();
+      if (isGranted) {
+        setPermission('granted');
+        return;
+      }
+
+      if (requestIfMissing) {
+        const result = await requestCameraPermission();
+        setPermission(result === 'granted' ? 'granted' : 'denied');
+      } else {
+        setPermission('denied');
+      }
     } catch {
       setPermission('denied');
     }
   }, []);
+
+  const handleRequestPermission = async () => {
+    try {
+      const result = await requestCameraPermission();
+      if (result === 'granted') {
+        setPermission('granted');
+      } else {
+        setPermission('denied');
+        Linking.openSettings().catch(err => {
+          console.warn('Unable to open app settings:', err);
+        });
+      }
+    } catch {
+      setPermission('denied');
+    }
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -56,7 +78,21 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
     setError(null);
     setBarcodeInput('');
     setIsScanning(false);
-    void checkPermission();
+    checkPermission(true).catch(err => {
+      console.warn('Check permission error:', err);
+    });
+  }, [checkPermission, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        checkPermission(false).catch(err => {
+          console.warn('Check permission error:', err);
+        });
+      }
+    });
+    return () => subscription.remove();
   }, [checkPermission, visible]);
 
   const handleLookupBarcode = async (barcodeToSearch?: string) => {
@@ -92,7 +128,6 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
 
   const renderCamera = () => {
     if (permission !== 'granted') {
-      const canRequest = permission === 'unknown';
       return (
         <View style={styles.permissionBox}>
           <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
@@ -101,14 +136,26 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
           <Text style={[styles.permissionText, { color: theme.colors.mutedText }]}>
             Allow camera permission to scan medicine barcodes.
           </Text>
-          <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]}
-            onPress={canRequest ? checkPermission : () => Linking.openSettings()}
-          >
-            <Text style={styles.permissionButtonText}>
-              {canRequest ? 'Allow Camera' : 'Open Settings'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.permissionActions}>
+            <TouchableOpacity
+              style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]}
+              onPress={handleRequestPermission}
+            >
+              <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.permissionButtonSecondary, { borderColor: theme.colors.border }]}
+              onPress={() => {
+                Linking.openSettings().catch(err => {
+                  console.warn('Unable to open settings:', err);
+                });
+              }}
+            >
+              <Text style={[styles.permissionButtonSecondaryText, { color: theme.colors.text }]}>
+                Open Settings
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -122,7 +169,11 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
           showFrame={false}
           onReadCode={(event: { nativeEvent: { codeStringValue: string } }) => {
             const value = event.nativeEvent.codeStringValue;
-            if (value) void handleLookupBarcode(value);
+            if (value) {
+              handleLookupBarcode(value).catch(err => {
+                console.warn('Barcode lookup error:', err);
+              });
+            }
           }}
         />
         <View pointerEvents="none" style={[styles.scanFrame, { borderColor: theme.colors.primary }]} />
@@ -278,15 +329,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 14,
   },
+  permissionActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   permissionButton: {
     borderRadius: 10,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   permissionButtonText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  permissionButtonSecondary: {
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionButtonSecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   scanHint: {
     marginTop: 12,

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Linking,
   Modal,
   Pressable,
@@ -10,7 +11,11 @@ import {
   View,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import CameraKit, { Camera, CameraType } from 'react-native-camera-kit';
+import { Camera, CameraType } from 'react-native-camera-kit';
+import {
+  checkCameraPermission,
+  requestCameraPermission,
+} from '../../../shared/utils/cameraPermissions';
 import { BarcodeScannedItem } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
@@ -34,10 +39,20 @@ export const BarcodeScannerModal = ({
   const [error, setError] = useState('');
   const scannedRef = useRef(false);
 
-  const checkPermission = useCallback(async () => {
+  const checkPermission = useCallback(async (requestIfDenied = false) => {
     try {
-      const granted = await CameraKit.requestDeviceCameraAuthorization();
-      setPermission(granted ? 'granted' : 'denied');
+      const isGranted = await checkCameraPermission();
+      if (isGranted) {
+        setPermission('granted');
+        return;
+      }
+
+      if (requestIfDenied) {
+        const result = await requestCameraPermission();
+        setPermission(result === 'granted' ? 'granted' : 'denied');
+      } else {
+        setPermission('denied');
+      }
     } catch {
       setPermission('denied');
     }
@@ -51,7 +66,21 @@ export const BarcodeScannerModal = ({
     scannedRef.current = false;
     setError('');
     setLoading(false);
-    void checkPermission();
+    checkPermission(true).catch(err => {
+      console.warn('Check permission error:', err);
+    });
+  }, [checkPermission, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        checkPermission(false).catch(err => {
+          console.warn('Check permission error:', err);
+        });
+      }
+    });
+    return () => subscription.remove();
   }, [checkPermission, visible]);
 
   const submitBarcode = useCallback(
@@ -90,25 +119,48 @@ export const BarcodeScannerModal = ({
     onClose();
   };
 
+  const handleRequestPermission = async () => {
+    try {
+      const result = await requestCameraPermission();
+      if (result === 'granted') {
+        setPermission('granted');
+      } else {
+        setPermission('denied');
+        Linking.openSettings().catch(err => {
+          console.warn('Unable to open app settings:', err);
+        });
+      }
+    } catch {
+      setPermission('denied');
+    }
+  };
+
   const renderScannerContent = () => {
     if (permission !== 'granted') {
-      const canRequest = permission === 'unknown';
       return (
         <View style={styles.stateContainer}>
           <Text style={styles.stateTitle}>Camera access needed</Text>
           <Text style={styles.stateText}>
             Allow camera permission to scan medicine barcodes.
           </Text>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={
-              canRequest ? checkPermission : () => Linking.openSettings()
-            }
-          >
-            <Text style={styles.primaryButtonText}>
-              {canRequest ? 'Allow Camera' : 'Open Settings'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.permissionActions}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleRequestPermission}
+            >
+              <Text style={styles.primaryButtonText}>Grant Permission</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                Linking.openSettings().catch(err => {
+                  console.warn('Unable to open settings:', err);
+                });
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Open Settings</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -123,7 +175,9 @@ export const BarcodeScannerModal = ({
           onReadCode={(event: { nativeEvent: { codeStringValue: string } }) => {
             const value = event.nativeEvent.codeStringValue;
             if (value) {
-              void submitBarcode(value);
+              submitBarcode(value).catch(err => {
+                console.warn('Submit barcode error:', err);
+              });
             }
           }}
         />
@@ -302,9 +356,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 18,
   },
+  permissionActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   primaryButton: {
     borderRadius: 10,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#1CA39A',
   },
@@ -312,6 +370,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  secondaryButton: {
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#D4C4B8',
+    backgroundColor: '#FAFAF8',
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2A2A2A',
   },
   errorBanner: {
     position: 'absolute',

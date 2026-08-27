@@ -3,61 +3,147 @@ import Geolocation from '@react-native-community/geolocation';
 
 export type Coordinates = { latitude: number; longitude: number };
 
-/**
- * Requests the device's real current GPS position.
- *
- * This used to check for `globalThis.geolocation` and silently fall back
- * to a hardcoded coordinate (28.6139, 77.209 -- New Delhi) whenever that
- * was missing. Bare React Native has no such global -- no geolocation
- * package was ever installed -- so that check failed 100% of the time,
- * meaning every delivery status update and every attendance check-in was
- * silently recording the same fake location, permanently, regardless of
- * where the device actually was. Both the Android manifest
- * (ACCESS_FINE_LOCATION/ACCESS_COARSE_LOCATION) and iOS Info.plist
- * (NSLocationWhenInUseUsageDescription) already declare the permission,
- * so the native scaffolding was in place -- the JS side just never
- * called a real geolocation API. This throws instead of faking a
- * position on failure: a location-tagged audit trail that's sometimes
- * honestly unavailable is far better than one that's silently wrong.
- */
-export const requestCurrentCoordinates = async (): Promise<Coordinates> => {
-  if (Platform.OS === 'android') {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: 'Location Permission',
-        message: 'We need your location to record this action with real coordinates.',
-        buttonPositive: 'Allow',
-        buttonNegative: 'Cancel',
-      },
-    );
+try {
+  Geolocation.setRNConfiguration({
+    skipPermissionRequests: false,
+    authorizationLevel: 'whenInUse',
+    locationProvider: 'auto',
+  });
+} catch {
+  // Ignore configuration errors if native module is not ready
+}
 
-    if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-      throw new Error('Location permission denied.');
-    }
+const checkAndRequestLocationPermission = async (): Promise<boolean> => {
+  if (Platform.OS === 'ios') {
+    return new Promise<boolean>(resolve => {
+      try {
+        Geolocation.requestAuthorization(
+          () => resolve(true),
+          error => {
+            console.warn('iOS location authorization denied:', error);
+            resolve(false);
+          },
+        );
+      } catch {
+        resolve(true);
+      }
+    });
   }
 
-  return await new Promise<Coordinates>((resolve, reject) => {
+  try {
+    const hasFineLocation = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    );
+    const hasCoarseLocation = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+    );
+
+    if (hasFineLocation || hasCoarseLocation) {
+      return true;
+    }
+
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+    ]);
+
+    const fineGranted =
+      granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] ===
+      PermissionsAndroid.RESULTS.GRANTED;
+    const coarseGranted =
+      granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] ===
+      PermissionsAndroid.RESULTS.GRANTED;
+
+    return fineGranted || coarseGranted;
+  } catch (error) {
+    console.warn('Error checking/requesting location permission:', error);
+    return false;
+  }
+};
+
+const getPositionPromise = (highAccuracy: boolean, timeoutMs: number): Promise<Coordinates> => {
+  return new Promise<Coordinates>((resolve, reject) => {
     Geolocation.getCurrentPosition(
       position => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
+        if (position && position.coords) {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        } else {
+          reject(new Error('No coordinate data returned.'));
+        }
       },
       error => {
-        reject(
-          new Error(
-            error?.message ||
-              'Unable to get your current location. Check that location services are enabled.',
-          ),
-        );
+        reject(error);
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 10000,
+        enableHighAccuracy: highAccuracy,
+        timeout: timeoutMs,
+        maximumAge: highAccuracy ? 10000 : 60000,
       },
     );
   });
 };
+
+/**
+ * Requests the device's current GPS/network location coordinates.
+ *
+ * Implements a two-tiered fallback:
+ * 1. Requests high-accuracy GPS coordinates first.
+ * 2. If GPS times out or fails (e.g. indoors, slow satellite lock), falls back
+ *    to network/cell/Wi-Fi positioning (enableHighAccuracy: false).
+ * 3. Enforces an overall timeout to prevent hanging UI states.
+ */
+export const requestCurrentCoordinates = async (): Promise<Coordinates> => {
+  const hasPermission = await checkAndRequestLocationPermission();
+
+  if (!hasPermission) {
+    throw new Error(
+      'Location permission denied. Please allow location access in your device settings to check in.',
+    );
+  }
+
+  // Fallback safety timeout (15s total)
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<Coordinates>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(
+        new Error(
+          'Location request timed out. Please ensure GPS/Location is enabled in device settings and try again.',
+        ),
+      );
+    }, 15000);
+  });
+
+  const locationFetch = async (): Promise<Coordinates> => {
+    try {
+      // 1. Try high accuracy (GPS) first with 6s timeout
+      return await getPositionPromise(true, 6000);
+    } catch (highAccuracyError) {
+      console.log(
+        'High accuracy GPS attempt failed or timed out, trying low accuracy / network provider...',
+        highAccuracyError,
+      );
+
+      // 2. Fall back to low accuracy (network/Wi-Fi provider) with 6s timeout
+      try {
+        return await getPositionPromise(false, 6000);
+      } catch (lowAccuracyError: any) {
+        const errorMsg =
+          lowAccuracyError?.message ||
+          'Unable to determine device location. Please ensure location services are enabled.';
+        throw new Error(errorMsg);
+      }
+    }
+  };
+
+  try {
+    return await Promise.race([locationFetch(), timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+};
+

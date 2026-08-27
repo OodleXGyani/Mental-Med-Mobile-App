@@ -11,10 +11,11 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { X, Calendar, ChevronLeft } from 'lucide-react-native';
+import { X, Calendar, ChevronLeft, ChevronRight, Check, Clock } from 'lucide-react-native';
 import {
   attendanceService,
   type LeaveTypeOption,
@@ -36,19 +37,28 @@ interface LeaveForm {
   fromDate: string;
   toDate: string;
   reason: string;
+  halfDay: boolean;
 }
 
 type LeaveDateField = 'fromDate' | 'toDate';
 
-const getMonthRange = (date = new Date()) => {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+const toDateValue = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
 
-  const toDateString = (value: Date) => value.toISOString().split('T')[0];
+  return `${year}-${month}-${day}`;
+};
+
+const getMonthRange = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
 
   return {
-    fromDate: toDateString(start),
-    toDate: toDateString(end),
+    fromDate: toDateValue(start),
+    toDate: toDateValue(end),
   };
 };
 
@@ -74,8 +84,22 @@ const formatDisplayDate = (value: string) => {
     return '';
   }
 
-  const parsed = new Date(`${value}T00:00:00`);
+  const parts = value.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const parsed = new Date(year, month, day);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(parsed);
+    }
+  }
 
+  const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
@@ -87,12 +111,18 @@ const formatDisplayDate = (value: string) => {
   }).format(parsed);
 };
 
-const toDateValue = (value: Date) => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+const formatTime = (timeStr: string | null | undefined): string => {
+  if (!timeStr) return '--:--';
+  const parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    const mins = parts[1];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${mins} ${ampm}`;
+  }
+  return timeStr;
 };
 
 const getPickerDays = (monthDate: Date) => {
@@ -117,6 +147,18 @@ const getPickerDays = (monthDate: Date) => {
   return days;
 };
 
+interface CalendarDayItem {
+  date: string | null;
+  dayNumber: number | null;
+  status: string | null;
+  inTime: string | null;
+  outTime: string | null;
+  workingHours: number;
+  isToday: boolean;
+  isFuture: boolean;
+  isWeekend: boolean;
+}
+
 const generateCalendarDays = (
   attendanceData: Array<{
     attendance_date: string;
@@ -125,42 +167,69 @@ const generateCalendarDays = (
     out_time: string | null;
     working_hours: number;
   }>,
-) => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  calendarDate: Date,
+): CalendarDayItem[] => {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
-  const startingDayOfWeek = firstDay.getDay();
+  const startingDayOfWeek = firstDay.getDay(); // 0 is Sunday
 
-  // Create a map for quick lookup of attendance data
+  const todayStr = toDateValue(new Date());
+  const todayDate = new Date();
+  todayDate.setHours(23, 59, 59, 999);
+
+  // Quick lookup map
   const attendanceMap = new Map(
-    attendanceData.map(day => [day.attendance_date, day]),
+    (Array.isArray(attendanceData) ? attendanceData : []).map(day => [
+      day.attendance_date,
+      day,
+    ]),
   );
 
-  const calendarDays: Array<{
-    date: string | null;
-    dayNumber: number | null;
-    status: string | null;
-  }> = [];
+  const calendarDays: CalendarDayItem[] = [];
 
-  // Add empty cells for days before month starts
+  // Add empty filler cells before month starts
   for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push({ date: null, dayNumber: null, status: null });
+    calendarDays.push({
+      date: null,
+      dayNumber: null,
+      status: null,
+      inTime: null,
+      outTime: null,
+      workingHours: 0,
+      isToday: false,
+      isFuture: false,
+      isWeekend: false,
+    });
   }
 
   // Add all days of the month
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    const dateString = date.toISOString().split('T')[0];
+    const dayDate = new Date(year, month, day);
+    const dateString = toDateValue(dayDate);
     const attendance = attendanceMap.get(dateString);
+    const isToday = dateString === todayStr;
+    const isFuture = dayDate > todayDate;
+    const isWeekend = dayDate.getDay() === 0;
+
+    let status = attendance?.status || null;
+    if (!status && !isFuture) {
+      status = isWeekend ? 'Holiday' : 'Absent';
+    }
 
     calendarDays.push({
       date: dateString,
       dayNumber: day,
-      status: attendance?.status || 'Absent',
+      status,
+      inTime: attendance?.in_time || null,
+      outTime: attendance?.out_time || null,
+      workingHours: attendance?.working_hours || 0,
+      isToday,
+      isFuture,
+      isWeekend,
     });
   }
 
@@ -185,8 +254,10 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     fromDate: '',
     toDate: '',
     reason: '',
+    halfDay: false,
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [employeeName, setEmployeeName] = useState('Employee');
   const [employeeId, setEmployeeId] = useState('');
@@ -208,15 +279,25 @@ export const AttendanceScreen = ({ navigation }: Props) => {
   >([]);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const monthRange = useMemo(() => getMonthRange(), []);
+  const [activeCalendarDate, setActiveCalendarDate] = useState<Date>(() => new Date());
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<string>(() => toDateValue(new Date()));
+
   const monthLabel = useMemo(
     () =>
       new Intl.DateTimeFormat('en-US', {
         month: 'long',
         year: 'numeric',
-      }).format(new Date()),
-    [],
+      }).format(activeCalendarDate),
+    [activeCalendarDate],
   );
+  const isCurrentMonth = useMemo(() => {
+    const now = new Date();
+    return (
+      activeCalendarDate.getFullYear() === now.getFullYear() &&
+      activeCalendarDate.getMonth() === now.getMonth()
+    );
+  }, [activeCalendarDate]);
+
   const pickerMonthLabel = useMemo(
     () =>
       new Intl.DateTimeFormat('en-US', {
@@ -226,63 +307,103 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     [pickerMonth],
   );
 
-  const loadAttendance = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage('');
-
-    try {
-      const profile = await profileService.fetchUserProfile();
-      setEmployeeName(profile.full_name || profile.employee_name);
-      setCompany(profile.company || '');
-      setCheckinStatus(profile.checkin_status ?? 'OUT');
-
-      // No hardcoded fallback here on purpose -- silently substituting
-      // some other employee's real ID would write check-ins/leave/summary
-      // data against the wrong HR record. Surface it as an error instead.
-      if (!profile.employee) {
-        setEmployeeId('');
-        setAttendanceSummary({ present: 0, halfDay: 0, leave: 0 });
-        setAttendanceCalendar([]);
-        setErrorMessage(
-          'No employee record is linked to your account. Contact your admin to link one before using Attendance.',
-        );
-        return;
-      }
-      setEmployeeId(profile.employee);
-
-      const [summary, calendar] = await Promise.all([
-        attendanceService.fetchAttendanceSummary(
-          monthRange.fromDate,
-          monthRange.toDate,
-          profile.employee,
-        ),
-        attendanceService.fetchAttendanceByDate(
-          monthRange.fromDate,
-          monthRange.toDate,
-          profile.employee,
-        ),
-      ]);
-
-      console.log('Attendance Summary:', summary);
-
-      setAttendanceSummary({
-        present: summary.summary.Present,
-        halfDay: summary.summary['Half Day'],
-        leave: summary.summary.Leave,
-      });
-      setAttendanceCalendar(calendar);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Unable to load attendance.',
-      );
-    } finally {
-      setLoading(false);
+  const selectedDayDetail = useMemo(() => {
+    if (!selectedCalendarDay) return null;
+    const found = attendanceCalendar.find(
+      item => item.attendance_date === selectedCalendarDay,
+    );
+    if (found) {
+      return {
+        date: found.attendance_date,
+        status: found.status || 'Present',
+        in_time: found.in_time,
+        out_time: found.out_time,
+        working_hours: found.working_hours || 0,
+      };
     }
-  }, [monthRange.fromDate, monthRange.toDate]);
+
+    const parts = selectedCalendarDay.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const dayDate = new Date(y, m, d);
+      const isWeekend = dayDate.getDay() === 0;
+      const isFuture = dayDate > new Date();
+
+      return {
+        date: selectedCalendarDay,
+        status: isFuture ? 'Upcoming' : isWeekend ? 'Holiday' : 'Absent',
+        in_time: null,
+        out_time: null,
+        working_hours: 0,
+      };
+    }
+    return null;
+  }, [attendanceCalendar, selectedCalendarDay]);
+
+  const loadAttendance = useCallback(
+    async (isRefresh = false, targetDate = activeCalendarDate) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setErrorMessage('');
+
+      try {
+        let currentEmp = employeeId;
+        try {
+          const profile = await profileService.fetchUserProfile();
+          setEmployeeName(profile.full_name || profile.employee_name || 'Employee');
+          setCompany(profile.company || '');
+          setCheckinStatus(profile.checkin_status ?? 'OUT');
+          if (profile.employee) {
+            currentEmp = profile.employee;
+            setEmployeeId(profile.employee);
+          }
+        } catch {
+          // Graceful fallback if profile is delayed
+        }
+
+        const range = getMonthRange(targetDate);
+
+        if (currentEmp) {
+          const [summary, calendar] = await Promise.all([
+            attendanceService.fetchAttendanceSummary(
+              range.fromDate,
+              range.toDate,
+              currentEmp,
+            ),
+            attendanceService.fetchAttendanceByDate(
+              range.fromDate,
+              range.toDate,
+              currentEmp,
+            ),
+          ]);
+
+          setAttendanceSummary({
+            present: summary?.summary?.Present ?? 0,
+            halfDay: summary?.summary?.['Half Day'] ?? 0,
+            leave: summary?.summary?.Leave ?? 0,
+          });
+          setAttendanceCalendar(Array.isArray(calendar) ? calendar : []);
+        }
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Unable to load attendance.',
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [activeCalendarDate, employeeId],
+  );
 
   useEffect(() => {
-    void loadAttendance();
-  }, [loadAttendance]);
+    loadAttendance(false, activeCalendarDate);
+  }, [activeCalendarDate, loadAttendance]);
 
   const loadLeaveTypes = useCallback(async () => {
     setLeaveTypesLoading(true);
@@ -291,7 +412,9 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     setLeaveForm(current => ({ ...current, leaveType: '' }));
 
     try {
-      const nextLeaveTypes = await attendanceService.fetchLeaveTypeDropdown(employeeId);
+      const nextLeaveTypes = await attendanceService.fetchLeaveTypeDropdown(
+        employeeId || undefined,
+      );
       setLeaveTypes(nextLeaveTypes);
     } catch (error) {
       const message =
@@ -308,7 +431,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     setShowLeaveModal(true);
     setShowDropdown(false);
     setActiveDateField(null);
-    void loadLeaveTypes();
+    loadLeaveTypes();
   };
 
   const handleSubmitLeave = async () => {
@@ -322,7 +445,15 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     if (!leaveForm.leaveType || !fromDate || !toDate) {
       Alert.alert(
         'Missing leave details',
-        'Please select a leave type and enter From/To dates as yyyy-mm-dd or dd/mm/yyyy.',
+        'Please select a leave type and enter From/To dates.',
+      );
+      return;
+    }
+
+    if (fromDate > toDate) {
+      Alert.alert(
+        'Invalid Date Range',
+        'The "From" date cannot be after the "To" date.',
       );
       return;
     }
@@ -345,11 +476,17 @@ export const AttendanceScreen = ({ navigation }: Props) => {
         to_date: toDate,
         company,
         description: leaveForm.reason.trim(),
-        half_day: 0,
+        half_day: leaveForm.halfDay ? 1 : 0,
       });
 
-      Alert.alert('Success', 'Leave request submitted.');
-      setLeaveForm({ leaveType: '', fromDate: '', toDate: '', reason: '' });
+      Alert.alert('Success', 'Leave request submitted successfully.');
+      setLeaveForm({
+        leaveType: '',
+        fromDate: '',
+        toDate: '',
+        reason: '',
+        halfDay: false,
+      });
       setShowLeaveModal(false);
       setShowDropdown(false);
       await loadAttendance();
@@ -372,7 +509,13 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     setShowDropdown(false);
     setActiveDateField(null);
     setLeaveTypesError('');
-    setLeaveForm({ leaveType: '', fromDate: '', toDate: '', reason: '' });
+    setLeaveForm({
+      leaveType: '',
+      fromDate: '',
+      toDate: '',
+      reason: '',
+      halfDay: false,
+    });
   };
 
   const getLeaveTypeLabel = () => {
@@ -439,7 +582,12 @@ export const AttendanceScreen = ({ navigation }: Props) => {
         longitude,
       });
 
-      Alert.alert('Success', `Attendance marked as ${nextLogType}.`);
+      Alert.alert(
+        'Success',
+        `Attendance marked as ${
+          nextLogType === 'IN' ? 'Checked IN' : 'Checked OUT'
+        } successfully.`,
+      );
       setCheckinStatus(nextLogType === 'IN' ? 'IN' : 'OUT');
       await loadAttendance();
     } catch (error) {
@@ -450,12 +598,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
     } finally {
       setSubmitting(false);
     }
-  }, [
-    checkinStatus,
-    employeeId,
-    loadAttendance,
-    submitting,
-  ]);
+  }, [checkinStatus, employeeId, loadAttendance, submitting]);
 
   const checkinButtonLabel = checkinStatus === 'OUT' ? 'Check In' : 'Check Out';
 
@@ -471,6 +614,16 @@ export const AttendanceScreen = ({ navigation }: Props) => {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              loadAttendance(true);
+            }}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
         <View style={styles.header}>
           <Pressable
@@ -483,7 +636,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Attendance
           </Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         <View
@@ -519,7 +672,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
 
         {loading ? (
           <ActivityIndicator
-            style={{ marginBottom: 12 }}
+            style={styles.loadingIndicator}
             color={theme.colors.primary}
           />
         ) : null}
@@ -582,7 +735,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        {/* Calendar Day Headers */}
+        {/* Modern Interactive Calendar Card */}
         <View
           style={[
             styles.calendarContainer,
@@ -592,23 +745,86 @@ export const AttendanceScreen = ({ navigation }: Props) => {
             },
           ]}
         >
+          {/* Calendar Navigation Header */}
           <View
             style={[
-              styles.calendarHeader,
+              styles.calendarNavHeader,
               { borderBottomColor: theme.colors.border },
             ]}
           >
-            <Text style={[styles.calendarTitle, { color: theme.colors.text }]}>
-              {monthLabel}
-            </Text>
+            <View style={styles.calendarNavTitleRow}>
+              <Calendar size={18} color={theme.colors.primary} strokeWidth={2.2} />
+              <Text style={[styles.calendarTitle, { color: theme.colors.text }]}>
+                {monthLabel}
+              </Text>
+              {!isCurrentMonth ? (
+                <Pressable
+                  style={[
+                    styles.todayJumpPill,
+                    theme.dark ? styles.todayJumpPillDark : styles.todayJumpPillLight,
+                    { borderColor: theme.colors.primary },
+                  ]}
+                  onPress={() => {
+                    const now = new Date();
+                    setActiveCalendarDate(now);
+                    setSelectedCalendarDay(toDateValue(now));
+                  }}
+                >
+                  <Text style={[styles.todayJumpText, { color: theme.colors.primary }]}>
+                    Today
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            <View style={styles.calendarNavArrows}>
+              <Pressable
+                style={[
+                  styles.navArrowBtn,
+                  {
+                    backgroundColor: theme.colors.background,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  setActiveCalendarDate(
+                    prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                  );
+                }}
+                hitSlop={8}
+              >
+                <ChevronLeft size={18} color={theme.colors.text} strokeWidth={2.5} />
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.navArrowBtn,
+                  {
+                    backgroundColor: theme.colors.background,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  setActiveCalendarDate(
+                    prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                  );
+                }}
+                hitSlop={8}
+              >
+                <ChevronRight size={18} color={theme.colors.text} strokeWidth={2.5} />
+              </Pressable>
+            </View>
           </View>
+
+          {/* Weekday Row */}
           <View style={styles.dayHeaderRow}>
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-              <View key={index} style={styles.dayHeader}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+              <View key={day} style={styles.dayHeader}>
                 <Text
                   style={[
                     styles.dayHeaderText,
-                    { color: theme.colors.mutedText },
+                    index === 0
+                      ? [styles.sundayHeaderText, { color: theme.colors.danger }]
+                      : { color: theme.colors.mutedText },
                   ]}
                 >
                   {day}
@@ -619,49 +835,148 @@ export const AttendanceScreen = ({ navigation }: Props) => {
 
           {/* Calendar Grid */}
           <View style={styles.calendarGrid}>
-            {generateCalendarDays(attendanceCalendar).map((day, index) => (
-              <View
-                key={String(index)}
-                style={[
-                  styles.dayCell,
-                  day.date === null && styles.emptyCell,
-                  day.status === 'Present' && {
-                    backgroundColor: theme.dark ? '#1E3B38' : '#DDF1EE',
-                  },
-                  day.status === 'Half Day' && {
-                    backgroundColor: theme.dark ? '#3A2D1A' : '#FFE4BC',
-                  },
-                  day.status === 'Leave' && {
-                    backgroundColor: theme.dark ? '#3A1C1C' : '#FFD6D6',
-                  },
-                  day.status === 'Absent' && {
-                    backgroundColor: theme.dark ? '#2A2420' : '#F2ECE7',
-                  },
-                ]}
-              >
-                {day.dayNumber !== null ? (
+            {generateCalendarDays(attendanceCalendar, activeCalendarDate).map((dayItem, index) => {
+              if (dayItem.date === null || dayItem.dayNumber === null) {
+                return (
+                  <View key={`empty-${index}`} style={styles.dayCellWrapper}>
+                    <View style={styles.emptyDayCell} />
+                  </View>
+                );
+              }
+
+              const isSelected = selectedCalendarDay === dayItem.date;
+              const isPresent = dayItem.status === 'Present';
+              const isHalfDay = dayItem.status === 'Half Day';
+              const isLeave = dayItem.status === 'Leave' || dayItem.status === 'On Leave';
+              const isAbsent = !dayItem.isFuture && !isPresent && !isHalfDay && !isLeave && !dayItem.isWeekend;
+
+              return (
+                <View key={dayItem.date} style={styles.dayCellWrapper}>
+                  <Pressable
+                    style={[
+                      styles.dayCell,
+                      { backgroundColor: theme.colors.background },
+                      // Status Backgrounds
+                      isPresent && (theme.dark ? styles.cellPresentDark : styles.cellPresentLight),
+                      isHalfDay && (theme.dark ? styles.cellHalfDark : styles.cellHalfLight),
+                      isLeave && (theme.dark ? styles.cellLeaveDark : styles.cellLeaveLight),
+                      isAbsent && (theme.dark ? styles.cellAbsentDark : styles.cellAbsentLight),
+                      // Today Ring
+                      dayItem.isToday && [styles.cellTodayRing, { borderColor: theme.colors.primary }],
+                      // Selected Ring
+                      isSelected && [styles.cellSelectedRing, { borderColor: theme.colors.text }],
+                    ]}
+                    onPress={() => setSelectedCalendarDay(dayItem.date!)}
+                  >
+                    <Text
+                      style={[
+                        styles.dayNumber,
+                        { color: theme.colors.text },
+                        isPresent && [styles.dayNumberBold, { color: theme.colors.success }],
+                        isHalfDay && [styles.dayNumberBold, { color: theme.colors.warning }],
+                        isLeave && [styles.dayNumberBold, { color: theme.colors.danger }],
+                        dayItem.isFuture && [styles.dayNumberFuture, { color: theme.colors.mutedText }],
+                        dayItem.isToday && styles.dayNumberToday,
+                      ]}
+                    >
+                      {dayItem.dayNumber}
+                    </Text>
+
+                    {/* Micro Status Dot */}
+                    <View style={styles.dayMicroDotContainer}>
+                      {isPresent ? <View style={[styles.dayMicroDot, { backgroundColor: theme.colors.success }]} /> : null}
+                      {isHalfDay ? <View style={[styles.dayMicroDot, { backgroundColor: theme.colors.warning }]} /> : null}
+                      {isLeave ? <View style={[styles.dayMicroDot, { backgroundColor: theme.colors.danger }]} /> : null}
+                    </View>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Attendance Legend Bar */}
+          <View style={[styles.calendarLegendBar, { borderTopColor: theme.colors.border }]}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: theme.colors.success }]} />
+              <Text style={[styles.legendText, { color: theme.colors.mutedText }]}>Present</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: theme.colors.warning }]} />
+              <Text style={[styles.legendText, { color: theme.colors.mutedText }]}>Half Day</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: theme.colors.danger }]} />
+              <Text style={[styles.legendText, { color: theme.colors.mutedText }]}>Leave</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, theme.dark ? styles.legendDotAbsentDark : styles.legendDotAbsentLight]} />
+              <Text style={[styles.legendText, { color: theme.colors.mutedText }]}>Absent/Off</Text>
+            </View>
+          </View>
+
+          {/* Selected Day Info Chip / Drawer */}
+          {selectedDayDetail ? (
+            <View
+              style={[
+                styles.selectedDayCard,
+                theme.dark ? styles.selectedDayCardDark : styles.selectedDayCardLight,
+                { borderTopColor: theme.colors.border },
+              ]}
+            >
+              <View style={styles.selectedDayHeader}>
+                <View style={styles.selectedDayHeaderLeft}>
+                  <Clock size={15} color={theme.colors.primary} strokeWidth={2.2} />
+                  <Text style={[styles.selectedDayDate, { color: theme.colors.text }]}>
+                    {formatDisplayDate(selectedDayDetail.date)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.selectedDayBadge,
+                    selectedDayDetail.status === 'Present' && (theme.dark ? styles.cellPresentDark : styles.cellPresentLight),
+                    selectedDayDetail.status === 'Half Day' && (theme.dark ? styles.cellHalfDark : styles.cellHalfLight),
+                    (selectedDayDetail.status === 'Leave' || selectedDayDetail.status === 'On Leave') && (theme.dark ? styles.cellLeaveDark : styles.cellLeaveLight),
+                    selectedDayDetail.status === 'Absent' && (theme.dark ? styles.cellAbsentDark : styles.cellAbsentLight),
+                  ]}
+                >
                   <Text
                     style={[
-                      styles.dayNumber,
-                      { color: theme.colors.text },
-                      day.status === 'Present' && {
-                        color: theme.colors.success,
-                      },
-                      day.status === 'Half Day' && {
-                        color: theme.colors.warning,
-                      },
-                      day.status === 'Leave' && { color: theme.colors.danger },
-                      day.status === 'Absent' && {
-                        color: theme.colors.mutedText,
-                      },
+                      styles.selectedDayBadgeText,
+                      selectedDayDetail.status === 'Present' && { color: theme.colors.success },
+                      selectedDayDetail.status === 'Half Day' && { color: theme.colors.warning },
+                      (selectedDayDetail.status === 'Leave' || selectedDayDetail.status === 'On Leave') && { color: theme.colors.danger },
+                      selectedDayDetail.status === 'Absent' && { color: theme.colors.mutedText },
                     ]}
                   >
-                    {day.dayNumber}
+                    {selectedDayDetail.status}
                   </Text>
-                ) : null}
+                </View>
               </View>
-            ))}
-          </View>
+
+              <View style={styles.selectedDayDetailsRow}>
+                <View style={styles.selectedDayDetailItem}>
+                  <Text style={[styles.detailItemLabel, { color: theme.colors.mutedText }]}>In Time</Text>
+                  <Text style={[styles.detailItemValue, { color: theme.colors.text }]}>
+                    {formatTime(selectedDayDetail.in_time)}
+                  </Text>
+                </View>
+                <View style={[styles.selectedDayDivider, { backgroundColor: theme.colors.border }]} />
+                <View style={styles.selectedDayDetailItem}>
+                  <Text style={[styles.detailItemLabel, { color: theme.colors.mutedText }]}>Out Time</Text>
+                  <Text style={[styles.detailItemValue, { color: theme.colors.text }]}>
+                    {formatTime(selectedDayDetail.out_time)}
+                  </Text>
+                </View>
+                <View style={[styles.selectedDayDivider, { backgroundColor: theme.colors.border }]} />
+                <View style={styles.selectedDayDetailItem}>
+                  <Text style={[styles.detailItemLabel, { color: theme.colors.mutedText }]}>Working Hrs</Text>
+                  <Text style={[styles.detailItemValue, { color: theme.colors.text }]}>
+                    {selectedDayDetail.working_hours > 0 ? `${selectedDayDetail.working_hours} hrs` : '--'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <Pressable
@@ -821,7 +1136,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                 </View>
 
                 <View style={styles.dateRow}>
-                  <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                  <View style={[styles.formGroup, styles.fromGroupWrapper]}>
                     <Text style={[styles.label, { color: theme.colors.text }]}>
                       From
                     </Text>
@@ -855,7 +1170,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                     </Pressable>
                   </View>
 
-                  <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                  <View style={[styles.formGroup, styles.toGroupWrapper]}>
                     <Text style={[styles.label, { color: theme.colors.text }]}>
                       To
                     </Text>
@@ -976,12 +1291,9 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                             <Text
                               style={[
                                 styles.datePickerDayText,
-                                {
-                                  color: isSelected
-                                    ? '#FFFFFF'
-                                    : theme.colors.text,
-                                },
-                                !date && { color: 'transparent' },
+                                { color: theme.colors.text },
+                                isSelected && styles.datePickerDayTextSelected,
+                                !date && styles.datePickerDayTextHidden,
                               ]}
                             >
                               {date?.getDate() ?? ''}
@@ -992,6 +1304,37 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                     </View>
                   </View>
                 ) : null}
+
+                <Pressable
+                  style={styles.checkboxRow}
+                  onPress={() =>
+                    setLeaveForm(prev => ({ ...prev, halfDay: !prev.halfDay }))
+                  }
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: leaveForm.halfDay
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      },
+                      leaveForm.halfDay && [
+                        styles.checkboxSelected,
+                        { backgroundColor: theme.colors.primary },
+                      ],
+                    ]}
+                  >
+                    {leaveForm.halfDay ? (
+                      <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={[styles.checkboxLabel, { color: theme.colors.text }]}
+                  >
+                    Half Day Leave
+                  </Text>
+                </Pressable>
 
                 <View style={styles.formGroup}>
                   <Text style={[styles.label, { color: theme.colors.text }]}>
@@ -1030,9 +1373,7 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                   style={[
                     styles.submitButton,
                     { backgroundColor: theme.colors.primary },
-                    (leaveSubmitting || leaveTypesLoading) && {
-                      opacity: 0.7,
-                    },
+                    (leaveSubmitting || leaveTypesLoading) && styles.buttonDisabledOpacity,
                   ]}
                   onPress={handleSubmitLeave}
                   disabled={leaveSubmitting || leaveTypesLoading}
@@ -1150,24 +1491,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderColor: '#E8E3DE',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  calendarHeader: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  calendarNavHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFE7E1',
+  },
+  calendarNavTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   calendarTitle: {
-    color: '#3C3531',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  todayJumpPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  todayJumpPillDark: {
+    backgroundColor: '#163330',
+  },
+  todayJumpPillLight: {
+    backgroundColor: '#E6F7F2',
+  },
+  todayJumpText: {
+    fontSize: 11,
     fontWeight: '700',
-    fontSize: 15,
+  },
+  calendarNavArrows: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  navArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayHeaderRow: {
     flexDirection: 'row',
     paddingHorizontal: 8,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 6,
   },
   dayHeader: {
@@ -1176,57 +1556,172 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayHeaderText: {
-    color: '#8B7D74',
     fontWeight: '700',
-    fontSize: 11,
+    fontSize: 11.5,
+  },
+  sundayHeaderText: {
+    fontWeight: '800',
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingBottom: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  dayCellWrapper: {
+    width: '14.285%',
+    padding: 3,
   },
   dayCell: {
-    width: '14.285%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    marginVertical: 3,
+    borderRadius: 12,
+    position: 'relative',
   },
-  emptyCell: {
+  emptyDayCell: {
+    aspectRatio: 1,
     backgroundColor: 'transparent',
   },
-  dayNumber: {
-    color: '#4D433E',
-    fontSize: 12,
-    fontWeight: '700',
+  cellPresentDark: {
+    backgroundColor: '#163330',
   },
-  todayCell: {
-    backgroundColor: '#FAD9D9',
+  cellPresentLight: {
+    backgroundColor: '#E6F7F2',
   },
-  presentCell: {
-    backgroundColor: '#DDF1EE',
+  cellHalfDark: {
+    backgroundColor: '#382914',
   },
-  halfCell: {
-    backgroundColor: '#FFE4BC',
+  cellHalfLight: {
+    backgroundColor: '#FFF4E5',
   },
-  leaveCell: {
-    backgroundColor: '#FFD6D6',
+  cellLeaveDark: {
+    backgroundColor: '#381919',
   },
-  absentCell: {
+  cellLeaveLight: {
+    backgroundColor: '#FEECEC',
+  },
+  cellAbsentDark: {
+    backgroundColor: '#26211D',
+  },
+  cellAbsentLight: {
     backgroundColor: '#F2ECE7',
   },
-  presentText: {
-    color: '#137B73',
+  cellTodayRing: {
+    borderWidth: 1.5,
   },
-  halfText: {
-    color: '#B86100',
+  cellSelectedRing: {
+    borderWidth: 2,
   },
-  leaveText: {
-    color: '#C92A2A',
+  dayNumber: {
+    fontSize: 12.5,
+    fontWeight: '600',
   },
-  absentText: {
-    color: '#8B7D74',
+  dayNumberBold: {
+    fontWeight: '800',
+  },
+  dayNumberToday: {
+    fontWeight: '900',
+  },
+  dayNumberFuture: {
+    opacity: 0.5,
+  },
+  dayMicroDotContainer: {
+    position: 'absolute',
+    bottom: 3,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  dayMicroDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  calendarLegendBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendDotAbsentDark: {
+    backgroundColor: '#4A403A',
+  },
+  legendDotAbsentLight: {
+    backgroundColor: '#CCC3BD',
+  },
+  legendText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  selectedDayCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  selectedDayCardDark: {
+    backgroundColor: '#1E1B18',
+  },
+  selectedDayCardLight: {
+    backgroundColor: '#F9F7F5',
+  },
+  selectedDayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  selectedDayHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectedDayDate: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  selectedDayBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  selectedDayBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  selectedDayDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  selectedDayDetailItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  detailItemLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  detailItemValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  selectedDayDivider: {
+    width: 1,
+    height: 22,
   },
   errorText: {
     color: '#E03131',
@@ -1347,10 +1842,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  dropdownItemTextActive: {
-    color: '#1CA39A',
-    fontWeight: '600',
-  },
   dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1372,6 +1863,24 @@ const styles = StyleSheet.create({
     color: '#2A2A2A',
     fontWeight: '500',
   },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   modalFooter: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -1389,16 +1898,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
-  datePickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
   datePickerCard: {
     width: '100%',
-    maxWidth: 340,
     borderRadius: 16,
     borderWidth: 1,
     padding: 14,
@@ -1440,6 +1941,32 @@ const styles = StyleSheet.create({
   datePickerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  loadingIndicator: {
+    marginBottom: 12,
+  },
+  fromGroupWrapper: {
+    flex: 1,
+    marginRight: 8,
+  },
+  toGroupWrapper: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  datePickerDayTextSelected: {
+    color: '#FFFFFF',
+  },
+  datePickerDayTextHidden: {
+    color: 'transparent',
+  },
+  checkboxSelected: {
+    backgroundColor: '#1CA39A',
+  },
+  buttonDisabledOpacity: {
+    opacity: 0.7,
   },
   datePickerDay: {
     width: '14.285%',

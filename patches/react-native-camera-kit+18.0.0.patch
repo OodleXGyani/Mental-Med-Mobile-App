@@ -1,0 +1,12 @@
+diff --git a/node_modules/react-native-camera-kit/android/src/main/java/com/rncamerakit/CKCamera.kt b/node_modules/react-native-camera-kit/android/src/main/java/com/rncamerakit/CKCamera.kt
+index e6324d3..6bf0a65 100644
+--- a/node_modules/react-native-camera-kit/android/src/main/java/com/rncamerakit/CKCamera.kt
++++ b/node_modules/react-native-camera-kit/android/src/main/java/com/rncamerakit/CKCamera.kt
+@@ -126,6 +126,7 @@ class CKCamera(context: ThemedReactContext) : FrameLayout(context), LifecycleObs
+     }
+ 
+     init {
++        viewFinder.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+         viewFinder.layoutParams = LinearLayout.LayoutParams(
+                 LayoutParams.MATCH_PARENT,
+                 LayoutParams.MATCH_PARENT

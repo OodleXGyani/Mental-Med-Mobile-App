@@ -25,33 +25,65 @@ const parseJsonSafely = async (response: Response) => {
   }
 };
 
+const stripHtml = (htmlStr: string): string => {
+  return htmlStr
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+};
+
 const getErrorMessage = (payload: unknown, fallback: string) => {
   if (!payload || typeof payload !== 'object') {
     return fallback;
   }
 
-  const message = (payload as { message?: unknown }).message;
+  const record = payload as Record<string, unknown>;
+
+  // 1. Frappe _server_messages (JSON-encoded array of message objects)
+  if (typeof record._server_messages === 'string') {
+    try {
+      const parsedMsgs = JSON.parse(record._server_messages);
+      if (Array.isArray(parsedMsgs) && parsedMsgs.length > 0) {
+        const first = typeof parsedMsgs[0] === 'string' ? JSON.parse(parsedMsgs[0]) : parsedMsgs[0];
+        if (first?.message && typeof first.message === 'string') {
+          return stripHtml(first.message);
+        }
+      }
+    } catch {
+      // ignore JSON parse error and fallback
+    }
+  }
+
+  // 2. Frappe exception string (e.g. frappe.exceptions.ValidationError: Error creating customer...)
+  if (typeof record.exception === 'string') {
+    const rawException = record.exception;
+    const cleanException = rawException
+      .replace(/^.*exceptions\.[a-zA-Z]+:\s*/, '')
+      .replace(/^Error creating customer:\s*/, '');
+    return stripHtml(cleanException);
+  }
+
+  const message = record.message;
 
   if (typeof message === 'string') {
-    return message;
+    return stripHtml(message);
   }
 
   if (message && typeof message === 'object') {
-    const nestedError = (message as { error?: unknown }).error;
-    const nestedMessage = (message as { message?: unknown }).message;
-
-    if (typeof nestedError === 'string') {
-      return nestedError;
+    const nestedRecord = message as Record<string, unknown>;
+    if (typeof nestedRecord.error === 'string') {
+      return stripHtml(nestedRecord.error);
     }
-
-    if (typeof nestedMessage === 'string') {
-      return nestedMessage;
+    if (typeof nestedRecord.message === 'string') {
+      return stripHtml(nestedRecord.message);
     }
   }
 
-  const error = (payload as { error?: unknown }).error;
-  if (typeof error === 'string') {
-    return error;
+  if (typeof record.error === 'string') {
+    return stripHtml(record.error);
   }
 
   return fallback;

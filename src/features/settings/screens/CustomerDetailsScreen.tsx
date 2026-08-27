@@ -519,7 +519,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
         customerId={route.params.customerCode}
         initialData={details}
         onClose={() => setShowEditModal(false)}
-        onSuccess={message => {
+        onSuccess={({ message }) => {
           setShowEditModal(false);
           Alert.alert('Success', message);
           loadDetails();
