@@ -1,5 +1,11 @@
 export type CartItem = {
   id: string;
+  // Stable identity for this specific cart row, separate from `id`/
+  // `item_code` -- see makeLineId() in ../utils.ts. Two rows can validly
+  // share an item_code (same medicine, different warehouse or batch); qty
+  // +/-, remove, and "Configure Cart Item" all need to target exactly one
+  // row, not every row sharing that item_code.
+  line_id?: string;
   name: string;
   batch: string;
   exp: string;
@@ -69,11 +75,26 @@ export type CartResponse = {
   cart_name: string;
   customer: string;
   company: string;
-  pos_profile: string;
+  // Was pos_profile -- the backend replaced POS Profile with a simpler,
+  // per-company "Eph POS Settings" doctype this session; this response
+  // field was renamed to match (see the web POS's same rename).
+  pos_settings: string;
   taxes_and_charges: null | string;
   tax_category: null | string;
   total_amount: number;
   items: CartItemAPI[];
+};
+
+// Which company/warehouse/tax settings the current cashier is billing
+// under -- for display on the POS billing screen, independent of any
+// cart or customer existing yet.
+export type ActivePosSettings = {
+  company: string;
+  warehouse: string;
+  currency: string;
+  taxes_and_charges: string;
+  tax_category: string | null;
+  selling_price_list: string;
 };
 
 export type CartItemAPI = {
@@ -104,7 +125,7 @@ export type SaveCartPayload = {
 export type SaveCartResponse = {
   cart_name: string;
   company: string;
-  pos_profile: string;
+  pos_settings: string;
   taxes_and_charges: null | string;
   tax_category: null | string;
   total_amount: number;

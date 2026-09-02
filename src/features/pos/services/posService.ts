@@ -1,5 +1,6 @@
 import {
   CartResponse,
+  ActivePosSettings,
   SaveCartPayload,
   SaveCartResponse,
   GetOrAssignCartPayload,
@@ -147,6 +148,17 @@ export const posService = {
   },
 
   /**
+   * Which company/warehouse/tax settings this cashier is billing under --
+   * needs no cart or customer to exist first, same as the web POS's own
+   * header badge (see get_active_pos_settings on the backend).
+   */
+  getActivePosSettings: async (): Promise<ActivePosSettings> =>
+    getJson<ActivePosSettings>(
+      `${CART_API_ROOT}.get_active_pos_settings`,
+      'Unable to load POS settings.',
+    ),
+
+  /**
    * Fetch customer loyalty points and redemption info
    */
   getCustomerLoyaltyInfo: async (customer: string): Promise<CustomerLoyaltyInfo> =>
@@ -168,7 +180,18 @@ export const posService = {
       const raw = await postJson<any>(
         `${MEDICINE_API_ROOT}.get_medicine_inventory`,
         {
-          filters: search ? { search } : {},
+          filters: {
+            ...(search ? { search } : {}),
+            // Never let a cashier find/sell a disabled medicine from POS
+            // (matches the web POS's own search request) -- this also
+            // scopes the "stock" figure below to the cashier's own
+            // company on the backend, instead of a system-wide total
+            // across every company. Without it, an item could show real
+            // stock that all actually sits in a DIFFERENT company's
+            // warehouse -- the cashier sees a number that was never
+            // actually sellable to them, and only finds out at checkout.
+            exclude_disabled: true,
+          },
           page,
           limit,
         },

@@ -39,10 +39,11 @@ export const POSCartSection = ({
         const itemSubtotal = item.price * item.qty;
         const currentBatch = item.batch_no || item.batch;
         const hasMissingBatch = item.has_batch_no && !currentBatch;
+        const lineId = item.line_id || item.id;
 
         return (
           <Pressable
-            key={`cart-item-${item.id}-${currentBatch || 'nobatch'}-${idx}`}
+            key={item.line_id || `cart-item-${item.id}-${currentBatch || 'nobatch'}-${idx}`}
             style={[
               styles.itemCard,
               {
@@ -88,7 +89,7 @@ export const POSCartSection = ({
                 </View>
               </View>
               <Pressable
-                onPress={() => onRemoveItem(item.id)}
+                onPress={() => onRemoveItem(lineId)}
                 hitSlop={8}
                 style={styles.removeBtn}
               >
@@ -100,7 +101,7 @@ export const POSCartSection = ({
               <View style={styles.qtyControls}>
                 <Pressable
                   style={[styles.qtyBtn, { borderColor: theme.colors.border }]}
-                  onPress={() => onUpdateQty(item.id, -1)}
+                  onPress={() => onUpdateQty(lineId, -1)}
                 >
                   <Minus size={12} color={theme.colors.mutedText} />
                 </Pressable>
@@ -109,7 +110,7 @@ export const POSCartSection = ({
                 </Text>
                 <Pressable
                   style={[styles.qtyBtn, { borderColor: theme.colors.border }]}
-                  onPress={() => onUpdateQty(item.id, 1)}
+                  onPress={() => onUpdateQty(lineId, 1)}
                 >
                   <Plus size={12} color={theme.colors.mutedText} />
                 </Pressable>

@@ -10,13 +10,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChevronRight, UserPlus, Users } from 'lucide-react-native';
+import { Building2, ChevronRight, Receipt, UserPlus, Users, Warehouse } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { STACK_ROUTES, TAB_ROUTES } from '../../../shared/constants/routes';
-import { CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse, CheckoutPreviewResponse } from '../types';
+import { ActivePosSettings, CartItem, CartItemAPI, Customer, CustomerLoyaltyInfo, Medicine, PaymentMethod, CreatePosInvoiceResponse, CheckoutPreviewResponse } from '../types';
 import { posService } from '../services/posService';
+import { makeLineId } from '../utils';
 import { customerService } from '../../settings/services/customerService';
 import { useAppTheme } from '../../../shared/theme';
 import { POSHeader } from '../components/POSHeader';
@@ -43,6 +44,20 @@ export const POSScreen = () => {
     useNavigation<NativeStackNavigationProp<POSStackParamList>>();
   const route =
     useRoute<RouteProp<POSStackParamList, typeof STACK_ROUTES.POS_HOME>>();
+
+  // Which company/warehouse/tax template this session is billing under --
+  // fetched once on mount, independent of any cart or customer, matching
+  // the web POS's own header badge. Needs to be unmissable at a
+  // multi-company pharmacy chain, not something a cashier has to notice
+  // in passing.
+  const [activePosSettings, setActivePosSettings] = useState<ActivePosSettings | null>(null);
+
+  useEffect(() => {
+    posService
+      .getActivePosSettings()
+      .then(setActivePosSettings)
+      .catch(err => console.warn('Failed to load active POS settings:', err));
+  }, []);
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -374,32 +389,56 @@ export const POSScreen = () => {
   // Commit item after warehouse and batch have been confirmed in Modal
   const handleSaveItemDetails = (configuredItem: CartItem) => {
     setCartItems(prev => {
+      if (!isDetailsNewItem) {
+        // Editing a row already in the cart -- `configuredItem` carries
+        // the same line_id it was opened with (POSItemDetailsModal spreads
+        // `...item` into what it saves), so just replace that exact row.
+        // Matching by item_code/batch here (like the add path below) would
+        // be wrong: editing a row's warehouse/batch to now match a
+        // DIFFERENT existing row must still only change the one row the
+        // cashier opened, never silently merge into another.
+        const targetLineId = configuredItem.line_id;
+        const idx = targetLineId
+          ? prev.findIndex(i => i.line_id === targetLineId)
+          : prev.findIndex(
+              i => i.id === configuredItem.id || i.item_code === configuredItem.item_code,
+            );
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = configuredItem;
+          return updated;
+        }
+        return [...prev, { ...configuredItem, line_id: configuredItem.line_id || makeLineId(configuredItem.item_code || configuredItem.id) }];
+      }
+
+      // Adding a fresh item -- same line = same item, same warehouse,
+      // same batch. Differing in warehouse or batch is a genuinely
+      // separate cart line, not a quantity bump on whichever row happens
+      // to share the item_code.
       const existingIndex = prev.findIndex(
         i =>
-          (i.id === configuredItem.id ||
-            i.item_code === configuredItem.item_code) &&
-          (i.batch_no === configuredItem.batch_no ||
-            i.batch === configuredItem.batch),
+          (i.id === configuredItem.id || i.item_code === configuredItem.item_code) &&
+          (i.warehouse || '') === (configuredItem.warehouse || '') &&
+          (i.batch_no || i.batch || '') === (configuredItem.batch_no || configuredItem.batch || ''),
       );
 
       if (existingIndex >= 0) {
         const updated = [...prev];
-        if (isDetailsNewItem) {
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            qty: updated[existingIndex].qty + configuredItem.qty,
-            price: configuredItem.price,
-            rate: configuredItem.rate,
-            warehouse: configuredItem.warehouse,
-            exp: configuredItem.exp,
-          };
-        } else {
-          updated[existingIndex] = configuredItem;
-        }
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          qty: updated[existingIndex].qty + configuredItem.qty,
+          price: configuredItem.price,
+          rate: configuredItem.rate,
+          warehouse: configuredItem.warehouse,
+          exp: configuredItem.exp,
+        };
         return updated;
-      } else {
-        return [...prev, configuredItem];
       }
+
+      return [
+        ...prev,
+        { ...configuredItem, line_id: makeLineId(configuredItem.item_code || configuredItem.id) },
+      ];
     });
 
     setShowItemDetails(false);
@@ -410,9 +449,16 @@ export const POSScreen = () => {
     setCartItems(prev => {
       const updated = [...prev];
       for (const newItem of items) {
+        // Same (item, warehouse, batch) identity rule as
+        // handleSaveItemDetails -- a past-order line differing in
+        // warehouse or batch from anything already in the cart is a
+        // distinct line, not a quantity bump on the first row that
+        // happens to share its item_code.
         const existingIdx = updated.findIndex(
           item =>
-            item.item_code === newItem.item_code || item.id === newItem.id,
+            (item.item_code === newItem.item_code || item.id === newItem.id) &&
+            (item.warehouse || '') === (newItem.warehouse || '') &&
+            (item.batch_no || item.batch || '') === (newItem.batch_no || newItem.batch || ''),
         );
 
         if (existingIdx >= 0) {
@@ -421,18 +467,27 @@ export const POSScreen = () => {
             qty: updated[existingIdx].qty + newItem.qty,
           };
         } else {
-          updated.push(newItem);
+          updated.push({
+            ...newItem,
+            line_id: newItem.line_id || makeLineId(newItem.item_code || newItem.id),
+          });
         }
       }
       return updated;
     });
   }, []);
 
-  const updateQty = (id: string, delta: number) => {
+  // Matched by line_id, not item_code -- two rows can validly share an
+  // item_code (same medicine from a different warehouse/batch), and
+  // matching on item_code alone bumped/removed every row that shared it,
+  // not just the one the cashier tapped. Falls back to id/item_code only
+  // for a row that somehow never got a line_id (shouldn't happen once
+  // every add path assigns one, but keeps this from silently no-oping).
+  const updateQty = (lineId: string, delta: number) => {
     setCartItems(prev =>
       prev
         .map(item =>
-          item.id === id || item.item_code === id
+          (item.line_id ? item.line_id === lineId : item.id === lineId || item.item_code === lineId)
             ? { ...item, qty: Math.max(1, item.qty + delta) }
             : item,
         )
@@ -440,9 +495,13 @@ export const POSScreen = () => {
     );
   };
 
-  const removeItem = (id: string) => {
+  const removeItem = (lineId: string) => {
     setCartItems(prev =>
-      prev.filter(item => item.id !== id && item.item_code !== id),
+      prev.filter(item =>
+        item.line_id
+          ? item.line_id !== lineId
+          : item.id !== lineId && item.item_code !== lineId,
+      ),
     );
   };
 
@@ -480,6 +539,7 @@ export const POSScreen = () => {
         if (cartResponse?.items && cartResponse.items.length > 0) {
           const apiItems = cartResponse.items.map((item: CartItemAPI) => ({
             id: item.item_code,
+            line_id: makeLineId(item.item_code),
             name: item.item_name,
             batch: item.batch_no || '',
             batch_no: item.batch_no || '',
@@ -500,10 +560,16 @@ export const POSScreen = () => {
           setCartItems(prev => {
             const merged = [...prev];
             for (const apiItem of apiItems) {
+              // Same (item, warehouse, batch) identity rule as
+              // handleSaveItemDetails -- a local item differing in
+              // warehouse/batch from anything the backend returned is a
+              // distinct line, not a quantity bump on the first row that
+              // happens to share its item_code.
               const existingIdx = merged.findIndex(
                 item =>
-                  item.item_code === apiItem.item_code ||
-                  item.id === apiItem.id,
+                  (item.item_code === apiItem.item_code || item.id === apiItem.id) &&
+                  (item.warehouse || '') === (apiItem.warehouse || '') &&
+                  (item.batch_no || item.batch || '') === (apiItem.batch_no || apiItem.batch || ''),
               );
 
               if (existingIdx >= 0) {
@@ -763,6 +829,44 @@ export const POSScreen = () => {
           navigation.getParent()?.navigate(TAB_ROUTES.ORDERS)
         }
       />
+
+      {activePosSettings?.company ? (
+        <View
+          style={[
+            styles.activeSettingsBanner,
+            {
+              borderColor: `${theme.colors.primary}33`,
+              backgroundColor: `${theme.colors.primary}0D`,
+            },
+          ]}
+        >
+          <View style={styles.activeSettingsRow}>
+            <Building2 size={13} color={theme.colors.primary} />
+            <Text style={[styles.activeSettingsLabel, { color: theme.colors.mutedText }]}>
+              Billing as
+            </Text>
+            <Text style={[styles.activeSettingsValue, { color: theme.colors.primary }]}>
+              {activePosSettings.company}
+            </Text>
+          </View>
+          {activePosSettings.warehouse ? (
+            <View style={styles.activeSettingsRow}>
+              <Warehouse size={13} color={theme.colors.mutedText} />
+              <Text style={[styles.activeSettingsValue, { color: theme.colors.text }]}>
+                {activePosSettings.warehouse}
+              </Text>
+            </View>
+          ) : null}
+          {activePosSettings.taxes_and_charges ? (
+            <View style={styles.activeSettingsRow}>
+              <Receipt size={13} color={theme.colors.mutedText} />
+              <Text style={[styles.activeSettingsValue, { color: theme.colors.text }]}>
+                {activePosSettings.taxes_and_charges}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* When Customer is Selected: Show Customer Card, Search & Scan, and Cart */}
       {selectedCustomer ? (
@@ -1033,6 +1137,29 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+  },
+  activeSettingsBanner: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  activeSettingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  activeSettingsLabel: {
+    fontSize: 11,
+  },
+  activeSettingsValue: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   startSaleContainer: {
     paddingTop: 16,

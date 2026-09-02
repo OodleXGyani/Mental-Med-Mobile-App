@@ -90,7 +90,9 @@ export const MedicineListScreen = ({ navigation }: Props) => {
               backgroundColor: theme.colors.card,
               borderColor: theme.colors.border,
             },
+            isOutOfStock && styles.medicineCardDisabled,
           ]}
+          disabled={isOutOfStock}
           onPress={() => handleSelectMedicine(item)}
         >
           <View style={styles.medicineCardContent}>
@@ -161,8 +163,13 @@ export const MedicineListScreen = ({ navigation }: Props) => {
             <Pressable
               style={[
                 styles.addButton,
-                { backgroundColor: theme.colors.primary },
+                {
+                  backgroundColor: isOutOfStock
+                    ? theme.colors.border
+                    : theme.colors.primary,
+                },
               ]}
+              disabled={isOutOfStock}
               onPress={() => handleSelectMedicine(item)}
             >
               <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
@@ -350,6 +357,9 @@ const styles = StyleSheet.create({
   medicineCardContent: {
     flex: 1,
     marginRight: 12,
+  },
+  medicineCardDisabled: {
+    opacity: 0.5,
   },
   medicineName: {
     fontSize: 14,
