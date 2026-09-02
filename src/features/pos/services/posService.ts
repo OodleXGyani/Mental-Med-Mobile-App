@@ -220,7 +220,7 @@ export const posService = {
    */
   scanBarcode: async (barcode: string): Promise<ScanBarcodeResponse> => {
     const url = new URL(SCAN_BARCODE_URL);
-    url.searchParams.set('barcode', barcode);
+    url.searchParams.set('search_value', barcode);
     return getJson<ScanBarcodeResponse>(url.toString(), 'Barcode not recognized.');
   },
 
@@ -282,9 +282,9 @@ export const posService = {
         uom: data.uom || data.stock_uom || 'Strip',
         prescription_required: Boolean(
           data.prescription_required ||
-            data.is_prescription_required ||
-            data.is_rx ||
-            data.schedule_drug,
+          data.is_prescription_required ||
+          data.is_rx ||
+          data.schedule_drug,
         ),
         conversion_factor: Number(data.conversion_factor ?? 1),
       };

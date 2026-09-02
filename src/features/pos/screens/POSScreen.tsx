@@ -1140,9 +1140,9 @@ const styles = StyleSheet.create({
   },
   activeSettingsBanner: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -1152,13 +1152,14 @@ const styles = StyleSheet.create({
   activeSettingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+    flexShrink: 1,
   },
   activeSettingsLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
   },
   activeSettingsValue: {
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   startSaleContainer: {
