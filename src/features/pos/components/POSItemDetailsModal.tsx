@@ -221,8 +221,8 @@ export const POSItemDetailsModal = ({
     onClose();
   };
 
-  const isBatchRequired = item?.has_batch_no ?? true;
-  const isMissingRequiredBatch = isBatchRequired && batches.length > 0 && !selectedBatch;
+  const isBatchRequired = item?.has_batch_no !== undefined ? Boolean(item.has_batch_no) : true;
+  const isMissingRequiredBatch = Boolean(isBatchRequired && batches.length > 0 && !selectedBatch);
 
   if (!item) return null;
 
@@ -928,7 +928,7 @@ export const POSItemDetailsModal = ({
             </Pressable>
 
             <Pressable
-              disabled={isMissingRequiredBatch}
+              disabled={Boolean(isMissingRequiredBatch)}
               style={[
                 styles.applyButton,
                 {

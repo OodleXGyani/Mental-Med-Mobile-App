@@ -158,7 +158,7 @@ export const LoginScreen = ({ navigation }: Props) => {
                   <Text style={[styles.label, { color: theme.colors.mutedText }]}>
                     Password
                   </Text>
-                  <Pressable onPress={handleForgotPassword} disabled={loading}>
+                  <Pressable onPress={handleForgotPassword} disabled={Boolean(loading)}>
                     <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
                       Forgot password?
                     </Text>
@@ -314,7 +314,7 @@ export const LoginScreen = ({ navigation }: Props) => {
               loading && styles.signInButtonDisabled,
             ]}
             onPress={authStep === 'IDLE' ? handleLogin : handleVerifyOtp}
-            disabled={loading}
+            disabled={Boolean(loading)}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
@@ -333,7 +333,7 @@ export const LoginScreen = ({ navigation }: Props) => {
             <Pressable
               style={styles.backButton}
               onPress={handleBackToLogin}
-              disabled={loading}
+              disabled={Boolean(loading)}
             >
               <Text style={[styles.backButtonText, { color: theme.colors.mutedText }]}>
                 Back to Login

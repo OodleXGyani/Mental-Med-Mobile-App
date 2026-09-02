@@ -231,7 +231,7 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
             <Pressable
               style={[styles.searchBtn, { backgroundColor: theme.colors.primary }]}
               onPress={() => handleLookupBarcode()}
-              disabled={isScanning}
+              disabled={Boolean(isScanning)}
             >
               {isScanning ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />

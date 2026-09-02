@@ -310,7 +310,7 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
             isExpired && styles.actionButtonDisabled,
           ]}
           onPress={() => setShowRemoveStockModal(true)}
-          disabled={isExpired}
+          disabled={Boolean(isExpired)}
         >
           <Minus size={18} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.actionButtonText}>Remove</Text>
@@ -322,7 +322,7 @@ export const InventoryDetailsScreen = ({ navigation, route }: Props) => {
             isExpired && styles.actionButtonDisabled,
           ]}
           onPress={() => setShowAddStockModal(true)}
-          disabled={isExpired}
+          disabled={Boolean(isExpired)}
         >
           <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.actionButtonText}>Add Stock</Text>

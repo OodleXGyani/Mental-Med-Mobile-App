@@ -799,7 +799,7 @@ export const POSPaymentModal = ({
                         <Pressable
                           style={[styles.requestBtn, styles.requestBtnSky]}
                           onPress={handleRequestRxOverride}
-                          disabled={isRequestingRxOverride || !rxOverrideReason}
+                          disabled={Boolean(isRequestingRxOverride || !rxOverrideReason)}
                         >
                           {isRequestingRxOverride ? (
                             <ActivityIndicator size="small" color="#0369A1" />
@@ -960,7 +960,7 @@ export const POSPaymentModal = ({
                     (!canComplete || isSubmitting) && styles.completeBtnDisabled,
                   ]}
                   onPress={handleComplete}
-                  disabled={!canComplete || isSubmitting}
+                  disabled={Boolean(!canComplete || isSubmitting)}
                 >
                   {isSubmitting ? (
                     <ActivityIndicator color="#FFFFFF" />
@@ -1031,7 +1031,7 @@ const ManagerApprovalFields = ({
     <Pressable
       style={[styles.approveBtn, { backgroundColor: theme.colors.primary }]}
       onPress={onApprove}
-      disabled={isSubmitting || !managerUser || !pin}
+      disabled={Boolean(isSubmitting || !managerUser || !pin)}
     >
       {isSubmitting ? (
         <ActivityIndicator size="small" color="#FFFFFF" />

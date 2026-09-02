@@ -1747,12 +1747,12 @@ export const AttendanceScreen = ({ navigation }: Props) => {
                       styles.buttonDisabledOpacity,
                   ]}
                   onPress={handleSubmitLeave}
-                  disabled={
+                  disabled={Boolean(
                     !leaveForm.leaveType ||
                     !leaveForm.fromDate ||
                     !leaveForm.toDate ||
                     leaveSubmitting
-                  }
+                  )}
                 >
                   {leaveSubmitting ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />

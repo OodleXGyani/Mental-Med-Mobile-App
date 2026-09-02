@@ -626,7 +626,7 @@ export const CustomerFormModal = ({
               styles.navArrowButton,
               pickerYear >= currentYear && pickerMonth >= new Date().getMonth() && styles.disabledArrow,
             ]}
-            disabled={pickerYear >= currentYear && pickerMonth >= new Date().getMonth()}
+            disabled={Boolean(pickerYear >= currentYear && pickerMonth >= new Date().getMonth())}
             onPress={() => {
               if (dobViewMode === 'day') {
                 setDobPickerDate(new Date(pickerYear, pickerMonth + 1, 1));
@@ -673,7 +673,7 @@ export const CustomerFormModal = ({
                         isSelected && { backgroundColor: theme.colors.primary },
                         isFuture && styles.disabledDay,
                       ]}
-                      disabled={isFuture}
+                      disabled={Boolean(isFuture)}
                       onPress={() => handleSelectDay(day)}
                     >
                       <Text
@@ -1201,7 +1201,7 @@ export const CustomerFormModal = ({
               <Pressable
                 style={[styles.cancelButton, { borderColor: theme.colors.border }]}
                 onPress={onClose}
-                disabled={submitting}
+                disabled={Boolean(submitting)}
               >
                 <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancel</Text>
               </Pressable>
@@ -1212,7 +1212,7 @@ export const CustomerFormModal = ({
                   submitting && styles.submitButtonDisabled,
                 ]}
                 onPress={handleSubmit}
-                disabled={submitting}
+                disabled={Boolean(submitting)}
               >
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />

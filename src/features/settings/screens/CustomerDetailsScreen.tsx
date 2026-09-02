@@ -145,7 +145,7 @@ export const CustomerDetailsScreen = ({ navigation, route }: Props) => {
         <TouchableOpacity
           onPress={() => setShowEditModal(true)}
           hitSlop={8}
-          disabled={!details}
+          disabled={Boolean(!details)}
           style={styles.headerSpacer}
         >
           <Pencil

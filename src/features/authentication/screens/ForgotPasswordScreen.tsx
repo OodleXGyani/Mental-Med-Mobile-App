@@ -86,7 +86,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
             styles.backButton,
             theme.dark ? styles.backButtonDark : styles.backButtonLight,
           ]}
-          disabled={loading}
+          disabled={Boolean(loading)}
         >
           <ChevronLeft size={22} color={theme.colors.text} strokeWidth={2.5} />
         </Pressable>
@@ -208,7 +208,7 @@ export const ForgotPasswordScreen = ({ navigation }: Props) => {
                   loading && styles.sendButtonDisabled,
                 ]}
                 onPress={handleSendResetLink}
-                disabled={loading}
+                disabled={Boolean(loading)}
               >
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />

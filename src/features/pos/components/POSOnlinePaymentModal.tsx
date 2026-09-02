@@ -295,7 +295,7 @@ export const POSOnlinePaymentModal = ({
                   },
                 ]}
                 onPress={handleCheckStatus}
-                disabled={isVerifying}
+                disabled={Boolean(isVerifying)}
               >
                 {isVerifying ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} />

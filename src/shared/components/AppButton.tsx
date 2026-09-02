@@ -29,7 +29,7 @@ export const AppButton = ({
         style,
       ]}
       onPress={onPress}
-      disabled={disabled}
+      disabled={Boolean(disabled)}
     >
       <Text style={styles.text}>{title}</Text>
     </Pressable>
