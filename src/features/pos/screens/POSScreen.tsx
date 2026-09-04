@@ -3,6 +3,7 @@ import {
   Alert,
   DeviceEventEmitter,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -34,6 +35,7 @@ import { CustomerFormModal } from '../../settings/components/CustomerFormModal';
 import { POSPastOrdersModal } from '../components/POSPastOrdersModal';
 import { POSItemDetailsModal } from '../components/POSItemDetailsModal';
 import { POSStackParamList } from '../../../navigation/types';
+import { saveInvoiceToDownloads, shareInvoicePdf, openInvoicePdf } from '../../../shared/utils/invoiceFile';
 
 const SCREEN_BOTTOM_PADDING = 30;
 
@@ -342,7 +344,10 @@ export const POSScreen = () => {
             ? (medicine as CartItem).price || 0
             : 0;
         const gst = 'gst' in medicine ? medicine.gst || 0 : 0;
-        const warehouse = 'warehouse' in medicine ? medicine.warehouse || '' : '';
+        const warehouse =
+          'warehouse' in medicine && medicine.warehouse
+            ? medicine.warehouse
+            : activePosSettings?.warehouse || '';
         const has_batch_no =
           'has_batch_no' in medicine
             ? (medicine as Medicine).has_batch_no ?? true
@@ -365,7 +370,7 @@ export const POSScreen = () => {
       }
       setShowItemDetails(true);
     },
-    [cartItems],
+    [cartItems, activePosSettings],
   );
 
   // Listen for selected medicine returned from MedicineListScreen via event
@@ -756,58 +761,134 @@ export const POSScreen = () => {
   };
 
   const downloadInvoice = async (invoice: CreatePosInvoiceResponse | null = completedInvoice) => {
-    const receiptText = generateReceiptText(invoice);
+    const invName = invoice?.invoice || 'Receipt';
+    const fileName = `Invoice-${invName}.pdf`;
+
     try {
-      await Share.share({
-        title: `Invoice - ${invoice?.invoice ?? 'Receipt'}`,
-        message: receiptText,
-      });
-    } catch {
-      Alert.alert('Download', 'Unable to export receipt right now.');
+      if (!invoice?.invoice) {
+        throw new Error('Invoice details not found.');
+      }
+
+      // 1. Fetch official binary PDF from Frappe
+      const base64Pdf = await posService.fetchInvoicePdfBase64(
+        invoice.invoice,
+        invoice.print_url,
+        invoice.print_format,
+      );
+
+      // 2. Save directly to device Downloads directory
+      const result = await saveInvoiceToDownloads(base64Pdf, fileName);
+      if (result.success) {
+        Alert.alert(
+          'Invoice Downloaded',
+          `Invoice #${invName} has been saved to your Downloads folder.`,
+          [
+            { text: 'OK' },
+            {
+              text: 'Open PDF',
+              onPress: () => openInvoicePdf(base64Pdf, fileName),
+            },
+          ],
+        );
+      } else {
+        throw new Error(result.error || 'Failed to save invoice.');
+      }
+    } catch (err: any) {
+      console.warn('Download error:', err);
+      const receiptText = generateReceiptText(invoice);
+      try {
+        await Share.share({
+          title: `Invoice - ${invName}`,
+          message: receiptText,
+        });
+      } catch {
+        Alert.alert('Download', 'Unable to download invoice right now.');
+      }
     }
   };
 
   const openInvoicePrintView = async (
     invoice: CreatePosInvoiceResponse | null = completedInvoice,
   ) => {
-    const receiptText = generateReceiptText(invoice);
+    const invName = invoice?.invoice || 'Receipt';
+    const fileName = `Invoice-${invName}.pdf`;
+
     try {
-      await Share.share({
-        title: `Print Receipt - ${invoice?.invoice ?? 'Receipt'}`,
-        message: receiptText,
-      });
+      if (invoice?.invoice) {
+        const base64Pdf = await posService.fetchInvoicePdfBase64(
+          invoice.invoice,
+          invoice.print_url,
+          invoice.print_format,
+        );
+        await openInvoicePdf(base64Pdf, fileName);
+        return;
+      }
     } catch {
-      Alert.alert('Print', 'Unable to initiate print.');
+      // Fallback
+    }
+
+    if (!invoice?.print_url) {
+      const receiptText = generateReceiptText(invoice);
+      try {
+        await Share.share({
+          title: `Print Receipt - ${invName}`,
+          message: receiptText,
+        });
+      } catch {
+        Alert.alert('Print', 'Unable to initiate print.');
+      }
+      return;
+    }
+
+    const pdfUrl = posService.getInvoicePdfUrl(invoice.print_url);
+    try {
+      await Linking.openURL(pdfUrl);
+    } catch (err) {
+      console.warn('Print error:', err);
+      Alert.alert('Print', 'Unable to open print view.');
     }
   };
 
-  const shareInvoice = async (target?: 'whatsapp') => {
+  const shareInvoice = async () => {
     const invoice = completedInvoice;
-    const receiptText = generateReceiptText(invoice);
-
-    if (target === 'whatsapp') {
-      const cleanPhone = (selectedCustomer?.phone || '').replace(/[^0-9]/g, '');
-      const waUrl = cleanPhone
-        ? `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(receiptText)}`
-        : `whatsapp://send?text=${encodeURIComponent(receiptText)}`;
-      try {
-        const canOpen = await Linking.canOpenURL(waUrl);
-        if (canOpen) {
-          await Linking.openURL(waUrl);
-          return;
-        }
-      } catch {
-        /* fallback to system share */
-      }
-    }
+    const invName = invoice?.invoice || 'Receipt';
+    const fileName = `Invoice-${invName}.pdf`;
+    const summaryText = `Invoice #${invoice?.invoice || ''} • Total: ₹${(invoice?.grand_total ?? total).toFixed(2)}`;
 
     try {
-      await Share.share({
-        title: `Invoice - ${invoice?.invoice ?? 'Receipt'}`,
-        message: receiptText,
-      });
-    } catch {
-      Alert.alert('Share', 'Unable to share invoice right now.');
+      if (!invoice?.invoice) {
+        throw new Error('Invoice details not found.');
+      }
+
+      // 1. Fetch real binary PDF from Frappe
+      const base64Pdf = await posService.fetchInvoicePdfBase64(
+        invoice.invoice,
+        invoice.print_url,
+        invoice.print_format,
+      );
+
+      // 2. Native Share of actual PDF file (WhatsApp, Mail, etc.)
+      const shareRes = await shareInvoicePdf(
+        base64Pdf,
+        fileName,
+        `Share Invoice #${invName}`,
+        summaryText,
+      );
+
+      if (!shareRes.success) {
+        throw new Error(shareRes.error || 'Unable to share PDF.');
+      }
+    } catch (err: any) {
+      console.warn('Share error:', err);
+      const receiptText = generateReceiptText(invoice);
+      try {
+        await Share.share({
+          title: `Invoice - ${invName}`,
+          message: receiptText,
+        });
+      } catch {
+        Alert.alert('Share', 'Unable to share invoice right now.');
+      }
     }
   };
 
@@ -1014,6 +1095,7 @@ export const POSScreen = () => {
 
       <POSScanModal
         visible={showScan}
+        defaultWarehouse={activePosSettings?.warehouse}
         onMedicineScanned={handleSelectMedicineForDetails}
         onClose={() => setShowScan(false)}
       />
@@ -1044,7 +1126,6 @@ export const POSScreen = () => {
         cartItems={cartItems}
         onPressDownload={() => downloadInvoice()}
         onPressPrint={() => openInvoicePrintView()}
-        onPressWhatsApp={() => shareInvoice('whatsapp')}
         onPressShare={() => shareInvoice()}
         onPressPaymentLink={() => setShowOnlinePayment(true)}
         onPressDone={onCloseInvoice}
@@ -1120,6 +1201,7 @@ export const POSScreen = () => {
       <POSItemDetailsModal
         visible={showItemDetails}
         item={itemForDetails}
+        defaultWarehouse={activePosSettings?.warehouse}
         isNewItem={isDetailsNewItem}
         onClose={() => {
           setShowItemDetails(false);
