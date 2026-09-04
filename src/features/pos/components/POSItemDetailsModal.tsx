@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -33,6 +33,7 @@ type Props = {
   visible: boolean;
   item: CartItem | null;
   isNewItem?: boolean;
+  defaultWarehouse?: string;
   onClose: () => void;
   onSave: (updatedItem: CartItem) => void;
 };
@@ -41,6 +42,7 @@ export const POSItemDetailsModal = ({
   visible,
   item,
   isNewItem = false,
+  defaultWarehouse,
   onClose,
   onSave,
 }: Props) => {
@@ -66,14 +68,100 @@ export const POSItemDetailsModal = ({
   const [discountType, setDiscountType] = useState<'Percentage' | 'Amount' | 'None'>('None');
   const [discountValue, setDiscountValue] = useState<string>('0');
 
+  // Dedicated helper to fetch live item details (price, mrp, stock, etc.)
+  const fetchDetails = useCallback(
+    async (targetWarehouse?: string, targetBatch?: string) => {
+      if (!item) return null;
+      const itemCode = item.item_code || item.id;
+      setLoadingDetails(true);
+      try {
+        const details = await posService.getItemDetails(
+          itemCode,
+          targetWarehouse || undefined,
+          targetBatch || undefined,
+        );
+        setItemDetails(details);
+        return details;
+      } catch (err) {
+        console.warn('Could not load live details:', err);
+        return null;
+      } finally {
+        setLoadingDetails(false);
+      }
+    },
+    [item],
+  );
+
+  // Dedicated helper to fetch batches for a given warehouse
+  const fetchBatches = useCallback(
+    async (targetWarehouse: string, preferredBatch?: string) => {
+      if (!item || !targetWarehouse) {
+        setBatches([]);
+        return '';
+      }
+      const itemCode = item.item_code || item.id;
+      setLoadingBatches(true);
+      try {
+        const batchList = await posService.getItemBatches(itemCode, targetWarehouse);
+        setBatches(batchList);
+        if (batchList.length > 0) {
+          const match = preferredBatch
+            ? batchList.find(b => b.batch_no === preferredBatch)
+            : undefined;
+          const chosenBatch = match ? match.batch_no : batchList[0].batch_no;
+          setSelectedBatch(chosenBatch);
+          return chosenBatch;
+        } else {
+          setSelectedBatch(preferredBatch || '');
+          return preferredBatch || '';
+        }
+      } catch (err) {
+        console.warn('Could not load batches:', err);
+        setBatches([]);
+        return '';
+      } finally {
+        setLoadingBatches(false);
+      }
+    },
+    [item],
+  );
+
+  // When user clicks a warehouse in the dropdown
+  const handleSelectWarehouse = useCallback(
+    async (wh: string) => {
+      setSelectedWarehouse(wh);
+      setWarehouseDropdownOpen(false);
+      setWarehouseSearch('');
+
+      const chosenBatch = await fetchBatches(wh);
+      await fetchDetails(wh, chosenBatch);
+    },
+    [fetchBatches, fetchDetails],
+  );
+
+  // When user clicks a batch in the dropdown
+  const handleSelectBatch = useCallback(
+    async (batchNo: string) => {
+      setSelectedBatch(batchNo);
+      setBatchDropdownOpen(false);
+      setBatchSearch('');
+
+      await fetchDetails(selectedWarehouse, batchNo);
+    },
+    [fetchDetails, selectedWarehouse],
+  );
+
+  // Initial Load: runs ONCE when modal is opened for an item
   useEffect(() => {
     if (!visible || !item) {
       return;
     }
 
     setQty(Math.max(1, Math.floor(item.qty || 1)));
-    setSelectedWarehouse(item.warehouse || '');
-    setSelectedBatch(item.batch_no || item.batch || '');
+    const initialWh = item.warehouse || defaultWarehouse || '';
+    const initialBatch = item.batch_no || item.batch || '';
+    setSelectedWarehouse(initialWh);
+    setSelectedBatch(initialBatch);
     setWarehouseDropdownOpen(false);
     setBatchDropdownOpen(false);
     setWarehouseSearch('');
@@ -87,78 +175,50 @@ export const POSItemDetailsModal = ({
 
     const itemCode = item.item_code || item.id;
 
-    // 1. Fetch Warehouses
+    // 1. Fetch live details ONCE
+    fetchDetails(initialWh, initialBatch).then((details: ItemDetailsResponse | null) => {
+      if (details) {
+        if (!initialWh && details.warehouse) {
+          setSelectedWarehouse(details.warehouse);
+        }
+        if (!initialBatch && details.batch_no) {
+          setSelectedBatch(details.batch_no);
+        }
+      }
+    });
+
+    // 2. Fetch warehouses for dropdown
     setLoadingWarehouses(true);
     posService
       .getItemWarehouses(itemCode)
       .then(whList => {
-        setWarehouses(whList);
-        const positiveWh = whList.find(w => w.actual_qty > 0);
-        const defaultWh =
-          item.warehouse || (positiveWh ? positiveWh.warehouse : whList[0]?.warehouse || '');
-        setSelectedWarehouse(defaultWh);
+        if (whList && whList.length > 0) {
+          setWarehouses(whList);
+          const positiveWh = whList.find(w => w.actual_qty > 0);
+          const defaultWh =
+            item.warehouse || (positiveWh ? positiveWh.warehouse : whList[0]?.warehouse || defaultWarehouse || '');
+          if (defaultWh && !initialWh) {
+            setSelectedWarehouse(defaultWh);
+          }
+        } else if (initialWh) {
+          setWarehouses([{ warehouse: initialWh, actual_qty: 0 }]);
+        }
       })
       .catch(err => {
         console.warn('Could not load warehouses:', err);
+        if (initialWh) {
+          setWarehouses([{ warehouse: initialWh, actual_qty: 0 }]);
+        }
       })
       .finally(() => {
         setLoadingWarehouses(false);
       });
-  }, [visible, item]);
 
-  // 2. Fetch Batches whenever selectedWarehouse changes
-  useEffect(() => {
-    if (!visible || !item || !selectedWarehouse) {
-      return;
+    // 3. Fetch batches for dropdown if warehouse is known
+    if (initialWh) {
+      fetchBatches(initialWh, initialBatch);
     }
-
-    const itemCode = item.item_code || item.id;
-    setLoadingBatches(true);
-    posService
-      .getItemBatches(itemCode, selectedWarehouse)
-      .then(batchList => {
-        setBatches(batchList);
-        if (batchList.length > 0) {
-          const match = batchList.find(
-            b => b.batch_no === (item.batch_no || item.batch),
-          );
-          setSelectedBatch(match ? match.batch_no : batchList[0].batch_no);
-        } else {
-          setSelectedBatch('');
-        }
-      })
-      .catch(err => {
-        console.warn('Could not load batches:', err);
-        setBatches([]);
-      })
-      .finally(() => {
-        setLoadingBatches(false);
-      });
-  }, [visible, item, selectedWarehouse]);
-
-  // 3. Fetch Details whenever Warehouse or Batch changes
-  useEffect(() => {
-    if (!visible || !item || !selectedWarehouse) {
-      return;
-    }
-
-    const itemCode = item.item_code || item.id;
-    const isValidBatch = batches.length > 0 && batches.some(b => b.batch_no === selectedBatch);
-    const batchToSend = isValidBatch ? selectedBatch : undefined;
-
-    setLoadingDetails(true);
-    posService
-      .getItemDetails(itemCode, selectedWarehouse, batchToSend)
-      .then(details => {
-        setItemDetails(details);
-      })
-      .catch(err => {
-        console.warn('Could not load live details:', err);
-      })
-      .finally(() => {
-        setLoadingDetails(false);
-      });
-  }, [visible, item, selectedWarehouse, selectedBatch, batches]);
+  }, [visible, item, defaultWarehouse, fetchDetails, fetchBatches]);
 
   // Filtered Warehouses
   const filteredWarehouses = useMemo(() => {
@@ -178,9 +238,11 @@ export const POSItemDetailsModal = ({
     );
   }, [batches, batchSearch]);
 
+  const displayName = itemDetails?.item_name || item?.name || item?.id || '';
+  const displayCode = itemDetails?.item_code || item?.item_code || item?.id || '';
   const unitRate = itemDetails?.rate ?? (item?.price || item?.rate || 0);
   const mrp = itemDetails?.mrp ?? item?.mrp ?? 0;
-  const uom = itemDetails?.uom ?? item?.uom ?? 'Strip';
+  const uom = itemDetails?.uom ?? itemDetails?.stock_uom ?? item?.uom ?? 'Nos';
   const warehouseStock = itemDetails?.actual_qty ?? 0;
   const batchQty = itemDetails?.batch_qty ?? 0;
   const isRx = itemDetails?.prescription_required ?? item?.prescription_required ?? false;
@@ -197,14 +259,28 @@ export const POSItemDetailsModal = ({
 
   const totalAmount = discountedUnitRate * qty;
 
+  const isBatchRequired =
+    itemDetails?.has_batch_no !== undefined
+      ? Boolean(itemDetails.has_batch_no)
+      : item?.has_batch_no !== undefined
+      ? Boolean(item.has_batch_no)
+      : false;
+  const isMissingRequiredBatch = Boolean(isBatchRequired && batches.length > 0 && !selectedBatch);
+
   const handleApply = () => {
     if (!item) return;
 
+    const resolvedName = itemDetails?.item_name || item.name || item.id;
+    const resolvedCode = itemDetails?.item_code || item.item_code || item.id;
+
     const updated: CartItem = {
       ...item,
+      id: resolvedCode,
+      item_code: resolvedCode,
+      name: resolvedName,
       warehouse: selectedWarehouse,
-      batch: selectedBatch,
-      batch_no: selectedBatch,
+      batch: isBatchRequired ? selectedBatch : '',
+      batch_no: isBatchRequired ? selectedBatch : '',
       exp: itemDetails?.expiry_date || item.exp,
       price: discountedUnitRate,
       rate: unitRate,
@@ -215,14 +291,12 @@ export const POSItemDetailsModal = ({
       discount_value: numDiscount > 0 ? numDiscount : undefined,
       prescription_required: isRx,
       conversion_factor: convFactor,
+      has_batch_no: isBatchRequired,
     };
 
     onSave(updated);
     onClose();
   };
-
-  const isBatchRequired = item?.has_batch_no !== undefined ? Boolean(item.has_batch_no) : true;
-  const isMissingRequiredBatch = Boolean(isBatchRequired && batches.length > 0 && !selectedBatch);
 
   if (!item) return null;
 
@@ -277,15 +351,15 @@ export const POSItemDetailsModal = ({
               <View style={styles.itemHeaderInfo}>
                 <Text
                   style={[styles.medicineName, { color: theme.colors.text }]}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
-                  {item.name}
+                  {displayName}
                 </Text>
                 <View style={styles.codeUomRow}>
                   <Text
                     style={[styles.codeText, { color: theme.colors.mutedText }]}
                   >
-                    Code: {item.item_code || item.id}
+                    Code: {displayCode}
                   </Text>
                   <View
                     style={[
@@ -355,7 +429,7 @@ export const POSItemDetailsModal = ({
                   <Text
                     style={[styles.statValue, { color: theme.colors.text }]}
                   >
-                    {batchQty > 0 ? batchQty : '—'}
+                    {!isBatchRequired ? 'N/A' : batchQty > 0 ? `${batchQty} ${uom}` : '—'}
                   </Text>
                 </View>
 
@@ -550,9 +624,7 @@ export const POSItemDetailsModal = ({
                               },
                             ]}
                             onPress={() => {
-                              setSelectedWarehouse(wh.warehouse);
-                              setWarehouseDropdownOpen(false);
-                              setWarehouseSearch('');
+                              handleSelectWarehouse(wh.warehouse);
                             }}
                           >
                             <View style={styles.dropdownItemInfo}>
@@ -592,28 +664,45 @@ export const POSItemDetailsModal = ({
 
             {/* 2. SELECT BATCH NUMBER (Searchable Dropdown) */}
             <View style={styles.dropdownSection}>
-              <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
-                Select Batch Number <Text style={styles.reqStar}>*</Text>
-              </Text>
+              <View style={styles.fieldLabelRow}>
+                <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>
+                  Select Batch Number
+                </Text>
+                {isBatchRequired ? (
+                  <Text style={styles.reqStar}> *</Text>
+                ) : (
+                  <Text style={[styles.optTag, { color: theme.colors.mutedText }]}>
+                    {' '}(Optional / Not tracked)
+                  </Text>
+                )}
+              </View>
 
               {/* Trigger Input */}
               <Pressable
+                disabled={!isBatchRequired && batches.length === 0}
                 style={[
                   styles.dropdownTrigger,
                   {
                     borderColor: batchDropdownOpen
                       ? theme.colors.primary
                       : theme.colors.border,
-                    backgroundColor: theme.colors.background,
+                    backgroundColor:
+                      !isBatchRequired && batches.length === 0
+                        ? `${theme.colors.border}18`
+                        : theme.colors.background,
                   },
                 ]}
                 onPress={() => {
+                  if (!isBatchRequired && batches.length === 0) return;
                   setBatchDropdownOpen(prev => !prev);
                   setWarehouseDropdownOpen(false);
                 }}
               >
                 <View style={styles.triggerLeft}>
-                  <Layers size={16} color={theme.colors.primary} />
+                  <Layers
+                    size={16}
+                    color={isBatchRequired ? theme.colors.primary : theme.colors.mutedText}
+                  />
                   <Text
                     style={[
                       styles.triggerText,
@@ -626,10 +715,15 @@ export const POSItemDetailsModal = ({
                     ]}
                     numberOfLines={1}
                   >
-                    {selectedBatch || (batches.length === 0 ? 'No batches available' : 'Select batch...')}
+                    {selectedBatch ||
+                      (!isBatchRequired && batches.length === 0
+                        ? 'No Batch Tracking Required'
+                        : batches.length === 0
+                        ? 'No batches available'
+                        : 'Select batch...')}
                   </Text>
                 </View>
-                {batchDropdownOpen ? (
+                {!isBatchRequired && batches.length === 0 ? null : batchDropdownOpen ? (
                   <ChevronUp size={18} color={theme.colors.primary} />
                 ) : (
                   <ChevronDown size={18} color={theme.colors.mutedText} />
@@ -711,9 +805,7 @@ export const POSItemDetailsModal = ({
                               },
                             ]}
                             onPress={() => {
-                              setSelectedBatch(b.batch_no);
-                              setBatchDropdownOpen(false);
-                              setBatchSearch('');
+                              handleSelectBatch(b.batch_no);
                             }}
                           >
                             <View style={styles.dropdownItemInfo}>
@@ -928,13 +1020,14 @@ export const POSItemDetailsModal = ({
             </Pressable>
 
             <Pressable
-              disabled={Boolean(isMissingRequiredBatch)}
+              disabled={Boolean(isMissingRequiredBatch || (warehouseStock <= 0 && isNewItem))}
               style={[
                 styles.applyButton,
                 {
-                  backgroundColor: isMissingRequiredBatch
-                    ? theme.colors.border
-                    : theme.colors.primary,
+                  backgroundColor:
+                    isMissingRequiredBatch || (warehouseStock <= 0 && isNewItem)
+                      ? theme.colors.border
+                      : theme.colors.primary,
                 },
               ]}
               onPress={handleApply}
@@ -942,6 +1035,8 @@ export const POSItemDetailsModal = ({
               <Text style={styles.applyButtonText}>
                 {isMissingRequiredBatch
                   ? 'Please Select a Batch'
+                  : warehouseStock <= 0 && isNewItem
+                  ? 'Out of Stock'
                   : isNewItem
                   ? `Add to Cart • ${formatAmount(totalAmount)}`
                   : `Apply Changes • ${formatAmount(totalAmount)}`}
@@ -1072,9 +1167,17 @@ const styles = StyleSheet.create({
   dropdownSection: {
     gap: 6,
   },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  optTag: {
+    fontSize: 11.5,
+    fontWeight: '500',
   },
   reqStar: {
     color: '#EF4444',

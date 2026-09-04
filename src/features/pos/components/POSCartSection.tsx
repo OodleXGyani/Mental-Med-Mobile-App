@@ -66,14 +66,14 @@ export const POSCartSection = ({
                         Batch: {currentBatch}
                       </Text>
                     </View>
-                  ) : (
+                  ) : item.has_batch_no ? (
                     <View style={[styles.badgePill, styles.badgeWarning]}>
                       <AlertCircle size={10} color="#B45309" />
                       <Text style={[styles.badgeText, styles.badgeWarningText]}>
                         Tap to select batch
                       </Text>
                     </View>
-                  )}
+                  ) : null}
                   {item.warehouse ? (
                     <View style={[styles.badgePill, styles.warehouseBadge, { borderColor: theme.colors.border }]}>
                       <Text style={[styles.badgeText, { color: theme.colors.mutedText }]}>

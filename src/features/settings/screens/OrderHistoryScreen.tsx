@@ -28,6 +28,8 @@ import { useAuth } from '../../authentication/hooks/useAuth';
 import { ordersService } from '../../orders/services/ordersService';
 import type { CustomerInvoice, SalesInvoiceDetails } from '../../orders/types';
 import { useAppTheme } from '../../../shared/theme';
+import { posService } from '../../pos/services/posService';
+import { saveInvoiceToDownloads, shareInvoicePdf, openInvoicePdf } from '../../../shared/utils/invoiceFile';
 
 const PAGE_SIZE = 10;
 
@@ -212,13 +214,28 @@ export const OrderHistoryScreen = () => {
       return;
     }
 
+    const invName = selectedInvoice.name;
+    const fileName = `Invoice-${invName}.pdf`;
+    const message = buildInvoiceMessage(selectedInvoice);
+
     try {
-      await Share.share({
-        message: buildInvoiceMessage(selectedInvoice),
-        title: selectedInvoice.name,
-      });
+      const base64Pdf = await posService.fetchInvoicePdfBase64(invName);
+      const shareRes = await shareInvoicePdf(
+        base64Pdf,
+        fileName,
+        `Share Invoice #${invName}`,
+        message,
+      );
+      if (!shareRes.success) throw new Error(shareRes.error || 'Share failed');
     } catch {
-      Alert.alert('Share', 'Unable to share invoice right now.');
+      try {
+        await Share.share({
+          message,
+          title: invName,
+        });
+      } catch {
+        Alert.alert('Share', 'Unable to share invoice right now.');
+      }
     }
   };
 
@@ -248,13 +265,36 @@ export const OrderHistoryScreen = () => {
       return;
     }
 
+    const invName = selectedInvoice.name;
+    const fileName = `Invoice-${invName}.pdf`;
+
     try {
-      await Share.share({
-        message: buildInvoiceMessage(selectedInvoice),
-        title: `${selectedInvoice.name} details`,
-      });
+      const base64Pdf = await posService.fetchInvoicePdfBase64(invName);
+      const result = await saveInvoiceToDownloads(base64Pdf, fileName);
+      if (result.success) {
+        Alert.alert(
+          'Invoice Downloaded',
+          `Invoice #${invName} has been saved to your Downloads folder.`,
+          [
+            { text: 'OK' },
+            {
+              text: 'Open PDF',
+              onPress: () => openInvoicePdf(base64Pdf, fileName),
+            },
+          ],
+        );
+      } else {
+        throw new Error(result.error || 'Failed to save invoice.');
+      }
     } catch {
-      Alert.alert('Download', 'Unable to prepare invoice download right now.');
+      try {
+        await Share.share({
+          message: buildInvoiceMessage(selectedInvoice),
+          title: `${invName} details`,
+        });
+      } catch {
+        Alert.alert('Download', 'Unable to prepare invoice download right now.');
+      }
     }
   };
 

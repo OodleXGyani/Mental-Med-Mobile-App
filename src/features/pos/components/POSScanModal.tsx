@@ -25,17 +25,37 @@ type Props = {
   visible: boolean;
   onMedicineScanned: (medicine: Medicine) => void;
   onClose: () => void;
+  defaultWarehouse?: string;
 };
 
 type PermissionState = 'unknown' | 'granted' | 'denied';
 
-export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => {
+export const POSScanModal = ({
+  visible,
+  onMedicineScanned,
+  onClose,
+  defaultWarehouse,
+}: Props) => {
   const theme = useAppTheme();
   const [permission, setPermission] = useState<PermissionState>('unknown');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Synchronous lock: prevents duplicate processing even before React
+  // state updates propagate.  `scannedRef` is `true` while a barcode is
+  // being processed (API in-flight) **and** during the post-scan cooldown.
   const scannedRef = useRef(false);
+
+  // Tracks the last successfully scanned code so we don't re-process the
+  // same barcode that's still sitting in front of the camera.
+  const lastScannedCodeRef = useRef<string>('');
+
+  // Short startup delay — the camera `onReadCode` fires almost
+  // immediately when the <Camera> mounts, often with noise. We ignore
+  // camera events for the first 600ms after the modal opens.
+  const cameraReadyRef = useRef(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const checkPermission = useCallback(async (requestIfMissing = false) => {
     try {
@@ -73,14 +93,42 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
   };
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // Cleanup when modal is hidden
+      cameraReadyRef.current = false;
+      scannedRef.current = false;
+      lastScannedCodeRef.current = '';
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Modal just opened — reset state
     scannedRef.current = false;
+    cameraReadyRef.current = false;
+    lastScannedCodeRef.current = '';
     setError(null);
     setBarcodeInput('');
     setIsScanning(false);
+
     checkPermission(true).catch(err => {
       console.warn('Check permission error:', err);
     });
+
+    // Arm the camera after a short delay so initial noise is ignored
+    const startupTimer = setTimeout(() => {
+      cameraReadyRef.current = true;
+    }, 600);
+
+    return () => {
+      clearTimeout(startupTimer);
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    };
   }, [checkPermission, visible]);
 
   useEffect(() => {
@@ -97,7 +145,13 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
 
   const handleLookupBarcode = async (barcodeToSearch?: string) => {
     const code = (barcodeToSearch || barcodeInput).trim();
-    if (!code || scannedRef.current) return;
+
+    // Reject empty, very short (likely noise), or already-processing
+    if (!code || code.length < 3 || scannedRef.current) return;
+
+    // If the camera just re-fired with the same code we already processed,
+    // ignore it (the label is still in the camera's field of view).
+    if (code === lastScannedCodeRef.current) return;
 
     scannedRef.current = true;
     setIsScanning(true);
@@ -105,12 +159,14 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
     try {
       const res = await posService.scanBarcode(code);
       if (res && res.item_code) {
+        lastScannedCodeRef.current = code;
         onMedicineScanned({
           item_code: res.item_code,
           item_name: res.item_name || res.item_code,
           batch: res.batch_no || '',
           quantity: 1,
           rate: 0,
+          warehouse: defaultWarehouse,
         });
         setBarcodeInput('');
         onClose();
@@ -123,6 +179,16 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
       setError(err instanceof Error ? err.message : 'Barcode scan failed');
     } finally {
       setIsScanning(false);
+
+      // Cooldown: prevent re-scanning for 2 seconds after completion.
+      // This avoids the camera immediately re-firing the same barcode
+      // when the modal closes and re-opens quickly.
+      if (scannedRef.current) {
+        cooldownTimerRef.current = setTimeout(() => {
+          scannedRef.current = false;
+          cooldownTimerRef.current = null;
+        }, 2000);
+      }
     }
   };
 
@@ -165,11 +231,15 @@ export const POSScanModal = ({ visible, onMedicineScanned, onClose }: Props) => 
         <Camera
           style={styles.camera}
           cameraType={CameraType.Back}
-          scanBarcode={visible && !isScanning}
+          scanBarcode={visible && !isScanning && !scannedRef.current}
           showFrame={false}
           onReadCode={(event: { nativeEvent: { codeStringValue: string } }) => {
+            // Gate: ignore camera events during startup delay or while
+            // already processing / in cooldown.
+            if (!cameraReadyRef.current || scannedRef.current) return;
+
             const value = event.nativeEvent.codeStringValue;
-            if (value) {
+            if (value && value.trim().length >= 3) {
               handleLookupBarcode(value).catch(err => {
                 console.warn('Barcode lookup error:', err);
               });
