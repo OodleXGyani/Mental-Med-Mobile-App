@@ -5,15 +5,16 @@ import {
   Check,
   CheckCircle2,
   Download,
-  MessageCircle,
   Printer,
   Share2,
-  Store,
   User,
   CreditCard,
   Calendar,
   Layers,
   X,
+  Phone,
+  Star,
+  Hash,
 } from 'lucide-react-native';
 import { CartItem, Customer, PaymentMethod } from '../types';
 import { formatAmount } from '../utils';
@@ -31,7 +32,6 @@ type Props = {
   cartItems: CartItem[];
   onPressDownload: () => void;
   onPressPrint: () => void;
-  onPressWhatsApp: () => void;
   onPressShare: () => void;
   onPressPaymentLink?: (link: string) => void;
   onPressDone: () => void;
@@ -49,7 +49,6 @@ export const POSInvoiceModal = ({
   cartItems,
   onPressDownload,
   onPressPrint,
-  onPressWhatsApp,
   onPressShare,
   onPressPaymentLink,
   onPressDone,
@@ -112,49 +111,73 @@ export const POSInvoiceModal = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* 1. Pharmacy Brand & Receipt Info Card */}
+            {/* 1. Customer Details & Receipt Info Card */}
             <View
               style={[
-                styles.brandCard,
-                theme.dark ? styles.brandCardDark : styles.brandCardLight,
+                styles.customerCard,
+                theme.dark ? styles.customerCardDark : styles.customerCardLight,
                 {
                   borderColor: theme.colors.border,
                 },
               ]}
             >
-              <View style={styles.brandTitleRow}>
-                <Store size={18} color={theme.colors.primary} />
-                <Text style={[styles.pharmacyName, { color: theme.colors.text }]}>
-                  MedPlus Pharmacy
-                </Text>
-              </View>
-              <Text style={[styles.pharmacyAddress, { color: theme.colors.mutedText }]}>
-                Plot No. 45, Jubilee Hills, Hyderabad - 500033
-              </Text>
-              <Text style={[styles.pharmacyMeta, { color: theme.colors.mutedText }]}>
-                Ph: +91 98765 43210 | GSTIN: 36AABCU9603R1ZJ
-              </Text>
-
-              {/* Tag Badges Grid */}
-              <View style={styles.receiptBadgesWrap}>
-                <View
-                  style={[
-                    styles.metaBadge,
-                    {
-                      backgroundColor: theme.colors.card,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                >
-                  <User size={12} color={theme.colors.primary} />
-                  <Text
-                    style={[styles.metaBadgeText, { color: theme.colors.text }]}
-                    numberOfLines={1}
+              <View style={styles.customerHeaderRow}>
+                <View style={styles.customerAvatarGroup}>
+                  <View
+                    style={[
+                      styles.customerAvatar,
+                      { backgroundColor: `${theme.colors.primary}16` },
+                    ]}
                   >
-                    {selectedCustomer?.name || 'Walk-in Customer'}
+                    <User size={18} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.customerNameContainer}>
+                    <Text style={[styles.customerSectionTag, { color: theme.colors.mutedText }]}>
+                      CUSTOMER DETAILS
+                    </Text>
+                    <Text
+                      style={[styles.customerMainName, { color: theme.colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {selectedCustomer?.name || 'Walk-in Customer'}
+                    </Text>
+                  </View>
+                </View>
+
+                {selectedCustomer?.loyalty_points !== undefined &&
+                selectedCustomer.loyalty_points > 0 ? (
+                  <View style={styles.customerLoyaltyBadge}>
+                    <Star size={11} color="#D97706" fill="#D97706" />
+                    <Text style={styles.customerLoyaltyText}>
+                      {selectedCustomer.loyalty_points} pts
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Customer Contact & Meta Info */}
+              <View style={styles.customerMetaRow}>
+                <View style={styles.metaItem}>
+                  <Phone size={13} color={theme.colors.mutedText} />
+                  <Text style={[styles.metaItemText, { color: theme.colors.mutedText }]}>
+                    {selectedCustomer?.phone && selectedCustomer.phone !== 'N/A'
+                      ? selectedCustomer.phone
+                      : 'Counter Walk-in Sale'}
                   </Text>
                 </View>
 
+                {selectedCustomer?.id && selectedCustomer.id !== 'Walk-in' ? (
+                  <View style={styles.metaItem}>
+                    <Hash size={13} color={theme.colors.mutedText} />
+                    <Text style={[styles.metaItemText, { color: theme.colors.mutedText }]}>
+                      ID: {selectedCustomer.id}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Tag Badges Grid */}
+              <View style={styles.receiptBadgesWrap}>
                 <View
                   style={[
                     styles.metaBadge,
@@ -182,6 +205,21 @@ export const POSInvoiceModal = ({
                   <Calendar size={12} color={theme.colors.mutedText} />
                   <Text style={[styles.metaBadgeText, { color: theme.colors.mutedText }]}>
                     {completedAt}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.metaBadge,
+                    {
+                      backgroundColor: '#ECFDF5',
+                      borderColor: '#A7F3D0',
+                    },
+                  ]}
+                >
+                  <CheckCircle2 size={12} color="#059669" />
+                  <Text style={[styles.metaBadgeText, { color: '#059669' }]}>
+                    PAID
                   </Text>
                 </View>
               </View>
@@ -374,7 +412,7 @@ export const POSInvoiceModal = ({
                 ]}
                 onPress={onPressDownload}
               >
-                <Download size={16} color={theme.colors.text} />
+                <Download size={16} color={theme.colors.primary} />
                 <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
                   Download
                 </Text>
@@ -390,18 +428,10 @@ export const POSInvoiceModal = ({
                 ]}
                 onPress={onPressPrint}
               >
-                <Printer size={16} color={theme.colors.text} />
+                <Printer size={16} color={theme.colors.primary} />
                 <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
                   Print
                 </Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.actionGridBtn, styles.actionWhatsAppBtn]}
-                onPress={onPressWhatsApp}
-              >
-                <MessageCircle size={16} color="#FFFFFF" />
-                <Text style={styles.actionBtnWhiteText}>WhatsApp</Text>
               </Pressable>
 
               <Pressable
@@ -414,7 +444,7 @@ export const POSInvoiceModal = ({
                 ]}
                 onPress={onPressShare}
               >
-                <Share2 size={16} color={theme.colors.text} />
+                <Share2 size={16} color={theme.colors.primary} />
                 <Text style={[styles.actionGridBtnText, { color: theme.colors.text }]}>
                   Share
                 </Text>
@@ -480,28 +510,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  brandCard: {
+  customerCard: {
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
-    gap: 4,
+    gap: 8,
   },
-  brandTitleRow: {
+  customerHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    justifyContent: 'space-between',
   },
-  pharmacyName: {
-    fontSize: 15,
+  customerAvatarGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  customerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customerNameContainer: {
+    flex: 1,
+  },
+  customerSectionTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  customerMainName: {
+    fontSize: 15.5,
     fontWeight: '800',
+    marginTop: 1,
   },
-  pharmacyAddress: {
-    fontSize: 11.5,
-    lineHeight: 16,
+  customerLoyaltyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
-  pharmacyMeta: {
+  customerLoyaltyText: {
     fontSize: 11,
+    fontWeight: '700',
+    color: '#B45309',
+  },
+  customerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingVertical: 2,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaItemText: {
+    fontSize: 12,
     fontWeight: '500',
   },
   receiptBadgesWrap: {
@@ -664,17 +739,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  actionWhatsAppBtn: {
-    backgroundColor: '#25D366',
-    borderColor: '#25D366',
-  },
   actionGridBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  actionBtnWhiteText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   doneBtn: {
@@ -694,10 +760,10 @@ const styles = StyleSheet.create({
   bold700: {
     fontWeight: '700',
   },
-  brandCardDark: {
+  customerCardDark: {
     backgroundColor: '#0F172A',
   },
-  brandCardLight: {
+  customerCardLight: {
     backgroundColor: '#F8FAFC',
   },
   sectionCardDark: {

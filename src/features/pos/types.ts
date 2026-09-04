@@ -149,6 +149,8 @@ export type BatchOption = {
 };
 
 export type ItemDetailsResponse = {
+  item_code?: string;
+  item_name?: string;
   rate: number;
   mrp?: number;
   actual_qty: number;
@@ -156,10 +158,12 @@ export type ItemDetailsResponse = {
   expiry_date?: string;
   has_batch_no?: boolean;
   has_serial_no?: boolean;
-  item_name?: string;
   uom?: string;
+  stock_uom?: string;
   prescription_required?: boolean;
   conversion_factor?: number;
+  warehouse?: string;
+  batch_no?: string;
 };
 
 export type ScanBarcodeResponse = {

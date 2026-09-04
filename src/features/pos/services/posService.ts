@@ -25,6 +25,8 @@ import {
   VerifyPaymentStatusResponse,
 } from '../types';
 import { API_BASE_URL } from '../../../shared/constants/apiConfig';
+import { store } from '../../../app/store';
+import { authStorage } from '../../authentication/services/authService';
 
 const CART_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.cart`;
 const APPROVAL_API_ROOT = `${API_BASE_URL}api/method/erp_pharmacy.api.user_page.cart.approval`;
@@ -256,11 +258,14 @@ export const posService = {
 
   getItemDetails: async (
     item_code: string,
-    warehouse: string,
+    warehouse?: string,
     batch_no?: string,
   ): Promise<ItemDetailsResponse> => {
     try {
-      const payload: Record<string, any> = { item_code, warehouse };
+      const payload: Record<string, any> = { item_code };
+      if (warehouse && warehouse.trim()) {
+        payload.warehouse = warehouse.trim();
+      }
       if (batch_no && batch_no.trim()) {
         payload.batch_no = batch_no.trim();
       }
@@ -278,8 +283,10 @@ export const posService = {
         expiry_date: data.expiry_date || data.exp_date || '',
         has_batch_no: data.has_batch_no ?? true,
         has_serial_no: data.has_serial_no ?? false,
+        item_code: data.item_code || item_code,
         item_name: data.item_name || data.medicine_name || '',
-        uom: data.uom || data.stock_uom || 'Strip',
+        uom: data.uom || data.stock_uom || 'Nos',
+        stock_uom: data.stock_uom || data.uom || 'Nos',
         prescription_required: Boolean(
           data.prescription_required ||
           data.is_prescription_required ||
@@ -287,6 +294,8 @@ export const posService = {
           data.schedule_drug,
         ),
         conversion_factor: Number(data.conversion_factor ?? 1),
+        warehouse: data.warehouse || warehouse || '',
+        batch_no: data.batch_no || batch_no || '',
       };
     } catch (err: any) {
       if (batch_no && (err?.message?.includes('Invalid batch') || err?.message?.includes('batch'))) {
@@ -414,7 +423,104 @@ export const posService = {
     ),
 
   /**
-   * Direct PDF download helper
+   * Build the absolute PDF download URL from the print_url returned by
+   * create_pos_invoice.  The API returns a relative path like:
+   *   /printview?doctype=Sales Invoice&name=SINV-26-00056&format=...
+   * We turn that into a full URL the app can fetch as binary PDF.
+   */
+  getInvoicePdfUrl: (printUrl: string): string => {
+    // If already absolute, return as-is
+    if (printUrl.startsWith('http')) return printUrl;
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    return `${base}${printUrl.startsWith('/') ? '' : '/'}${printUrl}`;
+  },
+
+  /**
+   * Builds the official binary PDF download URL from Frappe
+   */
+  getInvoicePdfDownloadUrl: (invoiceName: string, printUrl?: string, format?: string): string => {
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    if (printUrl && printUrl.includes('/printview?')) {
+      const query = printUrl.split('/printview?')[1];
+      return `${base}/api/method/frappe.utils.print_format.download_pdf?${query}`;
+    }
+    const fmt = format ? `&format=${encodeURIComponent(format)}` : '';
+    return `${base}/api/method/frappe.utils.print_format.download_pdf?doctype=Sales%20Invoice&name=${encodeURIComponent(
+      invoiceName,
+    )}${fmt}&no_letterhead=0`;
+  },
+
+  /**
+   * Fetches binary PDF data from Frappe using the user's active session cookie
+   * and returns base64 data for saving or sharing.
+   */
+  fetchInvoicePdfBase64: async (
+    invoiceName: string,
+    printUrl?: string,
+    format?: string,
+  ): Promise<string> => {
+    const downloadUrl = posService.getInvoicePdfDownloadUrl(invoiceName, printUrl, format);
+
+    let sid = store.getState().auth.session?.sid || store.getState().auth.token;
+    if (!sid) {
+      const session = await authStorage.loadSession();
+      sid = session?.sid || null;
+    }
+
+    const headers: Record<string, string> = {
+      Accept: 'application/pdf, application/json, */*',
+    };
+    if (sid) {
+      headers.Cookie = `sid=${sid}; system_user=yes;`;
+    }
+
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      let errorMsg = `Server error (${response.status})`;
+      try {
+        const json = JSON.parse(errText);
+        errorMsg = json?.message || json?.exception || errorMsg;
+      } catch {
+        if (errText && errText.length < 150) errorMsg = errText;
+      }
+      throw new Error(errorMsg);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = await response.json();
+      const base64 =
+        json?.message?.base64 || json?.message || json?.data?.base64 || json?.base64;
+      if (base64 && typeof base64 === 'string') {
+        return base64.includes(',') ? base64.split(',')[1] : base64;
+      }
+      throw new Error(json?.message || 'Server did not return a valid PDF.');
+    }
+
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        if (!result) {
+          reject(new Error('Empty PDF data received.'));
+          return;
+        }
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to read PDF blob.'));
+      reader.readAsDataURL(blob);
+    });
+  },
+
+  /**
+   * Direct PDF download helper (JSON-based fallback)
    */
   downloadInvoicePdf: async (invoice: string): Promise<any> =>
     postJson<any>(
